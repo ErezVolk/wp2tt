@@ -27,7 +27,9 @@ class MarkdownUnRenderer(object):
         return Elements()
 
     def text(self, text):
-        return etree.Element('span', text=text)
+        node = etree.Element('span')
+        node.text = text
+        return node
 
     def paragraph(self, elements):
         node = etree.SubElement(self.root, 'paragraph')
