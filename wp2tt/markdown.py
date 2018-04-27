@@ -35,6 +35,12 @@ class MarkdownUnRenderer(object):
     def double_emphasis(self, text):
         return '<s wpid="doule emphasis">%s</s>' % text
 
+    def autolink(self, link, is_email=False):
+        return '<s wpid="link">%s</s>' % link
+
+    def link(self, link, title, content):
+        return '<s wpid="link" title="%s">%s</s>' % (title, content)
+
     def list_item(self, text):
         if text.startswith(self.NAMELESS_P_PRE) and text.endswith(self.NAMELESS_P_POST):
             text = text[len(self.NAMELESS_P_PRE):-len(self.NAMELESS_P_POST)]
@@ -43,14 +49,15 @@ class MarkdownUnRenderer(object):
     def list(self, text, ordered=True):
         return text
 
+    def block_html(self, html):
+        logging.warn('HTML is corrently ignored in Markdown')
+        return ''
+
     def block_code(self, code, language=None):
         raise NotImplementedError('%s.%s()' % (type(self).__name__, 'block_code'))
 
     def block_quote(self, text):
         raise NotImplementedError('%s.%s()' % (type(self).__name__, 'block_quote'))
-
-    def block_html(self, html):
-        raise NotImplementedError('%s.%s()' % (type(self).__name__, 'block_html'))
 
     def hrule(self, ):
         raise NotImplementedError('%s.%s()' % (type(self).__name__, 'hrule'))
@@ -64,9 +71,6 @@ class MarkdownUnRenderer(object):
     def table_cell(self, content, **flags):
         raise NotImplementedError('%s.%s()' % (type(self).__name__, 'table_cell'))
 
-    def autolink(self, link, is_email=False):
-        raise NotImplementedError('%s.%s()' % (type(self).__name__, 'autolink'))
-
     def codespan(self, text):
         raise NotImplementedError('%s.%s()' % (type(self).__name__, 'codespan'))
 
@@ -78,9 +82,6 @@ class MarkdownUnRenderer(object):
 
     def newline(self, ):
         raise NotImplementedError('%s.%s()' % (type(self).__name__, 'newline'))
-
-    def link(self, link, title, content):
-        raise NotImplementedError('%s.%s()' % (type(self).__name__, 'link'))
 
     def strikethrough(self, text):
         raise NotImplementedError('%s.%s()' % (type(self).__name__, 'strikethrough'))
