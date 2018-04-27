@@ -190,7 +190,7 @@ class MarkdownSpan(IDocumentSpan):
 
     def text(self):
         """Yields strings of plain text."""
-        yield self.node.get('text')
+        yield self.node.text
 
 
 class MarkdownFootnote(IDocumentFootnote):
