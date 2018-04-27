@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import logging  # noqa: F401
-import collections
 import contextlib
 import mistune
 from lxml import etree
@@ -34,54 +33,30 @@ class Element(object):
 class MarkdownUnRenderer(object):
     def __init__(self, **kwargs):
         self.options = kwargs
-        self.wpids = collections.defaultdict(set)
-        self.root = etree.Element('document')
 
     def placeholder(self):
-        return Element()
+        return ''
 
-    def header(self, spans, level, raw=None):
-        wpid = 'header %u' % level
-        self.wpids['paragraph'].add(wpid)
-        node = etree.SubElement(self.root, 'paragraph', wpid=wpid)
-        for span in spans:
-            node.append(span)
-        return node
+    def header(self, text, level, raw=None):
+        return '<p wpid="header">%s</p>' % text
 
     def text(self, text):
-        node = etree.Element('span')
-        node.text = text
-        return node
+        return '<s>%s</s>' % text
 
-    def paragraph(self, elements):
-        node = etree.SubElement(self.root, 'paragraph')
-        for span in elements:
-            node.append(span)
-        return node
+    def paragraph(self, text):
+        return '<p>%s</p>' % text
 
-    def emphasis(self, nodes):
-        return self._typed_span(nodes, 'emphasis')
+    def emphasis(self, text):
+        return '<s wpid="emphasis">%s</s>' % text
 
-    def double_emphasis(self, nodes):
-        return self._typed_span(nodes, 'double emphasis')
+    def double_emphasis(self, text):
+        return '<s wpid="double emphasis">%s</s>' % text
 
-    def _typed_span(self, nodes, wpid):
-        node = nodes[-1]
-        node.attrib['wpid'] = wpid
-        self.wpids['character'].add(wpid)
-        return node
+    def list_item(self, text):
+        return '<li>%s</li>' % text
 
-    def list_item(self, nodes):
-        item = etree.Element('list-item')
-        for node in nodes:
-            item.append(node)
-        return item
-
-    def list(self, body, ordered=True):
-        node = etree.Element('list')
-        for item in body:
-            node.append(item[0])
-        return node
+    def list(self, text, ordered=True):
+        return text
 
     def block_code(self, code, language=None):
         raise NotImplementedError('%s.%s()' % (type(self).__name__, 'block_code'))
@@ -146,11 +121,12 @@ class MarkdownInput(contextlib.ExitStack, IDocumentInput):
         self._properties = DocumentProperties(has_rtl=False)
 
     def _read_markdown(self, path):
-        self._markdown = MarkdownUnRenderer()
-        parse = mistune.Markdown(renderer=self._markdown)
+        renderer = MarkdownUnRenderer()
+        parse = mistune.Markdown(renderer=renderer)
         with open(path, 'r') as md:
-            parse(md.read())
-        logging.debug(etree.tostring(self._markdown.root))
+            xml = parse(md.read())
+        self._root = etree.fromstring('<document>%s</document>' % xml)
+        print(etree.tostring(self._root, pretty_print=True, encoding='utf-8', xml_declaration=True).decode('utf-8'))
 
     @property
     def properties(self):
@@ -163,14 +139,19 @@ class MarkdownInput(contextlib.ExitStack, IDocumentInput):
 
     def styles_in_use(self):
         """Yield a pair (realm, wpid) for every style used in the document."""
-        for realm, realm_wpids in self._markdown.wpids.items():
-            for wpid in realm_wpids:
-                yield (realm, wpid)
+        for node in self._root.xpath('//p[@wpid]'):
+            yield 'paragraph', node.get('wpid')
+        for node in self._root.xpath('//s[@wpid]'):
+            yield 'character', node.get('wpid')
+        for node in self._root.xpath('//li'):
+            yield 'paragraph', 'list item'
+            break
 
     def paragraphs(self):
         """Yields a MarkdownParagraph object for each body paragraph."""
-        for p in self._markdown.root:
-            yield MarkdownParagraph(p)
+        for p in self._root:
+            if p.tag in ('li', 'p'):
+                yield MarkdownParagraph(p)
 
 
 class MarkdownParagraph(IDocumentParagraph):
@@ -178,18 +159,26 @@ class MarkdownParagraph(IDocumentParagraph):
 
     def __init__(self, node):
         self.node = node
+        if node.tag == 'p':
+            self.wpid = node.get('wpid')
+        if node.tag == 'li':
+            self.wpid = 'list item'
+            if len(node) and node[0].tag == 'p':
+                self.node = node[0]
 
     def style_wpid(self):
         """Returns the wpid for this paragraph's style."""
-        return self.node.get('wpid')
+        return self.wpid
 
     def text(self):
         """Yields strings of plain text."""
-        raise NotImplementedError()
+        for span in self.spans():
+            for text in span.text():
+                yield span.text()
 
     def spans(self):
         """Yield a MarkdownSpan per text span."""
-        for span in self.node:
+        for span in self.node.xpath('s'):
             yield MarkdownSpan(span)
 
 
@@ -197,11 +186,14 @@ class MarkdownSpan(IDocumentSpan):
     """A span of characters inside a document."""
 
     def __init__(self, node):
+        self.wpid = node.get('wpid')
+        while len(node) and node[0].tag == 's':
+            node = node[0]
         self.node = node
 
     def style_wpid(self):
         """Returns the wpid for this span's style."""
-        return self.node.get('wpid')
+        return self.wpid
 
     def footnotes(self):
         """Yields a MarkdownFootnote object for each footnote in this span."""
@@ -215,7 +207,7 @@ class MarkdownSpan(IDocumentSpan):
 
     def text(self):
         """Yields strings of plain text."""
-        yield self.node.text
+        yield self.node.text or ''
 
 
 class MarkdownFootnote(IDocumentFootnote):
