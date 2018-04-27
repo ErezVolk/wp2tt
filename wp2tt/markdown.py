@@ -11,9 +11,23 @@ from wp2tt.input import IDocumentSpan
 from wp2tt.styles import DocumentProperties
 
 
-class Elements(list):
+class Element(object):
+    def __init__(self, *args, **kwargs):
+        if not args:
+            args = ['nop']
+        self.e = etree.Element(*args, **kwargs)
+
+    def __iter__(self):
+        return self.e.__iter__()
+
+    def __getitem__(self, index):
+        return self.e.__getitem__(index)
+
     def __iadd__(self, other):
-        self.append(other)
+        try:
+            self.e.append(other.e)
+        except AttributeError:
+            self.e.append(other)
         return self
 
 
@@ -24,7 +38,15 @@ class MarkdownUnRenderer(object):
         self.root = etree.Element('document')
 
     def placeholder(self):
-        return Elements()
+        return Element()
+
+    def header(self, spans, level, raw=None):
+        wpid = 'header %u' % level
+        self.wpids['paragraph'].add(wpid)
+        node = etree.SubElement(self.root, 'paragraph', wpid=wpid)
+        for span in spans:
+            node.append(span)
+        return node
 
     def text(self, text):
         node = etree.Element('span')
@@ -41,12 +63,24 @@ class MarkdownUnRenderer(object):
         return self._typed_span(nodes, 'emphasis')
 
     def double_emphasis(self, nodes):
-        return self._typed_span(nodes, 'double_emphasis')
+        return self._typed_span(nodes, 'double emphasis')
 
     def _typed_span(self, nodes, wpid):
         node = nodes[-1]
         node.attrib['wpid'] = wpid
         self.wpids['character'].add(wpid)
+        return node
+
+    def list_item(self, nodes):
+        item = etree.Element('list-item')
+        for node in nodes:
+            item.append(node)
+        return item
+
+    def list(self, body, ordered=True):
+        node = etree.Element('list')
+        for item in body:
+            node.append(item[0])
         return node
 
     def block_code(self, code, language=None):
@@ -58,17 +92,8 @@ class MarkdownUnRenderer(object):
     def block_html(self, html):
         raise NotImplementedError('%s.%s()' % (type(self).__name__, 'block_html'))
 
-    def header(self, text, level, raw=None):
-        raise NotImplementedError('%s.%s()' % (type(self).__name__, 'header'))
-
     def hrule(self, ):
         raise NotImplementedError('%s.%s()' % (type(self).__name__, 'hrule'))
-
-    def list(self, body, ordered=True):
-        raise NotImplementedError('%s.%s()' % (type(self).__name__, 'list'))
-
-    def list_item(self, text):
-        raise NotImplementedError('%s.%s()' % (type(self).__name__, 'list_item'))
 
     def table(self, header, body):
         raise NotImplementedError('%s.%s()' % (type(self).__name__, 'table'))
@@ -118,7 +143,7 @@ class MarkdownInput(contextlib.ExitStack, IDocumentInput):
     def __init__(self, path):
         super().__init__()
         self._read_markdown(path)
-        self._properties = DocumentProperties()
+        self._properties = DocumentProperties(has_rtl=False)
 
     def _read_markdown(self, path):
         self._markdown = MarkdownUnRenderer()
