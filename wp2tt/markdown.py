@@ -10,27 +10,10 @@ from wp2tt.input import IDocumentSpan
 from wp2tt.styles import DocumentProperties
 
 
-class Element(object):
-    def __init__(self, *args, **kwargs):
-        if not args:
-            args = ['nop']
-        self.e = etree.Element(*args, **kwargs)
-
-    def __iter__(self):
-        return self.e.__iter__()
-
-    def __getitem__(self, index):
-        return self.e.__getitem__(index)
-
-    def __iadd__(self, other):
-        try:
-            self.e.append(other.e)
-        except AttributeError:
-            self.e.append(other)
-        return self
-
-
 class MarkdownUnRenderer(object):
+    NAMELESS_P_PRE = '<p wpid="normal">'
+    NAMELESS_P_POST = '</p>'
+
     def __init__(self, **kwargs):
         self.options = kwargs
 
@@ -41,19 +24,21 @@ class MarkdownUnRenderer(object):
         return '<p wpid="header">%s</p>' % text
 
     def text(self, text):
-        return '<s>%s</s>' % text
+        return text
 
     def paragraph(self, text):
-        return '<p>%s</p>' % text
+        return '%s%s%s' % (self.NAMELESS_P_PRE, text, self.NAMELESS_P_POST)
 
     def emphasis(self, text):
         return '<s wpid="emphasis">%s</s>' % text
 
     def double_emphasis(self, text):
-        return '<s wpid="double emphasis">%s</s>' % text
+        return '<s wpid="doule emphasis">%s</s>' % text
 
     def list_item(self, text):
-        return '<li>%s</li>' % text
+        if text.startswith(self.NAMELESS_P_PRE) and text.endswith(self.NAMELESS_P_POST):
+            text = text[len(self.NAMELESS_P_PRE):-len(self.NAMELESS_P_POST)]
+        return '<p wpid="list item">%s</p>' % text
 
     def list(self, text, ordered=True):
         return text
@@ -150,7 +135,7 @@ class MarkdownInput(contextlib.ExitStack, IDocumentInput):
     def paragraphs(self):
         """Yields a MarkdownParagraph object for each body paragraph."""
         for p in self._root:
-            if p.tag in ('li', 'p'):
+            if p.tag in ('p'):
                 yield MarkdownParagraph(p)
 
 
@@ -159,16 +144,10 @@ class MarkdownParagraph(IDocumentParagraph):
 
     def __init__(self, node):
         self.node = node
-        if node.tag == 'p':
-            self.wpid = node.get('wpid')
-        if node.tag == 'li':
-            self.wpid = 'list item'
-            if len(node) and node[0].tag == 'p':
-                self.node = node[0]
 
     def style_wpid(self):
         """Returns the wpid for this paragraph's style."""
-        return self.wpid
+        return self.node.get('wpid')
 
     def text(self):
         """Yields strings of plain text."""
@@ -178,32 +157,49 @@ class MarkdownParagraph(IDocumentParagraph):
 
     def spans(self):
         """Yield a MarkdownSpan per text span."""
+        yield MarkdownHeadSpan(self.node)
         for span in self.node.xpath('s'):
-            yield MarkdownSpan(span)
+            yield MarkdownSpanSpan(span)
+            yield MarkdownTailSpan(span)
+        yield MarkdownTailSpan(self.node)
 
 
-class MarkdownSpan(IDocumentSpan):
-    """A span of characters inside a document."""
-
+class MarkdownSpanBase(IDocumentSpan):
     def __init__(self, node):
-        self.wpid = node.get('wpid')
-        while len(node) and node[0].tag == 's':
-            node = node[0]
         self.node = node
 
     def style_wpid(self):
-        """Returns the wpid for this span's style."""
-        return self.wpid
+        return None
 
     def footnotes(self):
-        """Yields a MarkdownFootnote object for each footnote in this span."""
         if False:
             yield
 
     def comments(self):
-        """Yields a MarkdownComment object for each comment in this span."""
         if False:
             yield
+
+
+class MarkdownHeadSpan(MarkdownSpanBase):
+    def text(self):
+        """Yields strings of plain text."""
+        if self.node.text:
+            yield self.node.text
+
+
+class MarkdownTailSpan(MarkdownSpanBase):
+    def text(self):
+        """Yields strings of plain text."""
+        if self.node.tail:
+            yield self.node.tail
+
+
+class MarkdownSpanSpan(MarkdownSpanBase):
+    """A span of characters inside a document."""
+
+    def style_wpid(self):
+        """Returns the wpid for this span's style."""
+        return self.node.get('wpid')
 
     def text(self):
         """Yields strings of plain text."""
