@@ -19,6 +19,7 @@ from wp2tt.ini import ini_fields
 from wp2tt.styles import Style
 from wp2tt.styles import Rule
 from wp2tt.docx import DocxInput
+from wp2tt.markdown import MarkdownInput
 from wp2tt.odt import OdtInput
 from wp2tt.output import WhitespaceStripper
 from wp2tt.tagged_text import InDesignTaggedTextOutput
@@ -232,6 +233,8 @@ class WordProcessorToInDesignTaggedText(object):
             return DocxInput(path)
         if ext == '.odt':
             return OdtInput(path)
+        if ext == '.md':
+            return MarkdownInput(path)
         raise RuntimeError('Unknown file extension for %r', path)
 
     def scan_style_definitions(self):

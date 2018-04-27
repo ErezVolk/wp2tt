@@ -5,6 +5,10 @@ import zipfile
 
 import lxml.etree
 
+from wp2tt.input import IDocumentFootnote
+from wp2tt.input import IDocumentInput
+from wp2tt.input import IDocumentParagraph
+from wp2tt.input import IDocumentSpan
 from wp2tt.styles import DocumentProperties
 
 
@@ -32,7 +36,7 @@ class OoXml(object):
         return node.get(self._ootag(tag))
 
 
-class OdtInput(contextlib.ExitStack, OoXml):
+class OdtInput(contextlib.ExitStack, OoXml, IDocumentInput):
     """A .docx reader."""
     def __init__(self, path):
         super().__init__()
@@ -107,7 +111,7 @@ class OdtNode(OoXml):
         return self.node.xpath(expr, namespaces=self._NS)
 
 
-class OdtParagraph(OdtNode):
+class OdtParagraph(OdtNode, IDocumentParagraph):
     """A Paragraph inside a .docx."""
     def style_wpid(self):
         return self._node_ooget('text:style-name')
@@ -134,7 +138,7 @@ class OdtParagraph(OdtNode):
                 yield OdtTailSpan(self.doc, n)
 
 
-class OdtSpanBase(OdtNode):
+class OdtSpanBase(OdtNode, IDocumentSpan):
     def style_wpid(self):
         return None
 
@@ -185,7 +189,7 @@ class OdtTailSpan(OdtSpanBase):
             yield self.node.tail
 
 
-class OdtFootnote(OdtNode):
+class OdtFootnote(OdtNode, IDocumentFootnote):
     def __init__(self, doc, node):
         super().__init__(doc, node)
 

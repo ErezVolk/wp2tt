@@ -3,6 +3,11 @@ import contextlib
 import zipfile
 import lxml.etree
 
+from wp2tt.input import IDocumentComment
+from wp2tt.input import IDocumentFootnote
+from wp2tt.input import IDocumentInput
+from wp2tt.input import IDocumentParagraph
+from wp2tt.input import IDocumentSpan
 from wp2tt.styles import DocumentProperties
 
 
@@ -11,26 +16,29 @@ class WordXml(object):
     _W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
     _NS = {'w': _W}
 
-    def _xpath(self, node, expr):
-        return node.xpath(expr, namespaces=self._NS)
+    @classmethod
+    def _xpath(cls, node, expr):
+        return node.xpath(expr, namespaces=cls._NS)
 
-    def _wtag(self, tag):
-        return '{%s}%s' % (self._W, tag)
+    @classmethod
+    def _wtag(cls, tag):
+        return '{%s}%s' % (cls._W, tag)
 
-    def _wval(self, node, prop):
-        for pn in self._xpath(node, prop):
-            return pn.get(self._wtag('val'))
+    @classmethod
+    def _wval(cls, node, prop):
+        for pn in cls._xpath(node, prop):
+            return pn.get(cls._wtag('val'))
         return None
 
 
-class DocxInput(contextlib.ExitStack, WordXml):
+class DocxInput(contextlib.ExitStack, WordXml, IDocumentInput):
     """A .docx reader."""
     def __init__(self, path):
         super().__init__()
-        self.read_docx(path)
+        self._read_docx(path)
         self._initialize_properties()
 
-    def read_docx(self, path):
+    def _read_docx(self, path):
         self._zip = self.enter_context(zipfile.ZipFile(path))
         self._document = self._load_xml('word/document.xml')
         self._footnotes = self._load_xml('word/footnotes.xml')
@@ -106,7 +114,7 @@ class DocxNode(WordXml):
         return None
 
 
-class DocxParagraph(DocxNode):
+class DocxParagraph(DocxNode, IDocumentParagraph):
     """A Paragraph inside a .docx."""
     def __init__(self, doc, node):
         super().__init__(doc, node)
@@ -125,7 +133,7 @@ class DocxParagraph(DocxNode):
             yield DocxSpan(self.doc, r)
 
 
-class DocxSpan(DocxNode):
+class DocxSpan(DocxNode, IDocumentSpan):
     """A span of characters inside a .docx."""
     def __init__(self, doc, node):
         super().__init__(doc, node)
@@ -149,7 +157,7 @@ class DocxSpan(DocxNode):
                 yield t.text
 
 
-class DocxFootnote(DocxNode):
+class DocxFootnote(DocxNode, IDocumentFootnote):
     def __init__(self, doc, node):
         super().__init__(doc, node)
 
@@ -159,7 +167,7 @@ class DocxFootnote(DocxNode):
             yield DocxParagraph(self.doc, p)
 
 
-class DocxComment(DocxNode):
+class DocxComment(DocxNode, IDocumentComment):
     def __init__(self, doc, node):
         super().__init__(doc, node)
 
