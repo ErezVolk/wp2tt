@@ -532,6 +532,8 @@ class WordProcessorToInDesignTaggedText(object):
             raise StopMarkerFound('Stop marker found')
 
     def do_write_text(self, text):
+        if not text:
+            return
         self.writer.write_text(text)
         self.state.curr_para_text += text
 

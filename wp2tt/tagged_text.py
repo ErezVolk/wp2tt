@@ -146,7 +146,8 @@ class InDesignTaggedTextOutput(contextlib.ExitStack, IOutput):
 
     def write_text(self, text):
         """Add some plain text."""
-        self._write_escaped(text)
+        if text:
+            self._write_escaped(text)
 
     def _write_escaped(self, text):
         return self._write(self._escape(text))
