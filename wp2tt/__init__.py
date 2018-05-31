@@ -113,6 +113,8 @@ class WordProcessorToInDesignTaggedText(object):
                                  help='Do not read any existing settings.')
         self.parser.add_argument('-d', '--debug', action='store_true',
                                  help='Print interesting debug information.')
+        self.parser.add_argument('-C', '--convert-comments', action='store_true',
+                                 help='Convert comments to balloons.')
         self.parser.add_argument('--no-rerunner', action='store_true',
                                  help='Do not (over)write the rerruner script.')
         self.args = self.parser.parse_args()
@@ -505,8 +507,9 @@ class WordProcessorToInDesignTaggedText(object):
         self.convert_range_text(r)
         for fn in r.footnotes():
             self.convert_footnote(fn)
-        for cmt in r.comments():
-            self.convert_comment(cmt)
+        if self.args.convert_comments:
+            for cmt in r.comments():
+                self.convert_comment(cmt)
 
     def convert_range_text(self, r):
         for t in r.text():
