@@ -132,7 +132,7 @@ class OdtParagraph(OdtNode, IDocumentParagraph):
 
     def text(self):
         """Yields strings of plain text."""
-        for t in self.itertext():
+        for t in self.node.itertext():
             yield t
 
     def spans(self):
