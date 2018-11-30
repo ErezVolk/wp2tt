@@ -36,11 +36,15 @@ class OoXml(object):
         return node.get(self._ootag(tag))
 
 
-class OdtInput(contextlib.ExitStack, OoXml, IDocumentInput):
-    """A .docx reader."""
-    def __init__(self, path):
+class XodtInput(contextlib.ExitStack, OoXml, IDocumentInput):
+    """A reader for .odt and .fodt."""
+    def __init__(self, path, zipped):
         super().__init__()
-        self._zip = self.enter_context(zipfile.ZipFile(path))
+        self._zipped = zipped
+        if zipped:
+            self._zip = self._open_zip(path)
+        else:
+            self._flat = self._open_flat(path)
         self._content = self._load_xml('content.xml')
         self._initialize_properties()
 
@@ -89,8 +93,18 @@ class OdtInput(contextlib.ExitStack, OoXml, IDocumentInput):
         for p in self._xpath(self._content, '//office:body/office:text/text:p'):
             yield OdtParagraph(self, p)
 
+    def _open_zip(self, path):
+        return self.enter_context(zipfile.ZipFile(path))
+
+    def _open_flat(self, path):
+        with open(path, 'r') as f:
+            return lxml.etree.parse(f).getroot()
+
     def _load_xml(self, path_in_zip):
         """Parse an XML file inside the zipped doc, return root node."""
+        if not self._zipped:
+            return self._flat
+
         try:
             with self._zip.open(path_in_zip) as fo:
                 return lxml.etree.parse(fo).getroot()

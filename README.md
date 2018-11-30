@@ -2,11 +2,12 @@
 
 (WORK IN PROGRESS)
 
-This little Python 3 script converts a word processor file (currently .docx or
-.odt) into an InDesign tagged text format.
+This little Python 3 script converts a word processor file (currently .docx,
+.odt, .fodt, or Markdown) into an InDesign tagged text format.
 
 Currently usable only if you know how to install Python 3, python-lxml, etc.
-Not hard at all, but I didn't get around to writing a HOWTO or a proper installer.
+Not difficult at all, but I didn't get around to writing a HOWTO or a proper
+installer.
 
 Main features:
 

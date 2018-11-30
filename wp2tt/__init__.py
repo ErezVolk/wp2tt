@@ -18,9 +18,8 @@ from wp2tt.version import WP2TT_VERSION
 from wp2tt.ini import ini_fields
 from wp2tt.styles import Style
 from wp2tt.styles import Rule
-from wp2tt.docx import DocxInput
-from wp2tt.markdown import MarkdownInput
-from wp2tt.odt import OdtInput
+from wp2tt.proxies import ByExtensionInput
+from wp2tt.proxies import MultiInput
 from wp2tt.output import WhitespaceStripper
 from wp2tt.tagged_text import InDesignTaggedTextOutput
 
@@ -83,7 +82,7 @@ class WordProcessorToInDesignTaggedText(object):
         self.parse_command_line()
         self.configure_logging()
         self.read_settings()
-        self.load_docx()
+        self.read_input()
         self.write_idtt()
         self.report_statistics()
         self.write_settings()
@@ -97,6 +96,8 @@ class WordProcessorToInDesignTaggedText(object):
         self.parser.add_argument('input', help='Input .docx file')
         self.parser.add_argument('output', nargs='?',
                                  help='InDesign Tagged Text file')
+        self.parser.add_argument('-a', '--append', metavar='INPUT', nargs='*',
+                                 help='Concatenate more input file(s) to the same output')
         self.parser.add_argument('-s', '--stop-at', metavar='TEXT',
                                  required=False,
                                  help='Stop importing when TEXT is found')
@@ -218,8 +219,8 @@ class WordProcessorToInDesignTaggedText(object):
             fo.write('\n')
         os.chmod(self.rerunner_fn, 0o755)
 
-    def load_docx(self):
-        """Unzip and parse a .docx file."""
+    def read_input(self):
+        """Unzip and parse the input files."""
         logging.info('Reading %r', self.args.input)
         with self.create_reader() as self.doc:
             self.scan_style_definitions()
@@ -228,16 +229,10 @@ class WordProcessorToInDesignTaggedText(object):
         self.link_rules()
 
     def create_reader(self):
-        path = self.args.input
-        _, ext = os.path.splitext(path)
-        ext = ext.lower()
-        if ext == '.docx':
-            return DocxInput(path)
-        if ext == '.odt':
-            return OdtInput(path)
-        if ext == '.md':
-            return MarkdownInput(path)
-        raise RuntimeError('Unknown file extension for %r', path)
+        if self.args.append:
+            return MultiInput([self.args.input] + self.args.append)
+        else:
+            return ByExtensionInput(self.args.input)
 
     def scan_style_definitions(self):
         """Create a Style object for everything in the document."""
@@ -649,6 +644,8 @@ class WordProcessorToInDesignTaggedText(object):
 
 
 # TODO:
+# - DOCX: <w:bookmarkStart w:name="X"/> / <w:instrText>PAGEREF ..
+# - IDTT:
 # - ODT: footnotes
 # - ODT: comments
 # - PUB: Support non-ME docs
