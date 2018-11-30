@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import contextlib
+import logging
 import os
 from wp2tt.input import IDocumentInput
 from wp2tt.docx import DocxInput
@@ -13,6 +14,7 @@ class MultiInput(contextlib.ExitStack, IDocumentInput):
 
     def __init__(self, paths):
         super().__init__()
+        self._paths = paths
         self._inputs = [
             self.enter_context(ByExtensionInput(path))
             for path in paths
@@ -34,13 +36,28 @@ class MultiInput(contextlib.ExitStack, IDocumentInput):
 
     def styles_in_use(self):
         """Yield a pair (realm, wpid) for every style used in the document."""
-        for doc in self._inputs:
-            yield from doc.styles_in_use()
+        total = 0
+        for path, doc in zip(self._paths, self._inputs):
+            in_file = 0
+            for style in doc.styles_in_use():
+                yield style
+                in_file += 1
+                total += 1
+            logging.debug('%u style(s) in %r', in_file, path)
+        logging.debug('%u style(s) in %u docs', total, len(self._paths))
 
     def paragraphs(self):
         """Yields an IDocumentParagraph object for each body paragraph."""
-        for doc in self._inputs:
-            yield from doc.paragraphs()
+        total = 0
+        for path, doc in zip(self._paths, self._inputs):
+            in_file = 0
+            logging.debug('Paragraphs in %r', path)
+            for p in doc.paragraphs():
+                yield p
+                in_file += 1
+                total += 1
+            logging.debug('%u paragraphs(s) in %r', in_file, path)
+        logging.debug('%u paragraphs(s) in %u docs', total, len(self._paths))
 
 
 class ByExtensionInput(contextlib.ExitStack, IDocumentInput):
