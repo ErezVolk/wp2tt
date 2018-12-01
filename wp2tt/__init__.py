@@ -216,7 +216,7 @@ class WordProcessorToInDesignTaggedText(object):
                 cli.append('--debug')
             if self.args.append:
                 cli.append('--append')
-                cli.extend(self.args.append)
+                cli.extend(shlex.quote(os.path.abspath(self.args.append)))
             cli.extend(['2>&1', '|tee', os.path.abspath(self.rerunner_fn + '.output')])
             fo.write(' '.join(cli))
             fo.write('\n')
