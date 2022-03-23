@@ -482,7 +482,7 @@ class WordProcessorToInDesignTaggedText(object):
         if fmt:
             return self.get_manual_style(fmt)
 
-        return self.base_styles[ParagraphFormat.NORMAL]
+        return self.get_manual_style(ParagraphFormat.NORMAL)
 
     def get_manual_style(self, fmt):
         if not fmt:
