@@ -1,5 +1,20 @@
 #!/usr/bin/env python
 """Base class for input sources (document formats)."""
+import enum
+
+
+class CharacterFormat(enum.Flag):
+    """Character Format"""
+    NORMAL = 0
+    BOLD = enum.auto()
+    ITALIC = enum.auto()
+
+
+class ParagraphFormat(enum.Flag):
+    """Paragraph Format"""
+    NORMAL = 0
+    CENTERED = enum.auto()
+    POST_EMPTY = enum.auto()
 
 
 class IDocumentInput(object):
@@ -30,6 +45,10 @@ class IDocumentParagraph(object):
         """Returns the wpid for this paragraph's style."""
         raise NotImplementedError()
 
+    def format(self) -> ParagraphFormat:
+        """Returns manual formatting on this paragraph."""
+        return ParagraphFormat.NORMAL
+
     def text(self):
         """Yields strings of plain text."""
         raise NotImplementedError()
@@ -52,6 +71,10 @@ class IDocumentSpan(object):
     def comments(self):
         """Yields an IDocumentComment object for each comment in this span."""
         raise NotImplementedError()
+
+    def format(self) -> CharacterFormat:
+        """Returns manual formatting on this span."""
+        return CharacterFormat.NORMAL
 
     def text(self):
         """Yields strings of plain text."""

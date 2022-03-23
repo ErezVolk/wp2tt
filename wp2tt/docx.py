@@ -8,7 +8,15 @@ from wp2tt.input import IDocumentFootnote
 from wp2tt.input import IDocumentInput
 from wp2tt.input import IDocumentParagraph
 from wp2tt.input import IDocumentSpan
+from wp2tt.input import CharacterFormat
+from wp2tt.input import ParagraphFormat
 from wp2tt.styles import DocumentProperties
+
+# TODO: manual emphasis: <w:i/> <w:iCs/>
+# TODO: manual bold: <w:b/> <w:bCs/>
+# TODO: manual center: <w:jc w:val="center"/>
+# TODO: manual spacing: <w:spacing w:before="480" w:after="480"/>
+# TODO: after-blank-paras
 
 
 class WordXml(object):
@@ -132,6 +140,12 @@ class DocxParagraph(DocxNode, IDocumentParagraph):
         for r in self._node_xpath('w:r | w:ins/w:r'):
             yield DocxSpan(self.doc, r)
 
+    def format(self) -> ParagraphFormat:
+        """Returns manual formatting on this paragraph."""
+        if self._node_wval('w:pPr/w:jc') == "center":
+            return ParagraphFormat.CENTERED
+        return ParagraphFormat.NORMAL
+
 
 class DocxSpan(DocxNode, IDocumentSpan):
     """A span of characters inside a .docx."""
@@ -148,6 +162,14 @@ class DocxSpan(DocxNode, IDocumentSpan):
     def comments(self):
         for cmr in self._node_xpath('w:commentReference'):
             yield DocxComment(self.doc, cmr)
+
+    def format(self) -> CharacterFormat:
+        fmt = CharacterFormat.NORMAL
+        for _ in self._node_xpath("w:rPr/w:b | w:rPr/w:bCs"):
+            fmt = fmt | CharacterFormat.BOLD
+        for _ in self._node_xpath("w:rPr/w:i | w:rPr/w:iCs"):
+            fmt = fmt | CharacterFormat.ITALIC
+        return fmt
 
     def text(self):
         for t in self._node_xpath('w:tab | w:t'):

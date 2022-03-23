@@ -16,6 +16,8 @@ import attr
 
 from wp2tt.version import WP2TT_VERSION
 from wp2tt.ini import ini_fields
+from wp2tt.input import CharacterFormat
+from wp2tt.input import ParagraphFormat
 from wp2tt.styles import Style
 from wp2tt.styles import Rule
 from wp2tt.proxies import ByExtensionInput
@@ -60,6 +62,11 @@ class WordProcessorToInDesignTaggedText(object):
     DEFAULT_BASE = SPECIAL_GROUP + '/(Basic Style)'
     FOOTNOTE_REF_STYLE = SPECIAL_GROUP + '/(Footnote Reference in Text)'
     COMMENT_REF_STYLE = SPECIAL_GROUP + '/(Comment Reference)'
+    CENTERED_STYLE = SPECIAL_GROUP + '/(Centered)'
+    SPACED_STYLE = SPECIAL_GROUP + '/(Spaced)'
+    BOLD_STYLE = SPECIAL_GROUP + '/(Bold)'
+    ITALIC_STYLE = SPECIAL_GROUP + '/(Italic)'
+    BOLD_ITALIC_STYLE = SPECIAL_GROUP + '/(Bold Italic)'
     IGNORED_STYLES = {
         'character': ['annotation reference'],
     }
@@ -110,6 +117,8 @@ class WordProcessorToInDesignTaggedText(object):
         self.parser.add_argument('-v', '--style-to-variable', metavar='STYLE=VARIABLE', nargs='+',
                                  action=ParseDict,
                                  help='Map paragraph styles to document variables.')
+        self.parser.add_argument('-m', '--manual', action='store_true',
+                                 help='Create styles for some manual formatting.')
         self.parser.add_argument('-f', '--fresh-start', action='store_true',
                                  help='Do not read any existing settings.')
         self.parser.add_argument('-d', '--debug', action='store_true',
@@ -283,6 +292,24 @@ class WordProcessorToInDesignTaggedText(object):
             idtt='<cColor:Cyan><cColorTint:100>',
             automatic=True,
         )
+        if self.args.manual:
+            self.manual_styles = {}
+            for n in [self.CENTERED_STYLE, self.SPACED_STYLE]:
+                self.manual_styles[n] = self.found_style_definition(
+                    realm="paragraph",
+                    internal_name=n,
+                    wpid=n,
+                    parent_wpid=self.base_names["paragraph"],
+                    automatic=True,
+                )
+            for n in [self.BOLD_STYLE, self.ITALIC_STYLE, self.BOLD_ITALIC_STYLE]:
+                self.manual_styles[n] = self.found_style_definition(
+                    realm="character",
+                    internal_name=n,
+                    wpid=n,
+                    parent_wpid=self.base_names["character"],
+                    automatic=True,
+                )
 
     def scan_style_mentions(self):
         """Mark which styles are actually used."""
@@ -433,6 +460,7 @@ class WordProcessorToInDesignTaggedText(object):
     def convert_document(self):
         try:
             self.stop_marker_found = False
+            self.is_post_empty = False
             for p in self.doc.paragraphs():
                 self.convert_paragraph(p)
             if self.stop_marker:
@@ -442,14 +470,28 @@ class WordProcessorToInDesignTaggedText(object):
             logging.info(marker)
 
     def convert_paragraph(self, p):
+        self.is_empty = True
         if self.stop_marker:
             self.check_for_stop_paragraph(p)
-        style = self.apply_rules_to(self.style('paragraph', p.style_wpid()))
+        style = self.apply_rules_to(self.get_paragraph_style(p))
         with self.ParagraphContext(self, style):
             for r in p.spans():
                 self.convert_range(r)
             if style and style.variable:
                 self.define_variable_from_paragraph(style.variable, p)
+        self.is_post_empty = self.is_empty
+
+    def get_paragraph_style(self, p):
+        if not self.args.manual:
+            return self.style('paragraph', p.style_wpid())
+
+        # Manual formatting
+        fmt = p.format()
+        if fmt & ParagraphFormat.CENTERED:
+            return self.manual_styles[self.CENTERED_STYLE]
+        if fmt & ParagraphFormat.POST_EMPTY:
+            return self.manual_styles[self.SPACED_STYLE]
+        return self.base_styles["paragraph"]
 
     def apply_rules_to(self, style):
         for rule in self.rules:
@@ -504,17 +546,36 @@ class WordProcessorToInDesignTaggedText(object):
             ))
 
     def convert_range(self, r):
-        self.switch_character_style(self.style('character', r.style_wpid()))
+        self.switch_character_style(self.get_character_style(r))
         self.convert_range_text(r)
         for fn in r.footnotes():
             self.convert_footnote(fn)
+            self.is_empty = False
         if self.args.convert_comments:
             for cmt in r.comments():
                 self.convert_comment(cmt)
 
+    def get_character_style(self, r):
+        if not self.args.manual:
+            return self.style('character', r.style_wpid())
+
+        # Manual formatting
+        fmt = r.format()
+        if (fmt & CharacterFormat.BOLD) and (fmt & CharacterFormat.ITALIC):
+            return self.manual_styles[self.BOLD_ITALIC_STYLE]
+        if (fmt & CharacterFormat.BOLD):
+            return self.manual_styles[self.BOLD_STYLE]
+        if (fmt & CharacterFormat.ITALIC):
+            return self.manual_styles[self.ITALIC_STYLE]
+        return None
+
+    NON_WHITESPACE = re.compile(r"\S")
+
     def convert_range_text(self, r):
         for t in r.text():
             self.write_text(t)
+            if self.NON_WHITESPACE.search(t):
+                self.is_empty = False
 
     def switch_character_style(self, style):
         prev = self.state.curr_char_style
@@ -669,12 +730,10 @@ class WordProcessorToInDesignTaggedText(object):
 # - Para: global base -> body base, heading base
 # - More rule context: after same, after different, first since...
 # - Really need a test suite of some sort.
-# - Manual format: autogenerate styles
 # - Manual format: collapse with existing styles
 # - A flag to only create/update the ini file
 # - Maybe add front matter (best done in Id? either that or the template thingy (ooh, jinja2!))
 # - Something usable for those balloons (footnote+hl? endnote? convert to note in jsx?)
-# - Autocreate character styles from manual combos
 #   bold: w:b (w:bCs?); italic: w:i (w:iCs?); undeline w:u
 #   font: <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New" w:cs="Courier New">
 #   override style: <w:i w:val="0">
@@ -688,5 +747,3 @@ class WordProcessorToInDesignTaggedText(object):
 # - Derivation rules?
 # - Latent styles?
 # - Digraph kerning (probably better in InDesign?)
-
-
