@@ -5,8 +5,9 @@ import enum
 
 class CharacterFormat(enum.Flag):
     """Character Format"""
-    _ignore_ = "realm"
-    realm = "character"
+    @classmethod
+    def realm(cls):
+        return "character"
 
     NORMAL = 0
     BOLD = enum.auto()
@@ -15,8 +16,9 @@ class CharacterFormat(enum.Flag):
 
 class ParagraphFormat(enum.Flag):
     """Paragraph Format"""
-    _ignore_ = "realm"
-    realm = "paragraph"
+    @classmethod
+    def realm(cls):
+        return "paragraph"
 
     NORMAL = 0
     CENTERED = enum.auto()
@@ -56,6 +58,10 @@ class IDocumentParagraph(object):
     def format(self) -> ParagraphFormat:
         """Returns manual formatting on this paragraph."""
         return ParagraphFormat.NORMAL
+
+    def is_page_break(self):
+        """True iff the paragraph is a page break."""
+        return False
 
     def text(self):
         """Yields strings of plain text."""

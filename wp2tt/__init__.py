@@ -16,7 +16,6 @@ import attr
 
 from wp2tt.version import WP2TT_VERSION
 from wp2tt.ini import ini_fields
-from wp2tt.input import CharacterFormat
 from wp2tt.input import ParagraphFormat
 from wp2tt.styles import Style
 from wp2tt.styles import Rule
@@ -62,25 +61,6 @@ class WordProcessorToInDesignTaggedText(object):
     DEFAULT_BASE = SPECIAL_GROUP + '/(Basic Style)'
     FOOTNOTE_REF_STYLE = SPECIAL_GROUP + '/(Footnote Reference in Text)'
     COMMENT_REF_STYLE = SPECIAL_GROUP + '/(Comment Reference)'
-
-    MANUAL_STYLES = {
-        "character": [
-            CharacterFormat.BOLD,
-            CharacterFormat.ITALIC,
-            CharacterFormat.BOLD | CharacterFormat.ITALIC,
-        ],
-
-        "paragraph": [
-            ParagraphFormat.CENTERED,
-            ParagraphFormat.NEW_PAGE,
-            ParagraphFormat.SPACED,
-            ParagraphFormat.JUSTIFIED,
-            ParagraphFormat.CENTERED | ParagraphFormat.NEW_PAGE,
-            ParagraphFormat.CENTERED | ParagraphFormat.SPACED,
-            ParagraphFormat.JUSTIFIED | ParagraphFormat.SPACED,
-            ParagraphFormat.CENTERED | ParagraphFormat.SPACED | ParagraphFormat.NEW_PAGE,
-        ],
-    }
 
     IGNORED_STYLES = {
         'character': ['annotation reference'],
@@ -309,20 +289,7 @@ class WordProcessorToInDesignTaggedText(object):
             idtt='<cColor:Cyan><cColorTint:100>',
             automatic=True,
         )
-        if self.args.manual:
-            self.manual_styles = {}
-            for realm, styles in self.MANUAL_STYLES.items():
-                for fmt in styles:
-                    cls = type(fmt)
-                    m = "_".join(f.name for f in cls if fmt & f)
-                    n = f"{self.SPECIAL_GROUP}/({m})"
-                    self.manual_styles[fmt] = self.found_style_definition(
-                        realm=realm,
-                        internal_name=n,
-                        wpid=n,
-                        parent_wpid=self.base_names[realm],
-                        automatic=True,
-                    )
+        self.manual_styles = {}
 
     def scan_style_mentions(self):
         """Mark which styles are actually used."""
@@ -474,6 +441,7 @@ class WordProcessorToInDesignTaggedText(object):
         try:
             self.stop_marker_found = False
             self.is_post_empty = False
+            self.is_post_break = False
             for p in self.doc.paragraphs():
                 self.convert_paragraph(p)
             if self.stop_marker:
@@ -492,6 +460,13 @@ class WordProcessorToInDesignTaggedText(object):
                 self.convert_range(r)
             if style and style.variable:
                 self.define_variable_from_paragraph(style.variable, p)
+
+        # For the next paragraph`
+        if p.is_page_break():
+            self.is_post_break = True
+            self.is_empty = False
+        elif not self.is_empty:
+            self.is_post_break = False
         self.is_post_empty = self.is_empty
 
     def get_paragraph_style(self, p):
@@ -502,6 +477,8 @@ class WordProcessorToInDesignTaggedText(object):
         fmt = p.format()
         if self.is_post_empty:
             fmt = fmt | ParagraphFormat.SPACED
+        if self.is_post_break:
+            fmt = fmt | ParagraphFormat.NEW_PAGE
         if fmt:
             return self.get_manual_style(fmt)
         return self.base_styles["paragraph"]
@@ -514,7 +491,7 @@ class WordProcessorToInDesignTaggedText(object):
             return self.manual_styles[fmt]
         except KeyError:
             cls = type(fmt)
-            realm = cls.realm
+            realm = cls.realm()
             m = "_".join(f.name for f in cls if fmt & f)
             n = f"{self.SPECIAL_GROUP}/({m})"
             self.manual_styles[fmt] = self.found_style_definition(

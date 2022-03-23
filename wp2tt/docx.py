@@ -158,9 +158,11 @@ class DocxParagraph(DocxNode, IDocumentParagraph):
             fmt = fmt | ParagraphFormat.CENTERED
         elif justification == "both":
             fmt = fmt | ParagraphFormat.JUSTIFIED
-        for _ in self._node_xpath("w:r/w:lastRenderedPageBreak"):
-            fmt = fmt | ParagraphFormat.NEW_PAGE
         return fmt
+
+    def is_page_break(self):
+        """True iff the paragraph is a page break."""
+        return self._node_wtype("w:r/w:br") == "page"
 
 
 class DocxSpan(DocxNode, IDocumentSpan):
