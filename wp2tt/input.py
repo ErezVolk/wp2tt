@@ -5,6 +5,9 @@ import enum
 
 class CharacterFormat(enum.Flag):
     """Character Format"""
+    _ignore_ = "realm"
+    realm = "character"
+
     NORMAL = 0
     BOLD = enum.auto()
     ITALIC = enum.auto()
@@ -12,9 +15,14 @@ class CharacterFormat(enum.Flag):
 
 class ParagraphFormat(enum.Flag):
     """Paragraph Format"""
+    _ignore_ = "realm"
+    realm = "paragraph"
+
     NORMAL = 0
     CENTERED = enum.auto()
-    POST_EMPTY = enum.auto()
+    JUSTIFIED = enum.auto()
+    NEW_PAGE = enum.auto()
+    SPACED = enum.auto()
 
 
 class IDocumentInput(object):

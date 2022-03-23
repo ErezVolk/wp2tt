@@ -62,11 +62,26 @@ class WordProcessorToInDesignTaggedText(object):
     DEFAULT_BASE = SPECIAL_GROUP + '/(Basic Style)'
     FOOTNOTE_REF_STYLE = SPECIAL_GROUP + '/(Footnote Reference in Text)'
     COMMENT_REF_STYLE = SPECIAL_GROUP + '/(Comment Reference)'
-    CENTERED_STYLE = SPECIAL_GROUP + '/(Centered)'
-    SPACED_STYLE = SPECIAL_GROUP + '/(Spaced)'
-    BOLD_STYLE = SPECIAL_GROUP + '/(Bold)'
-    ITALIC_STYLE = SPECIAL_GROUP + '/(Italic)'
-    BOLD_ITALIC_STYLE = SPECIAL_GROUP + '/(Bold Italic)'
+
+    MANUAL_STYLES = {
+        "character": [
+            CharacterFormat.BOLD,
+            CharacterFormat.ITALIC,
+            CharacterFormat.BOLD | CharacterFormat.ITALIC,
+        ],
+
+        "paragraph": [
+            ParagraphFormat.CENTERED,
+            ParagraphFormat.NEW_PAGE,
+            ParagraphFormat.SPACED,
+            ParagraphFormat.JUSTIFIED,
+            ParagraphFormat.CENTERED | ParagraphFormat.NEW_PAGE,
+            ParagraphFormat.CENTERED | ParagraphFormat.SPACED,
+            ParagraphFormat.JUSTIFIED | ParagraphFormat.SPACED,
+            ParagraphFormat.CENTERED | ParagraphFormat.SPACED | ParagraphFormat.NEW_PAGE,
+        ],
+    }
+
     IGNORED_STYLES = {
         'character': ['annotation reference'],
     }
@@ -221,6 +236,8 @@ class WordProcessorToInDesignTaggedText(object):
                     shlex.quote('%s=%s' % (k, v))
                     for k, v in self.args.style_to_variable.items()
                 )
+            if self.args.manual:
+                cli.append('--manual')
             if self.args.debug:
                 cli.append('--debug')
             if self.args.append:
@@ -294,22 +311,18 @@ class WordProcessorToInDesignTaggedText(object):
         )
         if self.args.manual:
             self.manual_styles = {}
-            for n in [self.CENTERED_STYLE, self.SPACED_STYLE]:
-                self.manual_styles[n] = self.found_style_definition(
-                    realm="paragraph",
-                    internal_name=n,
-                    wpid=n,
-                    parent_wpid=self.base_names["paragraph"],
-                    automatic=True,
-                )
-            for n in [self.BOLD_STYLE, self.ITALIC_STYLE, self.BOLD_ITALIC_STYLE]:
-                self.manual_styles[n] = self.found_style_definition(
-                    realm="character",
-                    internal_name=n,
-                    wpid=n,
-                    parent_wpid=self.base_names["character"],
-                    automatic=True,
-                )
+            for realm, styles in self.MANUAL_STYLES.items():
+                for fmt in styles:
+                    cls = type(fmt)
+                    m = "_".join(f.name for f in cls if fmt & f)
+                    n = f"{self.SPECIAL_GROUP}/({m})"
+                    self.manual_styles[fmt] = self.found_style_definition(
+                        realm=realm,
+                        internal_name=n,
+                        wpid=n,
+                        parent_wpid=self.base_names[realm],
+                        automatic=True,
+                    )
 
     def scan_style_mentions(self):
         """Mark which styles are actually used."""
@@ -487,11 +500,31 @@ class WordProcessorToInDesignTaggedText(object):
 
         # Manual formatting
         fmt = p.format()
-        if fmt & ParagraphFormat.CENTERED:
-            return self.manual_styles[self.CENTERED_STYLE]
-        if fmt & ParagraphFormat.POST_EMPTY:
-            return self.manual_styles[self.SPACED_STYLE]
+        if self.is_post_empty:
+            fmt = fmt | ParagraphFormat.SPACED
+        if fmt:
+            return self.get_manual_style(fmt)
         return self.base_styles["paragraph"]
+
+    def get_manual_style(self, fmt):
+        if not fmt:
+            return None
+
+        try:
+            return self.manual_styles[fmt]
+        except KeyError:
+            cls = type(fmt)
+            realm = cls.realm
+            m = "_".join(f.name for f in cls if fmt & f)
+            n = f"{self.SPECIAL_GROUP}/({m})"
+            self.manual_styles[fmt] = self.found_style_definition(
+                realm=realm,
+                internal_name=n,
+                wpid=n,
+                parent_wpid=self.base_names[realm],
+                automatic=True,
+            )
+            return self.manual_styles[fmt]
 
     def apply_rules_to(self, style):
         for rule in self.rules:
@@ -560,14 +593,7 @@ class WordProcessorToInDesignTaggedText(object):
             return self.style('character', r.style_wpid())
 
         # Manual formatting
-        fmt = r.format()
-        if (fmt & CharacterFormat.BOLD) and (fmt & CharacterFormat.ITALIC):
-            return self.manual_styles[self.BOLD_ITALIC_STYLE]
-        if (fmt & CharacterFormat.BOLD):
-            return self.manual_styles[self.BOLD_STYLE]
-        if (fmt & CharacterFormat.ITALIC):
-            return self.manual_styles[self.ITALIC_STYLE]
-        return None
+        return self.get_manual_style(r.format())
 
     NON_WHITESPACE = re.compile(r"\S")
 
