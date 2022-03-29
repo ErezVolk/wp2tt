@@ -15,10 +15,7 @@ class MultiInput(contextlib.ExitStack, IDocumentInput):
     def __init__(self, paths):
         super().__init__()
         self._paths = paths
-        self._inputs = [
-            self.enter_context(ByExtensionInput(path))
-            for path in paths
-        ]
+        self._inputs = [self.enter_context(ByExtensionInput(path)) for path in paths]
 
     @property
     def properties(self):
@@ -43,21 +40,21 @@ class MultiInput(contextlib.ExitStack, IDocumentInput):
                 yield style
                 in_file += 1
                 total += 1
-            logging.debug('%u style(s) in %r', in_file, path)
-        logging.debug('%u style(s) in %u docs', total, len(self._paths))
+            logging.debug("%u style(s) in %r", in_file, path)
+        logging.debug("%u style(s) in %u docs", total, len(self._paths))
 
     def paragraphs(self):
         """Yields an IDocumentParagraph object for each body paragraph."""
         total = 0
         for path, doc in zip(self._paths, self._inputs):
             in_file = 0
-            logging.debug('Paragraphs in %r', path)
+            logging.debug("Paragraphs in %r", path)
             for p in doc.paragraphs():
                 yield p
                 in_file += 1
                 total += 1
-            logging.debug('%u paragraphs(s) in %r', in_file, path)
-        logging.debug('%u paragraphs(s) in %u docs', total, len(self._paths))
+            logging.debug("%u paragraphs(s) in %r", in_file, path)
+        logging.debug("%u paragraphs(s) in %u docs", total, len(self._paths))
 
 
 class ByExtensionInput(contextlib.ExitStack, IDocumentInput):
@@ -67,16 +64,16 @@ class ByExtensionInput(contextlib.ExitStack, IDocumentInput):
         super().__init__()
         _, ext = os.path.splitext(path)
         ext = ext.lower()
-        if ext == '.docx':
+        if ext == ".docx":
             self._input = DocxInput(path)
-        elif ext == '.odt':
+        elif ext == ".odt":
             self._input = XodtInput(path, zipped=True)
-        elif ext == '.fodt':
+        elif ext == ".fodt":
             self._input = XodtInput(path, zipped=False)
-        elif ext == '.md':
+        elif ext == ".md":
             self._input = MarkdownInput(path)
         else:
-            raise RuntimeError('Unknown file extension for %r', path)
+            raise RuntimeError("Unknown file extension for %r", path)
         self.enter_context(self._input)
 
     @property

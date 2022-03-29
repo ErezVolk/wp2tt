@@ -1,8 +1,8 @@
 import attr
 
-ATTR_KEY = 'special'
-ATTR_VALUE_READONLY = 'readonly'
-ATTR_VALUE_HIDDEN = 'internal'
+ATTR_KEY = "special"
+ATTR_VALUE_READONLY = "readonly"
+ATTR_VALUE_HIDDEN = "internal"
 
 
 def ini_fields(klass, writeable=False):
@@ -15,5 +15,5 @@ def ini_fields(klass, writeable=False):
         if special == ATTR_VALUE_READONLY:
             if writeable:
                 continue
-            ini_name += ' (readonly)'
+            ini_name += " (readonly)"
         yield (name, ini_name)

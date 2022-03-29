@@ -12,13 +12,13 @@ from wp2tt.styles import DocumentProperties
 
 class MarkdownUnRenderer(object):
     NAMELESS_P_PRE = '<p wpid="normal">'
-    NAMELESS_P_POST = '</p>'
+    NAMELESS_P_POST = "</p>"
 
     def __init__(self, **kwargs):
         self.options = kwargs
 
     def placeholder(self):
-        return ''
+        return ""
 
     def header(self, text, level, raw=None):
         return '<p wpid="header">%s</p>' % text
@@ -27,7 +27,7 @@ class MarkdownUnRenderer(object):
         return text
 
     def paragraph(self, text):
-        return '%s%s%s' % (self.NAMELESS_P_PRE, text, self.NAMELESS_P_POST)
+        return "%s%s%s" % (self.NAMELESS_P_PRE, text, self.NAMELESS_P_POST)
 
     def emphasis(self, text):
         return '<s wpid="emphasis">%s</s>' % text
@@ -43,64 +43,71 @@ class MarkdownUnRenderer(object):
 
     def list_item(self, text):
         if text.startswith(self.NAMELESS_P_PRE) and text.endswith(self.NAMELESS_P_POST):
-            text = text[len(self.NAMELESS_P_PRE):-len(self.NAMELESS_P_POST)]
+            text = text[len(self.NAMELESS_P_PRE) : -len(self.NAMELESS_P_POST)]
         return '<p wpid="list item">%s</p>' % text
 
     def list(self, text, ordered=True):
         return text
 
     def block_html(self, html):
-        logging.warn('HTML is corrently ignored in Markdown')
-        return ''
+        logging.warn("HTML is corrently ignored in Markdown")
+        return ""
 
     def block_code(self, code, language=None):
-        raise NotImplementedError('%s.%s()' % (type(self).__name__, 'block_code'))
+        raise NotImplementedError("%s.%s()" % (type(self).__name__, "block_code"))
 
     def block_quote(self, text):
-        raise NotImplementedError('%s.%s()' % (type(self).__name__, 'block_quote'))
+        raise NotImplementedError("%s.%s()" % (type(self).__name__, "block_quote"))
 
-    def hrule(self, ):
-        raise NotImplementedError('%s.%s()' % (type(self).__name__, 'hrule'))
+    def hrule(
+        self,
+    ):
+        raise NotImplementedError("%s.%s()" % (type(self).__name__, "hrule"))
 
     def table(self, header, body):
-        raise NotImplementedError('%s.%s()' % (type(self).__name__, 'table'))
+        raise NotImplementedError("%s.%s()" % (type(self).__name__, "table"))
 
     def table_row(self, content):
-        raise NotImplementedError('%s.%s()' % (type(self).__name__, 'table_row'))
+        raise NotImplementedError("%s.%s()" % (type(self).__name__, "table_row"))
 
     def table_cell(self, content, **flags):
-        raise NotImplementedError('%s.%s()' % (type(self).__name__, 'table_cell'))
+        raise NotImplementedError("%s.%s()" % (type(self).__name__, "table_cell"))
 
     def codespan(self, text):
-        raise NotImplementedError('%s.%s()' % (type(self).__name__, 'codespan'))
+        raise NotImplementedError("%s.%s()" % (type(self).__name__, "codespan"))
 
     def image(self, src, title, alt_text):
-        raise NotImplementedError('%s.%s()' % (type(self).__name__, 'image'))
+        raise NotImplementedError("%s.%s()" % (type(self).__name__, "image"))
 
-    def linebreak(self, ):
-        raise NotImplementedError('%s.%s()' % (type(self).__name__, 'linebreak'))
+    def linebreak(
+        self,
+    ):
+        raise NotImplementedError("%s.%s()" % (type(self).__name__, "linebreak"))
 
-    def newline(self, ):
-        raise NotImplementedError('%s.%s()' % (type(self).__name__, 'newline'))
+    def newline(
+        self,
+    ):
+        raise NotImplementedError("%s.%s()" % (type(self).__name__, "newline"))
 
     def strikethrough(self, text):
-        raise NotImplementedError('%s.%s()' % (type(self).__name__, 'strikethrough'))
+        raise NotImplementedError("%s.%s()" % (type(self).__name__, "strikethrough"))
 
     def inline_html(self, text):
-        raise NotImplementedError('%s.%s()' % (type(self).__name__, 'inline_html'))
+        raise NotImplementedError("%s.%s()" % (type(self).__name__, "inline_html"))
 
     def footnote_ref(self, key, index):
-        raise NotImplementedError('%s.%s()' % (type(self).__name__, 'footnote_ref'))
+        raise NotImplementedError("%s.%s()" % (type(self).__name__, "footnote_ref"))
 
     def footnote_item(self, key, text):
-        raise NotImplementedError('%s.%s()' % (type(self).__name__, 'footnote_item'))
+        raise NotImplementedError("%s.%s()" % (type(self).__name__, "footnote_item"))
 
     def footnotes(self, text):
-        raise NotImplementedError('%s.%s()' % (type(self).__name__, 'footnotes'))
+        raise NotImplementedError("%s.%s()" % (type(self).__name__, "footnotes"))
 
 
 class MarkdownInput(contextlib.ExitStack, IDocumentInput):
     """A Markdown reader."""
+
     def __init__(self, path):
         super().__init__()
         self._read_markdown(path)
@@ -109,10 +116,14 @@ class MarkdownInput(contextlib.ExitStack, IDocumentInput):
     def _read_markdown(self, path):
         renderer = MarkdownUnRenderer()
         parse = mistune.Markdown(renderer=renderer)
-        with open(path, 'r') as md:
+        with open(path, "r") as md:
             xml = parse(md.read())
-        self._root = etree.fromstring('<document>%s</document>' % xml)
-        print(etree.tostring(self._root, pretty_print=True, encoding='utf-8', xml_declaration=True).decode('utf-8'))
+        self._root = etree.fromstring("<document>%s</document>" % xml)
+        print(
+            etree.tostring(
+                self._root, pretty_print=True, encoding="utf-8", xml_declaration=True
+            ).decode("utf-8")
+        )
 
     @property
     def properties(self):
@@ -121,22 +132,22 @@ class MarkdownInput(contextlib.ExitStack, IDocumentInput):
     def styles_defined(self):
         """Yield a Style object kwargs for every style defined in the document."""
         for realm, wpid in self.styles_in_use():
-            yield {'realm': realm, 'internal_name': wpid, 'wpid': wpid}
+            yield {"realm": realm, "internal_name": wpid, "wpid": wpid}
 
     def styles_in_use(self):
         """Yield a pair (realm, wpid) for every style used in the document."""
-        for node in self._root.xpath('//p[@wpid]'):
-            yield 'paragraph', node.get('wpid')
-        for node in self._root.xpath('//s[@wpid]'):
-            yield 'character', node.get('wpid')
-        for node in self._root.xpath('//li'):
-            yield 'paragraph', 'list item'
+        for node in self._root.xpath("//p[@wpid]"):
+            yield "paragraph", node.get("wpid")
+        for node in self._root.xpath("//s[@wpid]"):
+            yield "character", node.get("wpid")
+        for node in self._root.xpath("//li"):
+            yield "paragraph", "list item"
             break
 
     def paragraphs(self):
         """Yields a MarkdownParagraph object for each body paragraph."""
         for p in self._root:
-            if p.tag in ('p'):
+            if p.tag in ("p"):
                 yield MarkdownParagraph(p)
 
 
@@ -148,7 +159,7 @@ class MarkdownParagraph(IDocumentParagraph):
 
     def style_wpid(self):
         """Returns the wpid for this paragraph's style."""
-        return self.node.get('wpid')
+        return self.node.get("wpid")
 
     def text(self):
         """Yields strings of plain text."""
@@ -159,7 +170,7 @@ class MarkdownParagraph(IDocumentParagraph):
     def spans(self):
         """Yield a MarkdownSpan per text span."""
         yield MarkdownHeadSpan(self.node)
-        for span in self.node.xpath('s'):
+        for span in self.node.xpath("s"):
             yield MarkdownSpanSpan(span)
             yield MarkdownTailSpan(span)
         yield MarkdownTailSpan(self.node)
@@ -200,11 +211,11 @@ class MarkdownSpanSpan(MarkdownSpanBase):
 
     def style_wpid(self):
         """Returns the wpid for this span's style."""
-        return self.node.get('wpid')
+        return self.node.get("wpid")
 
     def text(self):
         """Yields strings of plain text."""
-        yield self.node.text or ''
+        yield self.node.text or ""
 
 
 class MarkdownFootnote(IDocumentFootnote):

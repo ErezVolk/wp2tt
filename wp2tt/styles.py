@@ -11,6 +11,7 @@ ATTR_NO_INI = {ATTR_KEY: ATTR_VALUE_HIDDEN}
 @attr.s(slots=True)
 class Style(object):
     """A character/paragraph style, normally found in the input file."""
+
     realm = attr.ib(metadata=ATTR_NO_INI)
     wpid = attr.ib(metadata=ATTR_READONLY)  # Used for xrefs in docx; localized
     internal_name = attr.ib(metadata=ATTR_NO_INI)  # Used in the section names
@@ -18,7 +19,7 @@ class Style(object):
     parent_wpid = attr.ib(default=None, metadata=ATTR_READONLY)
     next_wpid = attr.ib(default=None, metadata=ATTR_READONLY)
     automatic = attr.ib(default=None, metadata=ATTR_READONLY)
-    idtt = attr.ib(default='')
+    idtt = attr.ib(default="")
     variable = attr.ib(default=None)
 
     used = attr.ib(default=None, metadata=ATTR_NO_INI)
@@ -28,12 +29,13 @@ class Style(object):
     next_style = attr.ib(default=None, metadata=ATTR_NO_INI)
 
     def __str__(self):
-        return '<%s %r>' % (self.realm, self.name)
+        return "<%s %r>" % (self.realm, self.name)
 
 
 @attr.s(slots=True)
 class Rule(object):
     """A derivation rule for Styles."""
+
     mnemonic = attr.ib(metadata=ATTR_NO_INI)
     description = attr.ib(metadata=ATTR_NO_INI)
     turn_this = attr.ib(default=None)
@@ -49,11 +51,12 @@ class Rule(object):
     applied = attr.ib(default=0, metadata=ATTR_NO_INI)
 
     def __str__(self):
-        return '%s %r' % (self.mnemonic, self.description)
+        return "%s %r" % (self.mnemonic, self.description)
 
 
 @attr.s(slots=True)
 class DocumentProperties(object):
     """Things we can tell about a document."""
+
     has_rtl = attr.ib(default=True)
     pure_ascii = attr.ib(default=False)

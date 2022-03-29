@@ -5,6 +5,7 @@ import enum
 
 class CharacterFormat(enum.Flag):
     """Character Format"""
+
     @classmethod
     def realm(cls):
         return "character"
@@ -16,6 +17,7 @@ class CharacterFormat(enum.Flag):
 
 class ParagraphFormat(enum.Flag):
     """Paragraph Format"""
+
     @classmethod
     def realm(cls):
         return "paragraph"
@@ -74,6 +76,7 @@ class IDocumentParagraph(object):
 
 class IDocumentSpan(object):
     """A span of characters inside a document."""
+
     def style_wpid(self):
         """Returns the wpid for this span's style."""
         raise NotImplementedError()

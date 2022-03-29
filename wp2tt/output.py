@@ -43,10 +43,11 @@ class WhitespaceStripper(IOutput):
 
     Good foor footnotes.
     """
+
     def __init__(self, writer):
         self.writer = writer
         self.begun = False
-        self.pending = ''
+        self.pending = ""
 
     def define_style(self, style):
         """Add a style definition."""
@@ -80,15 +81,13 @@ class WhitespaceStripper(IOutput):
         """Add some plain text."""
         if not self.begun:
             # Trim initial whitespace
-            text = re.sub(r'^\s+', r'', text)
+            text = re.sub(r"^\s+", r"", text)
             self.begun = bool(text)
 
         if self.begun:
             # Defer any possibly final whitespace
-            parts = re.split(r'(\s+$)', self.pending + text)
+            parts = re.split(r"(\s+$)", self.pending + text)
             text = parts[0]
-            self.pending = parts[1] if len(parts) > 1 else ''
+            self.pending = parts[1] if len(parts) > 1 else ""
 
         return self.writer.write_text(text)
-
-
