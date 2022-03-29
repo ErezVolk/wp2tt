@@ -16,7 +16,7 @@ import attr
 
 from wp2tt.version import WP2TT_VERSION
 from wp2tt.ini import ini_fields
-from wp2tt.input import ParagraphFormat
+from wp2tt.input import ManualFormat
 from wp2tt.styles import Style
 from wp2tt.styles import Rule
 from wp2tt.proxies import ByExtensionInput
@@ -52,6 +52,9 @@ class State:
     prev_para_style = attr.ib(default=None)
     curr_para_text = attr.ib(default="")
     prev_para_text = attr.ib(default=None)
+    is_empty = attr.ib(default=True)
+    is_post_empty = attr.ib(default=False)
+    is_post_break = attr.ib(default=False)
 
 
 class WordProcessorToInDesignTaggedText:
@@ -81,30 +84,26 @@ class WordProcessorToInDesignTaggedText:
         },
     }
 
-    is_empty = None
-    parser = None
     args = None
-    settings = None
-    settings_touched = None
-    style_sections_used = None
-    output_fn = None
-    settings_fn = None
-    rerunner_fn = None
-    stop_marker = None
-    config = None
-    rules = None
-    state = None
-    stop_marker_found = None
-    is_post_empty = None
-    is_post_break = None
-    is_empty = None
-    writer = None
-    doc = None
-    styles = None
     base_names = None
     base_styles = None
-    footnote_ref_style = None
     comment_ref_style = None
+    config = None
+    doc = None
+    footnote_ref_style = None
+    output_fn = None
+    parser = None
+    rerunner_fn = None
+    rules = None
+    settings = None
+    settings_fn = None
+    settings_touched = None
+    state = None
+    stop_marker = None
+    stop_marker_found = None
+    style_sections_used = None
+    styles = None
+    writer = None
 
     def run(self):
         """Main entry point."""
@@ -513,8 +512,8 @@ class WordProcessorToInDesignTaggedText:
     def convert_document(self):
         try:
             self.stop_marker_found = False
-            self.is_post_empty = False
-            self.is_post_break = False
+            self.state.is_post_empty = False
+            self.state.is_post_break = False
             for para in self.doc.paragraphs():
                 self.convert_paragraph(para)
             if self.stop_marker:
@@ -524,7 +523,8 @@ class WordProcessorToInDesignTaggedText:
             logging.info(marker)
 
     def convert_paragraph(self, para):
-        self.is_empty = True
+        self.state.is_empty = True
+
         if self.stop_marker:
             self.check_for_stop_paragraph(para)
         style = self.apply_rules_to(self.get_paragraph_style(para))
@@ -534,13 +534,13 @@ class WordProcessorToInDesignTaggedText:
             if style and style.variable:
                 self.define_variable_from_paragraph(style.variable, para)
 
-        # For the next paragraph`
+        # For the next paragraph
         if para.is_page_break():
-            self.is_post_break = True
-            self.is_empty = False
-        elif not self.is_empty:
-            self.is_post_break = False
-        self.is_post_empty = self.is_empty
+            self.state.is_post_break = True
+            self.state.is_empty = False
+        elif not self.state.is_empty:
+            self.state.is_post_break = False
+        self.state.is_post_empty = self.state.is_empty
 
     def get_paragraph_style(self, para):
         if not self.args.manual:
@@ -548,34 +548,38 @@ class WordProcessorToInDesignTaggedText:
 
         # Manual formatting
         fmt = para.format()
-        if self.is_post_empty:
-            fmt = fmt | ParagraphFormat.SPACED
-        if self.is_post_break:
-            fmt = fmt | ParagraphFormat.NEW_PAGE
+        if self.state.is_post_empty:
+            fmt = fmt | ManualFormat.SPACED
+        if self.state.is_post_break:
+            fmt = fmt | ManualFormat.NEW_PAGE
+
+        char_fmts = {rng.format() for rng in para.spans()}
+        if len(char_fmts) == 1:
+            fmt = fmt | char_fmts.pop()
+
         if fmt:
-            return self.get_manual_style(fmt)
+            return self.get_manual_style("paragraph", fmt)
 
-        return self.get_manual_style(ParagraphFormat.NORMAL)
+        return self.get_manual_style("paragraph", ManualFormat.NORMAL)
 
-    def get_manual_style(self, fmt):
+    def get_manual_style(self, realm, fmt):
         if not fmt:
             return None
 
-        try:
+        if fmt in self.manual_styles:
             return self.manual_styles[fmt]
-        except KeyError:
-            cls = type(fmt)
-            realm = cls.realm()
-            basename = "_".join(f.name for f in cls if fmt & f)
-            name = f"{self.SPECIAL_GROUP}/({basename})"
-            self.manual_styles[fmt] = self.found_style_definition(
-                realm=realm,
-                internal_name=name,
-                wpid=name,
-                parent_wpid=self.base_names[realm],
-                automatic=True,
-            )
-            return self.manual_styles[fmt]
+
+        cls = type(fmt)
+        basename = "_".join(f.name for f in cls if fmt & f)
+        name = f"{self.SPECIAL_GROUP}/({basename})"
+        self.manual_styles[fmt] = self.found_style_definition(
+            realm=realm,
+            internal_name=name,
+            wpid=name,
+            parent_wpid=self.base_names[realm],
+            automatic=True,
+        )
+        return self.manual_styles[fmt]
 
     def apply_rules_to(self, style):
         for rule in self.rules:
@@ -642,7 +646,7 @@ class WordProcessorToInDesignTaggedText:
         self.convert_range_text(rng)
         for footnote in rng.footnotes():
             self.convert_footnote(footnote)
-            self.is_empty = False
+            self.state.is_empty = False
         if self.args.convert_comments:
             for cmt in rng.comments():
                 self.convert_comment(cmt)
@@ -653,7 +657,7 @@ class WordProcessorToInDesignTaggedText:
             return self.style("character", rng.style_wpid())
 
         # Manual formatting
-        return self.get_manual_style(rng.format())
+        return self.get_manual_style("character", rng.format())
 
     NON_WHITESPACE = re.compile(r"\S")
 
@@ -662,7 +666,7 @@ class WordProcessorToInDesignTaggedText:
         for text in rng.text():
             self.write_text(text)
             if self.NON_WHITESPACE.search(text):
-                self.is_empty = False
+                self.state.is_empty = False
 
     def switch_character_style(self, style):
         """Set current character style"""

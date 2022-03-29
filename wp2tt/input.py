@@ -3,30 +3,18 @@
 import enum
 
 
-class CharacterFormat(enum.Flag):
-    """Character Format"""
-
-    @classmethod
-    def realm(cls):
-        return "character"
+class ManualFormat(enum.Flag):
+    """Manual Formatting"""
 
     NORMAL = 0
-    BOLD = enum.auto()
-    ITALIC = enum.auto()
 
-
-class ParagraphFormat(enum.Flag):
-    """Paragraph Format"""
-
-    @classmethod
-    def realm(cls):
-        return "paragraph"
-
-    NORMAL = 0
     CENTERED = enum.auto()
     JUSTIFIED = enum.auto()
     NEW_PAGE = enum.auto()
     SPACED = enum.auto()
+
+    BOLD = enum.auto()
+    ITALIC = enum.auto()
 
 
 class IDocumentInput(object):
@@ -57,9 +45,9 @@ class IDocumentParagraph(object):
         """Returns the wpid for this paragraph's style."""
         raise NotImplementedError()
 
-    def format(self) -> ParagraphFormat:
+    def format(self) -> ManualFormat:
         """Returns manual formatting on this paragraph."""
-        return ParagraphFormat.NORMAL
+        return ManualFormat.NORMAL
 
     def is_page_break(self):
         """True iff the paragraph is a page break."""
@@ -89,9 +77,9 @@ class IDocumentSpan(object):
         """Yields an IDocumentComment object for each comment in this span."""
         raise NotImplementedError()
 
-    def format(self) -> CharacterFormat:
+    def format(self) -> ManualFormat:
         """Returns manual formatting on this span."""
-        return CharacterFormat.NORMAL
+        return ManualFormat.NORMAL
 
     def text(self):
         """Yields strings of plain text."""

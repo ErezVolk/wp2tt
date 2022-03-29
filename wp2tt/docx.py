@@ -8,8 +8,7 @@ from wp2tt.input import IDocumentFootnote
 from wp2tt.input import IDocumentInput
 from wp2tt.input import IDocumentParagraph
 from wp2tt.input import IDocumentSpan
-from wp2tt.input import CharacterFormat
-from wp2tt.input import ParagraphFormat
+from wp2tt.input import ManualFormat
 from wp2tt.styles import DocumentProperties
 
 # TODO: manual emphasis: <w:i/> <w:iCs/>
@@ -89,7 +88,7 @@ class DocxInput(contextlib.ExitStack, WordXml, IDocumentInput):
                 continue
             for realm, tag in (("paragraph", "w:pStyle"), ("character", "w:rStyle")):
                 for snode in self._xpath(node, f"//{tag}"):
-                    wpid = snode.odeget(self._wtag("val"))
+                    wpid = snode.get(self._wtag("val"))
                     yield (realm, wpid)
 
     def paragraphs(self):
@@ -147,14 +146,14 @@ class DocxParagraph(DocxNode, IDocumentParagraph):
         for node in self._node_xpath("w:r | w:ins/w:r"):
             yield DocxSpan(self.doc, node)
 
-    def format(self) -> ParagraphFormat:
+    def format(self) -> ManualFormat:
         """Returns manual formatting on this paragraph."""
         justification = self._node_wval("w:pPr/w:jc")
-        fmt = ParagraphFormat.NORMAL
+        fmt = ManualFormat.NORMAL
         if justification == "center":
-            fmt = fmt | ParagraphFormat.CENTERED
+            fmt = fmt | ManualFormat.CENTERED
         elif justification == "both":
-            fmt = fmt | ParagraphFormat.JUSTIFIED
+            fmt = fmt | ManualFormat.JUSTIFIED
         return fmt
 
     def is_page_break(self):
@@ -176,12 +175,12 @@ class DocxSpan(DocxNode, IDocumentSpan):
         for cmr in self._node_xpath("w:commentReference"):
             yield DocxComment(self.doc, cmr)
 
-    def format(self) -> CharacterFormat:
-        fmt = CharacterFormat.NORMAL
+    def format(self) -> ManualFormat:
+        fmt = ManualFormat.NORMAL
         for _ in self._node_xpath("w:rPr/w:b | w:rPr/w:bCs"):
-            fmt = fmt | CharacterFormat.BOLD
+            fmt = fmt | ManualFormat.BOLD
         for _ in self._node_xpath("w:rPr/w:i | w:rPr/w:iCs"):
-            fmt = fmt | CharacterFormat.ITALIC
+            fmt = fmt | ManualFormat.ITALIC
         return fmt
 
     def text(self):
