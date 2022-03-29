@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+"""Utility classes"""
 import contextlib
 import logging
 import os
@@ -49,8 +50,8 @@ class MultiInput(contextlib.ExitStack, IDocumentInput):
         for path, doc in zip(self._paths, self._inputs):
             in_file = 0
             logging.debug("Paragraphs in %r", path)
-            for p in doc.paragraphs():
-                yield p
+            for para in doc.paragraphs():
+                yield para
                 in_file += 1
                 total += 1
             logging.debug("%u paragraphs(s) in %r", in_file, path)
@@ -73,7 +74,7 @@ class ByExtensionInput(contextlib.ExitStack, IDocumentInput):
         elif ext == ".md":
             self._input = MarkdownInput(path)
         else:
-            raise RuntimeError("Unknown file extension for %r", path)
+            raise RuntimeError(f"Unknown file extension for {path}")
         self.enter_context(self._input)
 
     @property

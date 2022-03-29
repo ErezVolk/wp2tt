@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+"""Tagged text creation"""
 import collections
 import contextlib
 import itertools
@@ -10,6 +11,7 @@ from wp2tt.output import IOutput
 
 
 class InDesignTaggedTextOutput(contextlib.ExitStack, IOutput):
+    """Writes to a tagged text file"""
     def __init__(self, filename, debug=False, properties=None):
         super().__init__()
         self._filename = filename

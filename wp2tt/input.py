@@ -17,7 +17,7 @@ class ManualFormat(enum.Flag):
     ITALIC = enum.auto()
 
 
-class IDocumentInput(object):
+class IDocumentInput:
     """A document."""
 
     @property
@@ -38,7 +38,7 @@ class IDocumentInput(object):
         raise NotImplementedError()
 
 
-class IDocumentParagraph(object):
+class IDocumentParagraph:
     """A Paragraph inside a document."""
 
     def style_wpid(self):
@@ -62,7 +62,7 @@ class IDocumentParagraph(object):
         raise NotImplementedError()
 
 
-class IDocumentSpan(object):
+class IDocumentSpan:
     """A span of characters inside a document."""
 
     def style_wpid(self):
@@ -86,7 +86,7 @@ class IDocumentSpan(object):
         raise NotImplementedError()
 
 
-class IDocumentFootnote(object):
+class IDocumentFootnote:
     """A footnote."""
 
     def paragraphs(self):
@@ -94,7 +94,7 @@ class IDocumentFootnote(object):
         raise NotImplementedError()
 
 
-class IDocumentComment(object):
+class IDocumentComment:
     """A comment (balloon)."""
 
     def paragraphs(self):

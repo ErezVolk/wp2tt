@@ -10,7 +10,7 @@ from wp2tt.input import IDocumentSpan
 from wp2tt.styles import DocumentProperties
 
 
-class MarkdownUnRenderer(object):
+class MarkdownUnRenderer:
     NAMELESS_P_PRE = '<p wpid="normal">'
     NAMELESS_P_POST = "</p>"
 

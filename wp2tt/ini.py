@@ -1,3 +1,4 @@
+"""Ini file helper"""
 import attr
 
 ATTR_KEY = "special"

@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+""".odt file parsing"""
 import contextlib
 import logging
 import zipfile

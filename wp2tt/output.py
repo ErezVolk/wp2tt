@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
+"""Simple output classes"""
 import re
 
 
-class IOutput(object):
+class IOutput:
     """Interface for things that write InDesign Tagged Text."""
 
     def define_style(self, style):
