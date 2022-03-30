@@ -12,7 +12,6 @@ from wp2tt.input import ManualFormat
 from wp2tt.styles import DocumentProperties
 
 # TODO: manual spacing: <w:spacing w:before="480" w:after="480"/>
-# TODO: after-blank-paras
 
 
 class WordXml:
@@ -92,7 +91,8 @@ class DocxInput(contextlib.ExitStack, WordXml, IDocumentInput):
         """Yields a DocxParagraph object for each body paragraph."""
         # for para in self._xpath(self.document, "//w:body/w:p[not(preceding-sibling::w:p/w:pPr/w:rPr/w:del)]"):
         for para in self._xpath(self.document, "//w:body/w:p"):
-            yield DocxParagraph(self, para)
+            if not para.get("__wp2tt_skip__"):
+                yield DocxParagraph(self, para)
 
     def _load_xml(self, path_in_zip):
         """Parse an XML file inside the zipped doc, return root node."""
@@ -108,13 +108,18 @@ class DocxNode(WordXml):
 
     def __init__(self, doc, node):
         self.doc = doc
-        self.node = node
+        self.head_node = node
+        self.nodes = [node]
+
+    def add_node(self, node):
+        self.nodes.append(node)
 
     def _node_wtag(self, tag):
-        return self.node.get(self._wtag(tag))
+        return self.head_node.get(self._wtag(tag))
 
     def _node_xpath(self, expr):
-        return self.node.xpath(expr, namespaces=self._NS)
+        for node in self.nodes:
+            yield from node.xpath(expr, namespaces=self._NS)
 
     def _node_wval(self, prop):
         return self._node_wattr(prop, "val")
@@ -123,16 +128,29 @@ class DocxNode(WordXml):
         return self._node_wattr(prop, "type")
 
     def _node_wattr(self, prop, attr):
-        for pnode in self._xpath(self.node, prop):
-            return pnode.get(self._wtag(attr))
+        for node in self.nodes:
+            for pnode in self._xpath(node, prop):
+                return pnode.get(self._wtag(attr))
         return None
 
 
 class DocxParagraph(DocxNode, IDocumentParagraph):
     """A Paragraph inside a .docx."""
 
+    def __init__(self, doc, para):
+        super().__init__(doc, para)
+        while self.is_nonfinal(para):
+            self.add_node(para := para.getnext())
+            para.set("__wp2tt_skip__", "yes")
+
+    def is_nonfinal(self, para):
+        """True iff a <w:p> para has deleted, tracked newline"""
+        for _ in self._xpath(para, "./w:pPr/w:rPr/w:del"):
+            return True
+        return False
+
     def style_wpid(self):
-        return self._node_wval("w:pPr/w:pStyle")
+        return self._node_wval("./w:pPr/w:pStyle")
 
     def text(self):
         """Yields strings of plain text."""
