@@ -11,9 +11,6 @@ from wp2tt.input import IDocumentSpan
 from wp2tt.input import ManualFormat
 from wp2tt.styles import DocumentProperties
 
-# TODO: manual emphasis: <w:i/> <w:iCs/>
-# TODO: manual bold: <w:b/> <w:bCs/>
-# TODO: manual center: <w:jc w:val="center"/>
 # TODO: manual spacing: <w:spacing w:before="480" w:after="480"/>
 # TODO: after-blank-paras
 
@@ -93,6 +90,7 @@ class DocxInput(contextlib.ExitStack, WordXml, IDocumentInput):
 
     def paragraphs(self):
         """Yields a DocxParagraph object for each body paragraph."""
+        # for para in self._xpath(self.document, "//w:body/w:p[not(preceding-sibling::w:p/w:pPr/w:rPr/w:del)]"):
         for para in self._xpath(self.document, "//w:body/w:p"):
             yield DocxParagraph(self, para)
 
@@ -184,9 +182,9 @@ class DocxSpan(DocxNode, IDocumentSpan):
         return fmt
 
     def text(self):
-        for node in self._node_xpath("w:tab | w:node"):
+        for node in self._node_xpath("w:tab | w:t"):
             if node.tag == self._wtag("tab"):
-                yield "\node"
+                yield "\t"
             else:
                 yield node.text
 

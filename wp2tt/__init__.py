@@ -821,6 +821,7 @@ class WordProcessorToInDesignTaggedText:
 
 
 # TODO:
+# - Track changes: how are deleted newlines marked?
 # - DOCX: <w:bookmarkStart w:name="X"/> / <w:instrText>PAGEREF ..
 # - IDTT:
 # - ODT: footnotes
