@@ -1,12 +1,18 @@
 """Ini file helper"""
 import attr
+import configparser
 
+from typing import Dict
 from typing import Generator
 from typing import Tuple
+from typing import Union
 
 ATTR_KEY = "special"
 ATTR_VALUE_READONLY = "readonly"
 ATTR_VALUE_HIDDEN = "internal"
+
+
+ConfigSection = Union[configparser.SectionProxy, Dict[str, str]]
 
 
 def ini_fields(klass, writeable=False) -> Generator[Tuple[str, str], None, None]:

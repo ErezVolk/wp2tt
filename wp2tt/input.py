@@ -5,11 +5,11 @@ from abc import abstractproperty
 from abc import ABC
 import enum
 
+from typing import Dict
 from typing import Generator
 from typing import Tuple
 
 from wp2tt.styles import DocumentProperties
-from wp2tt.styles import Style
 
 
 class ManualFormat(enum.Flag):
@@ -93,7 +93,7 @@ class IDocumentInput(ABC):
         """A DocumentProperties object."""
         raise NotImplementedError()
 
-    def styles_defined(self) -> Generator[Style, None, None]:
+    def styles_defined(self) -> Generator[Dict[str, str], None, None]:
         """Yield a Style object kwargs for every style defined in the document."""
         raise NotImplementedError()
 

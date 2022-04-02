@@ -13,6 +13,7 @@ import shutil
 import sys
 
 from typing import Dict
+from typing import Iterator
 from typing import List
 from typing import Mapping
 from typing import Optional
@@ -22,7 +23,9 @@ import attr
 
 from wp2tt.version import WP2TT_VERSION
 from wp2tt.ini import ini_fields
+from wp2tt.ini import ConfigSection
 from wp2tt.input import IDocumentInput
+from wp2tt.input import IDocumentParagraph
 from wp2tt.input import ManualFormat
 from wp2tt.styles import Style
 from wp2tt.styles import Rule
@@ -56,6 +59,7 @@ class ParseDict(argparse.Action):
 @attr.s
 class State:
     """Context of styles"""
+
     curr_char_style = attr.ib(default=None)
     prev_para_style = attr.ib(default=None)
     curr_para_text = attr.ib(default="")
@@ -328,11 +332,11 @@ class WordProcessorToInDesignTaggedText:
             return MultiInput([self.args.input] + self.args.append)
         return ByExtensionInput(self.args.input)
 
-    def scan_style_definitions(self):
+    def scan_style_definitions(self) -> None:
         """Create a Style object for everything in the document."""
         self.styles = {}
         self.create_special_styles()
-        counts = collections.defaultdict(lambda: itertools.count(start=1))
+        counts: Mapping[str, Iterator[int]] = collections.defaultdict(lambda: itertools.count(start=1))
         for style_kwargs in self.doc.styles_defined():
             if style_kwargs.get("automatic"):
                 group = self.SPECIAL_GROUP
@@ -340,7 +344,7 @@ class WordProcessorToInDesignTaggedText:
                 style_kwargs["name"] = f"{group}/automatic-{num}"
             self.found_style_definition(**style_kwargs)
 
-    def create_special_styles(self):
+    def create_special_styles(self) -> None:
         """Add any internal styles (i.e., not imported from the doc)."""
         self.base_names = {
             "character": self.args.base_character_style,
@@ -373,7 +377,7 @@ class WordProcessorToInDesignTaggedText:
         )
         self.manual_styles = {}
 
-    def scan_style_mentions(self):
+    def scan_style_mentions(self) -> None:
         """Mark which styles are actually used."""
         for realm, wpid in self.doc.styles_in_use():
             style_key = self.style_key(realm=realm, wpid=wpid)
@@ -383,7 +387,7 @@ class WordProcessorToInDesignTaggedText:
                 logging.debug("Style used: %r", style_key)
                 self.styles[style_key].used = True
 
-    def link_styles(self):
+    def link_styles(self) -> None:
         """A sort of alchemy-relationship thing."""
         for style in self.styles.values():
             style.parent_style = self.style_or_none(style.realm, style.parent_wpid)
@@ -394,7 +398,7 @@ class WordProcessorToInDesignTaggedText:
             return None
         return self.styles[self.style_key(realm=realm, wpid=wpid)]
 
-    def link_rules(self):
+    def link_rules(self) -> None:
         """A sort of alchemy-relationship thing."""
         for rule in self.rules:
             try:
@@ -415,7 +419,9 @@ class WordProcessorToInDesignTaggedText:
                 logging.warning("Ignoring rule with bad references: %s", rule)
                 rule.valid = False
 
-    def find_style_by_ini_ref(self, ini_ref, required=False, inherit_from=None):
+    def find_style_by_ini_ref(
+        self, ini_ref: str, required=False, inherit_from=None
+    ) -> Optional[Style]:
         """Returns a style, given type of string we use for ini file section names."""
         if not ini_ref:
             if required:
@@ -448,7 +454,9 @@ class WordProcessorToInDesignTaggedText:
             parent_style=inherit_from,
         )
 
-    def found_style_definition(self, realm, internal_name, wpid, **kwargs) -> Style:
+    def found_style_definition(
+        self, realm: str, internal_name: str, wpid: str, **kwargs
+    ) -> Style:
         if realm not in self.base_names:
             logging.error("What about %s:%r [%r]?", realm, wpid, internal_name)
             self.base_names[realm] = self.args.base_character_style
@@ -504,19 +512,30 @@ class WordProcessorToInDesignTaggedText:
         return f"{realm}:{wpid}"
 
     @classmethod
-    def section_name(cls, realm=None, internal_name=None, style=None):
+    def fix_section_name(
+        cls,
+        section_name: Optional[str] = None,
+        realm: Optional[str] = None,
+        internal_name: Optional[str] = None,
+        style: Optional[Style] = None,
+    ) -> str:
         """The name of the ini section for a given style.
 
         This uses `internal_name`, rather than `wpid` or `name`,
         because `wpid` can get ugly ("a2") and `name` should be
         modifyable.
         """
+        if section_name is not None:
+            return section_name
+
         if style:
             realm = style.realm
             internal_name = style.internal_name
-        return f"{realm.capitalize()}:{internal_name}"
+        if realm:
+            realm = realm.capitalize()
+        return f"{realm}:{internal_name}"
 
-    def write_idtt(self):
+    def write_idtt(self) -> None:
         """The main conversion loop: parse document, write tagged text"""
         logging.info("Writing %r", self.output_fn)
         self.set_state(State())
@@ -539,7 +558,7 @@ class WordProcessorToInDesignTaggedText:
         except StopMarkerFound as marker:
             logging.info(marker)
 
-    def convert_paragraph(self, para):
+    def convert_paragraph(self, para: IDocumentParagraph) -> None:
         """Convert entire paragraph"""
         self.state.is_empty = True
 
@@ -560,7 +579,7 @@ class WordProcessorToInDesignTaggedText:
             self.state.is_post_break = False
         self.state.is_post_empty = self.state.is_empty
 
-    def get_paragraph_style(self, para):
+    def get_paragraph_style(self, para: IDocumentParagraph) -> Optional[Style]:
         """Return style to be used for a paragraph"""
         self.state.para_char_fmt = ManualFormat.NORMAL
 
@@ -585,7 +604,7 @@ class WordProcessorToInDesignTaggedText:
 
         return self.get_manual_style("paragraph", ManualFormat.NORMAL)
 
-    def get_manual_style(self, realm, fmt):
+    def get_manual_style(self, realm: str, fmt: ManualFormat) -> Optional[Style]:
         """When using manual formatting, create/get a style"""
         if not fmt:
             return None
@@ -594,7 +613,7 @@ class WordProcessorToInDesignTaggedText:
             return self.manual_styles[fmt]
 
         cls = type(fmt)
-        basename = "_".join(f.name for f in cls if fmt & f)
+        basename = "_".join(f.name for f in cls if fmt & f and f.name)
         name = f"{self.SPECIAL_GROUP}/({basename})"
         self.manual_styles[fmt] = self.found_style_definition(
             realm=realm,
@@ -605,15 +624,16 @@ class WordProcessorToInDesignTaggedText:
         )
         return self.manual_styles[fmt]
 
-    def apply_rules_to(self, style):
+    def apply_rules_to(self, style: Optional[Style]) -> Optional[Style]:
         """Convert style according to user-defined rules"""
-        for rule in self.rules:
-            if self.rule_applies_to(rule, style):
-                rule.applied += 1
-                return rule.into_this_style
+        if style:
+            for rule in self.rules:
+                if self.rule_applies_to(rule, style):
+                    rule.applied += 1
+                    return rule.into_this_style
         return style
 
-    def rule_applies_to(self, rule, style):
+    def rule_applies_to(self, rule: Rule, style: Style) -> bool:
         """True iff `rule` is should be applied on `style`."""
         if not rule.valid:
             return False
@@ -627,7 +647,7 @@ class WordProcessorToInDesignTaggedText:
                 return False
         return True
 
-    def check_for_stop_paragraph(self, para):
+    def check_for_stop_paragraph(self, para: IDocumentParagraph) -> None:
         """Looks for stop marker, raises StopMarkerFound() if found"""
         text = ""
         for chunk in para.text():
@@ -639,11 +659,13 @@ class WordProcessorToInDesignTaggedText:
             if len(text) >= len(self.stop_marker):
                 return
 
-    def define_variable_from_paragraph(self, variable, para):
+    def define_variable_from_paragraph(self, variable: str, para: IDocumentParagraph):
         """Save contents of a paragraph to a text variable"""
-        self.writer.define_text_variable(variable, "".join(chunk for chunk in para.text()))
+        self.writer.define_text_variable(
+            variable, "".join(chunk for chunk in para.text())
+        )
 
-    def set_state(self, state):
+    def set_state(self, state: State) -> State:
         """Set current style configuration, return previous one."""
         prev = self.state
         self.state = state
@@ -651,6 +673,7 @@ class WordProcessorToInDesignTaggedText:
 
     class ParagraphContext(contextlib.AbstractContextManager):
         """Context manager for styles inside a paragraph"""
+
         def __init__(self, outer, style):
             super().__init__()
             self.outer = outer
@@ -738,6 +761,7 @@ class WordProcessorToInDesignTaggedText:
 
     class FootnoteContext(contextlib.AbstractContextManager):
         """Context manager for style inside footnotes"""
+
         def __init__(self, outer, ref_style=None):
             super().__init__()
             self.outer = outer
@@ -757,7 +781,7 @@ class WordProcessorToInDesignTaggedText:
             self.writer.set_character_style(self.outer_character_style)
             self.outer.writer = self.writer
 
-    def report_statistics(self):
+    def report_statistics(self) -> None:
         """Print a nice summary"""
         realms = {s.realm for s in self.styles.values()}
         for realm in realms:
@@ -770,7 +794,7 @@ class WordProcessorToInDesignTaggedText:
             if rule.applied:
                 logging.info("%s application(s) of %s", rule.applied, rule)
 
-    def style(self, realm, wpid):
+    def style(self, realm: str, wpid: str) -> Optional[Style]:
         """Return a Style object"""
         if not wpid:
             return None
@@ -784,9 +808,11 @@ class WordProcessorToInDesignTaggedText:
         style.count += 1
         return style
 
-    def activate_style(self, style):
+    def activate_style(self, style: Style) -> None:
         """Define the style if needed."""
-        section_name = self.section_name(style.realm, style.internal_name)
+        section_name = self.fix_section_name(
+            realm=style.realm, internal_name=style.internal_name
+        )
         if section_name in self.style_sections_used:
             return
 
@@ -808,35 +834,47 @@ class WordProcessorToInDesignTaggedText:
             logging.debug("[%s] leads to missing %r", section_name, style.next_wpid)
 
     def get_setting_section(
-        self, section_name=None, realm=None, internal_name=None, style=None
-    ):
+        self,
+        section_name: Optional[str] = None,
+        realm: Optional[str] = None,
+        internal_name: Optional[str] = None,
+        style: Optional[Style] = None,
+    ) -> ConfigSection:
         """Return a section from the ini file.
 
         If no such section exists, return a new dict, but don't add it
         to the configuration.
         """
-        if not section_name:
-            section_name = self.section_name(
-                realm=realm, internal_name=internal_name, style=style
-            )
+        actual_name = self.fix_section_name(
+            section_name=section_name,
+            realm=realm,
+            internal_name=internal_name,
+            style=style,
+        )
 
-        if self.settings.has_section(section_name):
-            return self.settings[section_name]
+        if self.settings.has_section(actual_name):
+            return self.settings[actual_name]
         return {}
 
     def ensure_setting_section(
-        self, section_name=None, realm=None, internal_name=None, style=None
-    ):
+        self,
+        section_name: Optional[str] = None,
+        realm: Optional[str] = None,
+        internal_name: Optional[str] = None,
+        style: Optional[Style] = None,
+    ) -> ConfigSection:
         """Return a section from the ini file, adding one if needed."""
-        if not section_name:
-            section_name = self.section_name(
-                realm=realm, internal_name=internal_name, style=style
-            )
-        if not self.settings.has_section(section_name):
-            self.settings[section_name] = {}
-        return self.settings[section_name]
+        actual_name = self.fix_section_name(
+            section_name=section_name,
+            realm=realm,
+            internal_name=internal_name,
+            style=style,
+        )
+        if not self.settings.has_section(actual_name):
+            self.settings[actual_name] = {}
+        return self.settings[actual_name]
 
-    def update_setting_section(self, section_name, style):
+    def update_setting_section(self, section_name: str, style: Style) -> None:
         """Update key:value pairs in an ini section.
 
         Sets `self.settings_touched` if anything was changed.
