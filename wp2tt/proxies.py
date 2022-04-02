@@ -3,20 +3,28 @@
 import contextlib
 import logging
 import os
+
+from collections.abc import Sequence
+from typing import Generator
+
 from wp2tt.input import IDocumentInput
+from wp2tt.input import IDocumentParagraph
 from wp2tt.docx import DocxInput
 from wp2tt.markdown import MarkdownInput
 from wp2tt.odt import XodtInput
 from wp2tt.styles import DocumentProperties
 
 
-class MultiInput(contextlib.ExitStack, IDocumentInput):
+class MultiInput(IDocumentInput, contextlib.ExitStack):
     """Input from multiple files."""
 
-    def __init__(self, paths):
+    def __init__(self, paths: Sequence[str]):
         super().__init__()
         self._paths = paths
-        self._inputs = [self.enter_context(ByExtensionInput(path)) for path in paths]
+        self._inputs = [
+            self.enter_context(ByExtensionInput(path))
+            for path in paths
+        ]
 
     @property
     def properties(self):
@@ -44,7 +52,7 @@ class MultiInput(contextlib.ExitStack, IDocumentInput):
             logging.debug("%u style(s) in %r", in_file, path)
         logging.debug("%u style(s) in %u docs", total, len(self._paths))
 
-    def paragraphs(self):
+    def paragraphs(self) -> Generator[IDocumentParagraph, None, None]:
         """Yields an IDocumentParagraph object for each body paragraph."""
         total = 0
         for path, doc in zip(self._paths, self._inputs):
@@ -58,7 +66,7 @@ class MultiInput(contextlib.ExitStack, IDocumentInput):
         logging.debug("%u paragraphs(s) in %u docs", total, len(self._paths))
 
 
-class ByExtensionInput(contextlib.ExitStack, IDocumentInput):
+class ByExtensionInput(IDocumentInput, contextlib.ExitStack):
     """An input, based on the file's extension."""
 
     def __init__(self, path):

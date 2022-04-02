@@ -7,19 +7,35 @@ import logging
 import os
 import re
 
+from typing import Iterator
+from typing import List
+from typing import Mapping
+from typing import Optional
+
 from wp2tt.output import IOutput
+from wp2tt.styles import DocumentProperties
+from wp2tt.styles import Style
 
 
-class InDesignTaggedTextOutput(contextlib.ExitStack, IOutput):
+class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
     """Writes to a tagged text file"""
-    def __init__(self, filename, debug=False, properties=None):
+
+    def __init__(
+        self,
+        filename: str,
+        debug=False,
+        properties: Optional[DocumentProperties] = None,
+    ):
         super().__init__()
         self._filename = filename
-        self._styles = []
+        self._styles: List[Style] = []
         self._headers_written = False
-        self._shades = collections.defaultdict(itertools.count)
+        self._shades: Mapping[str, Iterator[int]] = collections.defaultdict(itertools.count)
         self._debug = debug
-        self._properties = properties
+        if properties is None:
+            self._properties = DocumentProperties()
+        else:
+            self._properties = properties
 
         self._fo = self.enter_context(open(self._filename, "w", encoding="UTF-16LE"))
         ufo_fn = self._filename + ".utf8"
@@ -28,11 +44,11 @@ class InDesignTaggedTextOutput(contextlib.ExitStack, IOutput):
         elif os.path.isfile(ufo_fn):
             os.unlink(ufo_fn)
 
-    def _writeln(self, line=""):
+    def _writeln(self, line="") -> None:
         self._write(line)
         self._write("\n")
 
-    def define_style(self, style):
+    def define_style(self, style: Style) -> None:
         """Add a style definition."""
         if style in self._styles:
             return
@@ -47,9 +63,10 @@ class InDesignTaggedTextOutput(contextlib.ExitStack, IOutput):
         if self._headers_written:
             self._write_style_definition(style)
 
-    def _write_headers(self):
+    def _write_headers(self) -> None:
         if self._headers_written:
             return
+
         self._writeln("<UNICODE-MAC>")
         self._write(r"<Version:13.1>")
         if self._properties.has_rtl:
@@ -66,7 +83,7 @@ class InDesignTaggedTextOutput(contextlib.ExitStack, IOutput):
             self._writeln()
         self._headers_written = True
 
-    def _write_style_definition(self, style):
+    def _write_style_definition(self, style: Style) -> None:
         logging.debug("InDesign: %s", style)
         id_realm = style.realm[:4].capitalize()
         if style.idtt:
@@ -102,7 +119,7 @@ class InDesignTaggedTextOutput(contextlib.ExitStack, IOutput):
             self._write(">")
         self._write(">")
 
-    def define_text_variable(self, name, value):
+    def define_text_variable(self, name: str, value: str) -> None:
         self._write("<DefineTextVariable:")
         self._write_escaped(name)
         self._write("=<TextVarType:CustomText>")
@@ -111,12 +128,12 @@ class InDesignTaggedTextOutput(contextlib.ExitStack, IOutput):
         self._write(">")
         self._write(">")
 
-    def enter_paragraph(self, style=None):
+    def enter_paragraph(self, style: Optional[Style] = None) -> None:
         """Start a paragraph with a specified style."""
         self._write_headers()
         self._set_style("Para", style)
 
-    def _set_style(self, realm, style):
+    def _set_style(self, realm: str, style: Optional[Style]) -> None:
         if style:
             self.define_style(style)
         self._write("<")
@@ -126,37 +143,39 @@ class InDesignTaggedTextOutput(contextlib.ExitStack, IOutput):
             self._write(self._idname(style))
         self._write(">")
 
-    def _idname(self, style):
+    @classmethod
+    def _idname(cls, style: Style) -> str:
         return re.sub(r"\s*/\s*", r"\:", style.name)
 
-    def leave_paragraph(self):
+    def leave_paragraph(self) -> None:
         """Finalize paragraph."""
         self._writeln()
 
-    def set_character_style(self, style=None):
+    def set_character_style(self, style: Optional[Style] = None) -> None:
         """Start a span using a specific character style."""
         self._set_style("Char", style)
 
-    def enter_footnote(self):
+    def enter_footnote(self) -> None:
         """Add a footnote reference and enter the footnote."""
         self._write("<FootnoteStart:>")
 
-    def leave_footnote(self):
+    def leave_footnote(self) -> None:
         """Close footnote, go ack to main text."""
         self._write("<FootnoteEnd:>")
 
-    def write_text(self, text):
+    def write_text(self, text: str) -> None:
         """Add some plain text."""
         if text:
             self._write_escaped(text)
 
-    def _write_escaped(self, text):
+    def _write_escaped(self, text: str) -> None:
         return self._write(self._escape(text))
 
-    def _escape(self, text):
+    @classmethod
+    def _escape(cls, text: str) -> str:
         return re.sub(r"([<>])", r"\\\1", text)
 
-    def _write(self, string):
+    def _write(self, string: str) -> None:
         if string:
             self._fo.write(string)
             if self._debug:

@@ -15,6 +15,7 @@ import sys
 from typing import Dict
 from typing import List
 from typing import Mapping
+from typing import Optional
 from typing import Set
 
 import attr
@@ -388,7 +389,7 @@ class WordProcessorToInDesignTaggedText:
             style.parent_style = self.style_or_none(style.realm, style.parent_wpid)
             style.next_style = self.style_or_none(style.realm, style.next_wpid)
 
-    def style_or_none(self, realm, wpid):
+    def style_or_none(self, realm: str, wpid: str) -> Optional[Style]:
         if not wpid:
             return None
         return self.styles[self.style_key(realm=realm, wpid=wpid)]
@@ -490,7 +491,8 @@ class WordProcessorToInDesignTaggedText:
         self.styles[self.style_key(style=style)] = style
         return style
 
-    def style_key(self, style=None, realm=None, wpid=None) -> str:
+    @classmethod
+    def style_key(cls, style=None, realm=None, wpid=None) -> str:
         """The string which we use for `self.styles`.
 
         Note that this is based on the wpid, because
@@ -501,7 +503,8 @@ class WordProcessorToInDesignTaggedText:
             wpid = style.wpid
         return f"{realm}:{wpid}"
 
-    def section_name(self, realm=None, internal_name=None, style=None):
+    @classmethod
+    def section_name(cls, realm=None, internal_name=None, style=None):
         """The name of the ini section for a given style.
 
         This uses `internal_name`, rather than `wpid` or `name`,

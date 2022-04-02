@@ -2,7 +2,7 @@
 """MS Word .docx parser"""
 import contextlib
 import zipfile
-import lxml.etree
+import lxml.etree as etree
 
 from wp2tt.input import IDocumentComment
 from wp2tt.input import IDocumentFootnote
@@ -99,7 +99,7 @@ class DocxInput(contextlib.ExitStack, WordXml, IDocumentInput):
         """Parse an XML file inside the zipped doc, return root node."""
         try:
             with self._zip.open(path_in_zip) as fobj:
-                return lxml.etree.parse(fobj).getroot()
+                return etree.parse(fobj).getroot()
         except KeyError:
             return None
 

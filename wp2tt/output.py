@@ -2,39 +2,44 @@
 """Simple output classes"""
 import re
 
+from abc import ABC
+from typing import Optional
 
-class IOutput:
+from wp2tt.styles import Style
+
+
+class IOutput(ABC):
     """Interface for things that write InDesign Tagged Text."""
 
-    def define_style(self, style):
+    def define_style(self, style: Style) -> None:
         """Add a style definition."""
         raise NotImplementedError()
 
-    def define_text_variable(self, name, value):
+    def define_text_variable(self, name: str, value: str) -> None:
         """Add a text variable."""
         raise NotImplementedError()
 
-    def enter_paragraph(self, style=None):
+    def enter_paragraph(self, style: Optional[Style] = None):
         """Start a paragraph with a specified style."""
         raise NotImplementedError()
 
-    def leave_paragraph(self):
+    def leave_paragraph(self) -> None:
         """Finalize paragraph."""
         raise NotImplementedError()
 
-    def set_character_style(self, style=None):
+    def set_character_style(self, style: Optional[Style] = None) -> None:
         """Start a span using a specific character style."""
         raise NotImplementedError()
 
-    def enter_footnote(self):
+    def enter_footnote(self) -> None:
         """Add a footnote reference and enter the footnote."""
         raise NotImplementedError()
 
-    def leave_footnote(self):
+    def leave_footnote(self) -> None:
         """Close footnote, go ack to main text."""
         raise NotImplementedError()
 
-    def write_text(self, text):
+    def write_text(self, text: str) -> None:
         """Add some plain text."""
         raise NotImplementedError()
 
@@ -45,7 +50,7 @@ class WhitespaceStripper(IOutput):
     Good foor footnotes.
     """
 
-    def __init__(self, writer):
+    def __init__(self, writer: IOutput):
         self.writer = writer
         self.begun = False
         self.pending = ""
@@ -58,7 +63,7 @@ class WhitespaceStripper(IOutput):
         """Add a text variable."""
         return self.writer.define_text_variable(name, value)
 
-    def enter_paragraph(self, style=None):
+    def enter_paragraph(self, style=None) -> None:
         """Start a paragraph with a specified style."""
         return self.writer.enter_paragraph(style)
 
@@ -78,7 +83,7 @@ class WhitespaceStripper(IOutput):
         """Close footnote, go ack to main text."""
         return self.writer.leave_footnote()
 
-    def write_text(self, text):
+    def write_text(self, text: str):
         """Add some plain text."""
         if not self.begun:
             # Trim initial whitespace

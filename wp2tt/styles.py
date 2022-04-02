@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+"""wp2tt Style objects"""
 import attr
 from wp2tt.ini import ATTR_KEY
 from wp2tt.ini import ATTR_VALUE_READONLY
@@ -9,7 +10,7 @@ ATTR_NO_INI = {ATTR_KEY: ATTR_VALUE_HIDDEN}
 
 
 @attr.s(slots=True)
-class Style(object):
+class Style:
     """A character/paragraph style, normally found in the input file."""
 
     realm = attr.ib(metadata=ATTR_NO_INI)
@@ -29,11 +30,11 @@ class Style(object):
     next_style = attr.ib(default=None, metadata=ATTR_NO_INI)
 
     def __str__(self):
-        return "<%s %r>" % (self.realm, self.name)
+        return f"<{self.realm} {repr(self.name)}>"
 
 
 @attr.s(slots=True)
-class Rule(object):
+class Rule:
     """A derivation rule for Styles."""
 
     mnemonic = attr.ib(metadata=ATTR_NO_INI)
@@ -51,11 +52,11 @@ class Rule(object):
     applied = attr.ib(default=0, metadata=ATTR_NO_INI)
 
     def __str__(self):
-        return "%s %r" % (self.mnemonic, self.description)
+        return f"<{self.mnemonic} {repr(self.description)}>"
 
 
 @attr.s(slots=True)
-class DocumentProperties(object):
+class DocumentProperties:
     """Things we can tell about a document."""
 
     has_rtl = attr.ib(default=True)

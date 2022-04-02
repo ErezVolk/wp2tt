@@ -13,7 +13,7 @@ from wp2tt.input import IDocumentSpan
 from wp2tt.styles import DocumentProperties
 
 
-class OoXml(object):
+class OoXml:
     """Basic helper class for the OpenOffice XML format."""
 
     _NS = {
@@ -59,7 +59,7 @@ class XodtInput(contextlib.ExitStack, OoXml, IDocumentInput):
         )
 
     def _has_node(self, ootag):
-        for node in self._xpath(self._content, ootag):
+        for _ in self._xpath(self._content, ootag):
             return True
         return False
 
@@ -69,12 +69,12 @@ class XodtInput(contextlib.ExitStack, OoXml, IDocumentInput):
 
     def styles_defined(self):
         """Yield a Style object kwargs for every style defined in the document."""
-        for s in self._xpath(
+        for snode in self._xpath(
             self._load_xml("styles.xml"), "//office:styles/style:style"
         ):
-            yield self._style_kwargs(s)
-        for s in self._xpath(self._content, "//office:automatic-styles/style:style"):
-            yield self._style_kwargs(s, automatic=True)
+            yield self._style_kwargs(snode)
+        for snode in self._xpath(self._content, "//office:automatic-styles/style:style"):
+            yield self._style_kwargs(snode, automatic=True)
 
     def _style_kwargs(self, node, **extras):
         name = self._ooget(node, "style:name")
@@ -93,21 +93,21 @@ class XodtInput(contextlib.ExitStack, OoXml, IDocumentInput):
     def styles_in_use(self):
         """Yield a pair (realm, wpid) for every style used in the document."""
         for realm, tag in (("paragraph", "text:p"), ("character", "text:span")):
-            for sn in self._xpath(self._content, "//%s" % tag):
-                wpid = self._ooget(sn, "text:style-name")
+            for sname in self._xpath(self._content, "//%s" % tag):
+                wpid = self._ooget(sname, "text:style-name")
                 yield (realm, wpid)
 
     def paragraphs(self):
         """Yields a OdtParagraph object for each body paragraph."""
-        for p in self._xpath(self._content, "//office:body/office:text/text:p"):
-            yield OdtParagraph(self, p)
+        for para in self._xpath(self._content, "//office:body/office:text/text:p"):
+            yield OdtParagraph(self, para)
 
     def _open_zip(self, path):
         return self.enter_context(zipfile.ZipFile(path))
 
     def _open_flat(self, path):
-        with open(path, "r") as f:
-            return lxml.etree.parse(f).getroot()
+        with open(path, "r") as fobj:
+            return lxml.etree.parse(fobj).getroot()
 
     def _load_xml(self, path_in_zip):
         """Parse an XML file inside the zipped doc, return root node."""
@@ -115,8 +115,8 @@ class XodtInput(contextlib.ExitStack, OoXml, IDocumentInput):
             return self._flat
 
         try:
-            with self._zip.open(path_in_zip) as fo:
-                return lxml.etree.parse(fo).getroot()
+            with self._zip.open(path_in_zip) as fobj:
+                return lxml.etree.parse(fobj).getroot()
         except KeyError:
             return None
 
@@ -143,26 +143,25 @@ class OdtParagraph(OdtNode, IDocumentParagraph):
 
     def text(self):
         """Yields strings of plain text."""
-        for t in self.node.itertext():
-            yield t
+        yield from self.node.itertext()
 
     def spans(self):
         """Yield OdtSpan per text span."""
-        for event, n in lxml.etree.iterwalk(self.node, events=("start", "end")):
+        for event, node in lxml.etree.iterwalk(self.node, events=("start", "end")):
             if event == "start":
-                if n.tag == self._ootag("text:tab"):
-                    yield OdtTabSpan(self.doc, n)
-                elif n.tag == self._ootag("text:span"):
-                    yield OdtSpanSpan(self.doc, n)
-                elif n.tag == self._ootag("text:p"):
-                    yield OdtHeadSpan(self.doc, n)
+                if node.tag == self._ootag("text:tab"):
+                    yield OdtTabSpan(self.doc, node)
+                elif node.tag == self._ootag("text:span"):
+                    yield OdtSpanSpan(self.doc, node)
+                elif node.tag == self._ootag("text:p"):
+                    yield OdtHeadSpan(self.doc, node)
                 else:
                     logging.debug(
-                        "Not sure what to do with a <%s> %r", n.tag, n.text[:8]
+                        "Not sure what to do with a <%s> %r", node.tag, node.text[:8]
                     )
-                    yield OdtHeadSpan(self.doc, n)
+                    yield OdtHeadSpan(self.doc, node)
             else:
-                yield OdtTailSpan(self.doc, n)
+                yield OdtTailSpan(self.doc, node)
 
 
 class OdtSpanBase(OdtNode, IDocumentSpan):
@@ -170,16 +169,13 @@ class OdtSpanBase(OdtNode, IDocumentSpan):
         return None
 
     def footnotes(self):
-        if False:
-            yield
+        pass
 
     def comments(self):
-        if False:
-            yield
+        pass
 
     def text(self):
-        if False:
-            yield
+        pass
 
 
 class OdtHeadSpan(OdtSpanBase):
