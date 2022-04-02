@@ -2,7 +2,7 @@
 """MS Word .docx parser"""
 import contextlib
 import zipfile
-import lxml.etree as etree
+from lxml import etree
 
 from wp2tt.input import IDocumentComment
 from wp2tt.input import IDocumentFootnote
@@ -11,8 +11,6 @@ from wp2tt.input import IDocumentParagraph
 from wp2tt.input import IDocumentSpan
 from wp2tt.input import ManualFormat
 from wp2tt.styles import DocumentProperties
-
-# TODO: manual spacing: <w:spacing w:before="480" w:after="480"/>
 
 
 class WordXml:

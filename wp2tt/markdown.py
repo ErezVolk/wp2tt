@@ -1,8 +1,14 @@
 #!/usr/bin/env python3
+"""Read Markdown document"""
 import logging  # noqa: F401
 import contextlib
+
+from typing import Dict
+from typing import Generator
+
 import mistune
 from lxml import etree
+
 from wp2tt.input import IDocumentFootnote
 from wp2tt.input import IDocumentInput
 from wp2tt.input import IDocumentParagraph
@@ -11,6 +17,8 @@ from wp2tt.styles import DocumentProperties
 
 
 class MarkdownUnRenderer:
+    """Mistune callback to convert Markdown to XML"""
+
     NAMELESS_P_PRE = '<p wpid="normal">'
     NAMELESS_P_POST = "</p>"
 
@@ -18,94 +26,114 @@ class MarkdownUnRenderer:
         self.options = kwargs
 
     def placeholder(self):
+        """Mistune element"""
         return ""
 
     def header(self, text, level, raw=None):
-        return '<p wpid="header">%s</p>' % text
+        """Mistune element"""
+        return f'<p wpid="header">{text}</p>'
 
     def text(self, text):
+        """Mistune element"""
         return text
 
     def paragraph(self, text):
-        return "%s%s%s" % (self.NAMELESS_P_PRE, text, self.NAMELESS_P_POST)
+        """Mistune element"""
+        return f"{self.NAMELESS_P_PRE}{text}{self.NAMELESS_P_POST}"
 
     def emphasis(self, text):
-        return '<s wpid="emphasis">%s</s>' % text
+        """Mistune element"""
+        return f'<s wpid="emphasis">{text}</s>'
 
     def double_emphasis(self, text):
-        return '<s wpid="doule emphasis">%s</s>' % text
+        """Mistune element"""
+        return f'<s wpid="doule emphasis">{text}</s>'
 
     def autolink(self, link, is_email=False):
-        return '<s wpid="link">%s</s>' % link
+        """Mistune element"""
+        return f'<s wpid="link">{link}</s>'
 
     def link(self, link, title, content):
-        return '<s wpid="link" title="%s">%s</s>' % (title, content)
+        """Mistune element"""
+        return f'<s wpid="link" title="{title}">{content}</s>'
 
     def list_item(self, text):
+        """Mistune element"""
         if text.startswith(self.NAMELESS_P_PRE) and text.endswith(self.NAMELESS_P_POST):
             text = text[len(self.NAMELESS_P_PRE) : -len(self.NAMELESS_P_POST)]
-        return '<p wpid="list item">%s</p>' % text
+        return f'<p wpid="list item">{text}</p>'
 
     def list(self, text, ordered=True):
+        """Mistune element"""
         return text
 
     def block_html(self, html):
-        logging.warn("HTML is corrently ignored in Markdown")
+        """Mistune element"""
+        logging.warning("HTML is corrently ignored in Markdown")
         return ""
 
     def block_code(self, code, language=None):
-        raise NotImplementedError("%s.%s()" % (type(self).__name__, "block_code"))
+        """Mistune element"""
+        raise NotImplementedError("block_code()")
 
     def block_quote(self, text):
-        raise NotImplementedError("%s.%s()" % (type(self).__name__, "block_quote"))
+        """Mistune element"""
+        raise NotImplementedError("block_quote()")
 
-    def hrule(
-        self,
-    ):
-        raise NotImplementedError("%s.%s()" % (type(self).__name__, "hrule"))
+    def hrule(self):
+        """Mistune element"""
+        raise NotImplementedError("hrule()")
 
     def table(self, header, body):
-        raise NotImplementedError("%s.%s()" % (type(self).__name__, "table"))
+        """Mistune element"""
+        raise NotImplementedError("table()")
 
     def table_row(self, content):
-        raise NotImplementedError("%s.%s()" % (type(self).__name__, "table_row"))
+        """Mistune element"""
+        raise NotImplementedError("table_row()")
 
     def table_cell(self, content, **flags):
-        raise NotImplementedError("%s.%s()" % (type(self).__name__, "table_cell"))
+        """Mistune element"""
+        raise NotImplementedError("table_cell()")
 
     def codespan(self, text):
-        raise NotImplementedError("%s.%s()" % (type(self).__name__, "codespan"))
+        """Mistune element"""
+        raise NotImplementedError("codespan()")
 
     def image(self, src, title, alt_text):
-        raise NotImplementedError("%s.%s()" % (type(self).__name__, "image"))
+        """Mistune element"""
+        raise NotImplementedError("image()")
 
-    def linebreak(
-        self,
-    ):
-        raise NotImplementedError("%s.%s()" % (type(self).__name__, "linebreak"))
+    def linebreak(self):
+        """Mistune element"""
+        raise NotImplementedError("linebreak()")
 
-    def newline(
-        self,
-    ):
-        raise NotImplementedError("%s.%s()" % (type(self).__name__, "newline"))
+    def newline(self):
+        """Mistune element"""
+        raise NotImplementedError("newline()")
 
     def strikethrough(self, text):
-        raise NotImplementedError("%s.%s()" % (type(self).__name__, "strikethrough"))
+        """Mistune element"""
+        raise NotImplementedError("strikethrough()")
 
     def inline_html(self, text):
-        raise NotImplementedError("%s.%s()" % (type(self).__name__, "inline_html"))
+        """Mistune element"""
+        raise NotImplementedError("inline_html()")
 
     def footnote_ref(self, key, index):
-        raise NotImplementedError("%s.%s()" % (type(self).__name__, "footnote_ref"))
+        """Mistune element"""
+        raise NotImplementedError("footnote_ref()")
 
     def footnote_item(self, key, text):
-        raise NotImplementedError("%s.%s()" % (type(self).__name__, "footnote_item"))
+        """Mistune element"""
+        raise NotImplementedError("footnote_item()")
 
     def footnotes(self, text):
-        raise NotImplementedError("%s.%s()" % (type(self).__name__, "footnotes"))
+        """Mistune element"""
+        raise NotImplementedError("footnotes()")
 
 
-class MarkdownInput(contextlib.ExitStack, IDocumentInput):
+class MarkdownInput(IDocumentInput, contextlib.ExitStack):
     """A Markdown reader."""
 
     def __init__(self, path):
@@ -113,12 +141,12 @@ class MarkdownInput(contextlib.ExitStack, IDocumentInput):
         self._read_markdown(path)
         self._properties = DocumentProperties(has_rtl=False)
 
-    def _read_markdown(self, path):
+    def _read_markdown(self, path: str):
         renderer = MarkdownUnRenderer()
         parse = mistune.Markdown(renderer=renderer)
-        with open(path, "r") as md:
-            xml = parse(md.read())
-        self._root = etree.fromstring("<document>%s</document>" % xml)
+        with open(path, "r", encoding="utf8") as mdfo:
+            xml = parse(mdfo.read())
+        self._root = etree.fromstring(f"<document>{xml}</document>")
         print(
             etree.tostring(
                 self._root, pretty_print=True, encoding="utf-8", xml_declaration=True
@@ -129,7 +157,7 @@ class MarkdownInput(contextlib.ExitStack, IDocumentInput):
     def properties(self):
         return self._properties
 
-    def styles_defined(self):
+    def styles_defined(self) -> Generator[Dict[str, str], None, None]:
         """Yield a Style object kwargs for every style defined in the document."""
         for realm, wpid in self.styles_in_use():
             yield {"realm": realm, "internal_name": wpid, "wpid": wpid}
@@ -146,9 +174,9 @@ class MarkdownInput(contextlib.ExitStack, IDocumentInput):
 
     def paragraphs(self):
         """Yields a MarkdownParagraph object for each body paragraph."""
-        for p in self._root:
-            if p.tag in ("p"):
-                yield MarkdownParagraph(p)
+        for para in self._root:
+            if para.tag in ("p"):
+                yield MarkdownParagraph(para)
 
 
 class MarkdownParagraph(IDocumentParagraph):
@@ -165,7 +193,7 @@ class MarkdownParagraph(IDocumentParagraph):
         """Yields strings of plain text."""
         for span in self.spans():
             for text in span.text():
-                yield span.text()
+                yield text
 
     def spans(self):
         """Yield a MarkdownSpan per text span."""
@@ -177,6 +205,7 @@ class MarkdownParagraph(IDocumentParagraph):
 
 
 class MarkdownSpanBase(IDocumentSpan):
+    """Base class for our span types"""
     def __init__(self, node):
         self.node = node
 
@@ -184,15 +213,14 @@ class MarkdownSpanBase(IDocumentSpan):
         return None
 
     def footnotes(self):
-        if False:
-            yield
+        pass
 
     def comments(self):
-        if False:
-            yield
+        pass
 
 
 class MarkdownHeadSpan(MarkdownSpanBase):
+    """Head of XML node"""
     def text(self):
         """Yields strings of plain text."""
         if self.node.text:
@@ -200,6 +228,7 @@ class MarkdownHeadSpan(MarkdownSpanBase):
 
 
 class MarkdownTailSpan(MarkdownSpanBase):
+    """Tail of XML node"""
     def text(self):
         """Yields strings of plain text."""
         if self.node.tail:

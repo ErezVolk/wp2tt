@@ -31,8 +31,9 @@ class OoXml:
         return node.xpath(expr, namespaces=self._NS)
 
     def _ootag(self, tag):
-        ns, tag = tag.split(":", 1)
-        return "{%s}%s" % (self._NS[ns], tag)
+        namespace, tag = tag.split(":", 1)
+        prefix = self._NS[namespace]
+        return f"{{{prefix}}}{tag}"
 
     def _ooget(self, node, tag):
         return node.get(self._ootag(tag))
@@ -41,7 +42,7 @@ class OoXml:
 class XodtInput(contextlib.ExitStack, OoXml, IDocumentInput):
     """A reader for .odt and .fodt."""
 
-    def __init__(self, path, zipped):
+    def __init__(self, path: str, zipped: bool):
         super().__init__()
         self._zipped = zipped
         if zipped:
@@ -69,9 +70,8 @@ class XodtInput(contextlib.ExitStack, OoXml, IDocumentInput):
 
     def styles_defined(self):
         """Yield a Style object kwargs for every style defined in the document."""
-        for snode in self._xpath(
-            self._load_xml("styles.xml"), "//office:styles/style:style"
-        ):
+        styles = self._load_xml("styles.xml")
+        for snode in self._xpath(styles, "//office:styles/style:style"):
             yield self._style_kwargs(snode)
         for snode in self._xpath(self._content, "//office:automatic-styles/style:style"):
             yield self._style_kwargs(snode, automatic=True)
@@ -93,7 +93,7 @@ class XodtInput(contextlib.ExitStack, OoXml, IDocumentInput):
     def styles_in_use(self):
         """Yield a pair (realm, wpid) for every style used in the document."""
         for realm, tag in (("paragraph", "text:p"), ("character", "text:span")):
-            for sname in self._xpath(self._content, "//%s" % tag):
+            for sname in self._xpath(self._content, f"//{tag}"):
                 wpid = self._ooget(sname, "text:style-name")
                 yield (realm, wpid)
 
@@ -105,8 +105,9 @@ class XodtInput(contextlib.ExitStack, OoXml, IDocumentInput):
     def _open_zip(self, path):
         return self.enter_context(zipfile.ZipFile(path))
 
-    def _open_flat(self, path):
-        with open(path, "r") as fobj:
+    @classmethod
+    def _open_flat(cls, path):
+        with open(path, "r", encoding="utf8") as fobj:
             return lxml.etree.parse(fobj).getroot()
 
     def _load_xml(self, path_in_zip):
@@ -165,6 +166,7 @@ class OdtParagraph(OdtNode, IDocumentParagraph):
 
 
 class OdtSpanBase(OdtNode, IDocumentSpan):
+    """Base for .odt span classes"""
     def style_wpid(self):
         return None
 
@@ -179,17 +181,20 @@ class OdtSpanBase(OdtNode, IDocumentSpan):
 
 
 class OdtHeadSpan(OdtSpanBase):
+    """Beginning of a span"""
     def text(self):
         if self.node.text:
             yield self.node.text
 
 
 class OdtTabSpan(OdtSpanBase):
+    """A tab character"""
     def text(self):
         yield "\t"
 
 
 class OdtSpanSpan(OdtSpanBase):
+    """A proper text span"""
     def style_wpid(self):
         return self._node_ooget("text:style-name")
 
@@ -198,8 +203,7 @@ class OdtSpanSpan(OdtSpanBase):
             yield OdtFootnote(self.doc, fnr)
 
     def comments(self):
-        if False:
-            yield
+        pass
 
     def text(self):
         if self.node.text:
@@ -207,15 +211,14 @@ class OdtSpanSpan(OdtSpanBase):
 
 
 class OdtTailSpan(OdtSpanBase):
+    """End of a span"""
     def text(self):
         if self.node.tail:
             yield self.node.tail
 
 
 class OdtFootnote(OdtNode, IDocumentFootnote):
-    def __init__(self, doc, node):
-        super().__init__(doc, node)
-
+    """Footnote in .odt"""
     def paragraphs(self):
-        for p in self._node_xpath("text:note-body/text-p"):
-            yield OdtParagraph(self.doc, p)
+        for para in self._node_xpath("text:note-body/text-p"):
+            yield OdtParagraph(self.doc, para)

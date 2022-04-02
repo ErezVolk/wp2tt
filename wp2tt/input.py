@@ -44,7 +44,6 @@ class IDocumentSpan(ABC):
         """Yields an IDocumentComment object for each comment in this span."""
         raise NotImplementedError()
 
-    @abstractmethod
     def format(self) -> ManualFormat:
         """Returns manual formatting on this span."""
         return ManualFormat.NORMAL
@@ -63,12 +62,10 @@ class IDocumentParagraph(ABC):
         """Returns the wpid for this paragraph's style."""
         raise NotImplementedError()
 
-    @abstractmethod
     def format(self) -> ManualFormat:
         """Returns manual formatting on this paragraph."""
         return ManualFormat.NORMAL
 
-    @abstractmethod
     def is_page_break(self) -> bool:
         """True iff the paragraph is a page break."""
         return False
