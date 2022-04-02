@@ -55,6 +55,7 @@ class State:
     is_empty = attr.ib(default=True)
     is_post_empty = attr.ib(default=False)
     is_post_break = attr.ib(default=False)
+    para_char_fmt = attr.ib(default=ManualFormat.NORMAL)
 
 
 class WordProcessorToInDesignTaggedText:
@@ -91,6 +92,7 @@ class WordProcessorToInDesignTaggedText:
     config = None
     doc = None
     footnote_ref_style = None
+    manual_styles = None
     output_fn = None
     parser = None
     rerunner_fn = None
@@ -502,6 +504,7 @@ class WordProcessorToInDesignTaggedText:
         return f"{realm.capitalize()}:{internal_name}"
 
     def write_idtt(self):
+        """The main conversion loop: parse document, write tagged text"""
         logging.info("Writing %r", self.output_fn)
         self.set_state(State())
         with InDesignTaggedTextOutput(
@@ -510,6 +513,7 @@ class WordProcessorToInDesignTaggedText:
             self.convert_document()
 
     def convert_document(self):
+        """Convert a document, one paragraph at a time"""
         try:
             self.stop_marker_found = False
             self.state.is_post_empty = False
@@ -523,6 +527,7 @@ class WordProcessorToInDesignTaggedText:
             logging.info(marker)
 
     def convert_paragraph(self, para):
+        """Convert entire paragraph"""
         self.state.is_empty = True
 
         if self.stop_marker:
@@ -543,6 +548,9 @@ class WordProcessorToInDesignTaggedText:
         self.state.is_post_empty = self.state.is_empty
 
     def get_paragraph_style(self, para):
+        """Return style to be used for a paragraph"""
+        self.state.para_char_fmt = ManualFormat.NORMAL
+
         if not self.args.manual:
             return self.style("paragraph", para.style_wpid())
 
@@ -553,9 +561,11 @@ class WordProcessorToInDesignTaggedText:
         if self.state.is_post_break:
             fmt = fmt | ManualFormat.NEW_PAGE
 
+        # Check for paragraph with a character style
         char_fmts = {rng.format() for rng in para.spans()}
         if len(char_fmts) == 1:
-            fmt = fmt | char_fmts.pop()
+            self.state.para_char_fmt = char_fmts.pop()
+            fmt = fmt | self.state.para_char_fmt
 
         if fmt:
             return self.get_manual_style("paragraph", fmt)
@@ -563,6 +573,7 @@ class WordProcessorToInDesignTaggedText:
         return self.get_manual_style("paragraph", ManualFormat.NORMAL)
 
     def get_manual_style(self, realm, fmt):
+        """When using manual formatting, create/get a style"""
         if not fmt:
             return None
 
@@ -582,6 +593,7 @@ class WordProcessorToInDesignTaggedText:
         return self.manual_styles[fmt]
 
     def apply_rules_to(self, style):
+        """Convert style according to user-defined rules"""
         for rule in self.rules:
             if self.rule_applies_to(rule, style):
                 rule.applied += 1
@@ -589,6 +601,7 @@ class WordProcessorToInDesignTaggedText:
         return style
 
     def rule_applies_to(self, rule, style):
+        """True iff `rule` is should be applied on `style`."""
         if not rule.valid:
             return False
         if rule.turn_this_style is not style:
@@ -614,6 +627,7 @@ class WordProcessorToInDesignTaggedText:
                 return
 
     def define_variable_from_paragraph(self, variable, para):
+        """Save contents of a paragraph to a text variable"""
         self.writer.define_text_variable(variable, "".join(chunk for chunk in para.text()))
 
     def set_state(self, state):
@@ -657,7 +671,11 @@ class WordProcessorToInDesignTaggedText:
             return self.style("character", rng.style_wpid())
 
         # Manual formatting
-        return self.get_manual_style("character", rng.format())
+        fmt = rng.format()
+        if fmt == self.state.para_char_fmt:
+            # Format already included in paragraph style
+            fmt = ManualFormat.NORMAL
+        return self.get_manual_style("character", fmt)
 
     NON_WHITESPACE = re.compile(r"\S")
 

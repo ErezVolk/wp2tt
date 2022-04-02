@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+"""MS Word .docx parser"""
 import contextlib
 import zipfile
 import lxml.etree
@@ -26,7 +27,7 @@ class WordXml:
 
     @classmethod
     def _wtag(cls, tag):
-        return "{%s}%s" % (cls._W, tag)
+        return f"{{{cls._W}}}{tag}"
 
     @classmethod
     def _wval(cls, node, prop):
@@ -89,7 +90,7 @@ class DocxInput(contextlib.ExitStack, WordXml, IDocumentInput):
 
     def paragraphs(self):
         """Yields a DocxParagraph object for each body paragraph."""
-        # for para in self._xpath(self.document, "//w:body/w:p[not(preceding-sibling::w:p/w:pPr/w:rPr/w:del)]"):
+        # "//w:body/w:p[not(preceding-sibling::w:p/w:pPr/w:rPr/w:del)]"
         for para in self._xpath(self.document, "//w:body/w:p"):
             if not para.get("__wp2tt_skip__"):
                 yield DocxParagraph(self, para)
@@ -104,7 +105,11 @@ class DocxInput(contextlib.ExitStack, WordXml, IDocumentInput):
 
 
 class DocxNode(WordXml):
-    """Base helper class for object which represent a node in a docx."""
+    """Base helper class for object which represent a node in a docx.
+
+    In special cases, this actually represents a list of consecutive nodes,
+    used for parargaph breaks deleted with track changes.
+    """
 
     def __init__(self, doc, node):
         self.doc = doc
@@ -112,6 +117,7 @@ class DocxNode(WordXml):
         self.nodes = [node]
 
     def add_node(self, node):
+        """Extend the list of nodes"""
         self.nodes.append(node)
 
     def _node_wtag(self, tag):
@@ -208,14 +214,20 @@ class DocxSpan(DocxNode, IDocumentSpan):
 
 
 class DocxFootnote(DocxNode, IDocumentFootnote):
+    """IDocumentFootnote for .docx"""
+
     def paragraphs(self):
+        """Yields DocxParagraph for each paragraph in a footnote"""
         fnid = self._node_wtag("id")
         for para in self._xpath(self.doc.footnotes, f'w:footnote[@w:id="{fnid}"]/w:p'):
             yield DocxParagraph(self.doc, para)
 
 
 class DocxComment(DocxNode, IDocumentComment):
+    """IDocumentComment for .docx"""
+
     def paragraphs(self):
+        """Yields DocxParagraph for each paragraph in a comment"""
         cmid = self._node_wtag("id")
         for para in self._xpath(self.doc.comments, f'w:comment[@w:id="{cmid}"]/w:p'):
             yield DocxParagraph(self.doc, para)
