@@ -12,15 +12,22 @@ import shlex
 import shutil
 import sys
 
+from typing import Dict
+from typing import List
+from typing import Mapping
+from typing import Set
+
 import attr
 
 from wp2tt.version import WP2TT_VERSION
 from wp2tt.ini import ini_fields
+from wp2tt.input import IDocumentInput
 from wp2tt.input import ManualFormat
 from wp2tt.styles import Style
 from wp2tt.styles import Rule
 from wp2tt.proxies import ByExtensionInput
 from wp2tt.proxies import MultiInput
+from wp2tt.output import IOutput
 from wp2tt.output import WhitespaceStripper
 from wp2tt.tagged_text import InDesignTaggedTextOutput
 
@@ -85,27 +92,27 @@ class WordProcessorToInDesignTaggedText:
         },
     }
 
-    args = None
-    base_names = None
-    base_styles = None
-    comment_ref_style = None
-    config = None
-    doc = None
-    footnote_ref_style = None
-    manual_styles = None
-    output_fn = None
-    parser = None
-    rerunner_fn = None
-    rules = None
-    settings = None
-    settings_fn = None
-    settings_touched = None
-    state = None
-    stop_marker = None
-    stop_marker_found = None
-    style_sections_used = None
-    styles = None
-    writer = None
+    args: argparse.Namespace
+    base_names: Dict[str, str]
+    base_styles: Dict[str, Style]
+    comment_ref_style: Style
+    config: Mapping[str, str]
+    doc: IDocumentInput
+    footnote_ref_style: Style
+    manual_styles: Dict[ManualFormat, Style]
+    output_fn: str
+    parser: argparse.ArgumentParser
+    rerunner_fn: str
+    rules: List[Rule]
+    settings: configparser.ConfigParser
+    settings_fn: str
+    settings_touched: bool
+    state: State = State()
+    stop_marker: str
+    stop_marker_found: bool
+    style_sections_used: Set[str]
+    styles: Dict[str, Style]
+    writer: IOutput
 
     def run(self):
         """Main entry point."""
@@ -315,7 +322,7 @@ class WordProcessorToInDesignTaggedText:
         self.link_styles()
         self.link_rules()
 
-    def create_reader(self):
+    def create_reader(self) -> IDocumentInput:
         if self.args.append:
             return MultiInput([self.args.input] + self.args.append)
         return ByExtensionInput(self.args.input)
@@ -440,16 +447,19 @@ class WordProcessorToInDesignTaggedText:
             parent_style=inherit_from,
         )
 
-    def found_style_definition(self, realm, internal_name, wpid, **kwargs):
+    def found_style_definition(self, realm, internal_name, wpid, **kwargs) -> Style:
         if realm not in self.base_names:
-            logging.debug("What about %s:%r [%r]?", realm, wpid, internal_name)
-            return
+            logging.error("What about %s:%r [%r]?", realm, wpid, internal_name)
+            self.base_names[realm] = self.args.base_character_style
 
         if wpid != self.base_names.get(realm):
             kwargs.setdefault("parent_wpid", self.base_names.get(realm))
 
         # Allow any special overrides (color, name, etc.)
-        kwargs.update(self.SPECIAL_STYLE.get(realm, {}).get(internal_name, {}))
+        try:
+            kwargs.update(self.SPECIAL_STYLE[realm][internal_name])
+        except KeyError:
+            pass
 
         section = self.get_setting_section(realm=realm, internal_name=internal_name)
         if not kwargs.get("name"):
@@ -466,7 +476,7 @@ class WordProcessorToInDesignTaggedText:
             realm=realm, wpid=wpid, internal_name=internal_name, **kwargs
         )
 
-    def add_style(self, **kwargs):
+    def add_style(self, **kwargs) -> Style:
         """Create a new Style object and add to our map."""
         if self.args.style_to_variable:
             if kwargs["realm"] == "paragraph":
@@ -480,7 +490,7 @@ class WordProcessorToInDesignTaggedText:
         self.styles[self.style_key(style=style)] = style
         return style
 
-    def style_key(self, style=None, realm=None, wpid=None):
+    def style_key(self, style=None, realm=None, wpid=None) -> str:
         """The string which we use for `self.styles`.
 
         Note that this is based on the wpid, because
