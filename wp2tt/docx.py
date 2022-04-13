@@ -4,6 +4,9 @@ import contextlib
 import zipfile
 from lxml import etree
 
+from typing import Generator
+from typing import Optional
+
 from wp2tt.input import IDocumentComment
 from wp2tt.input import IDocumentFootnote
 from wp2tt.input import IDocumentInput
@@ -17,7 +20,11 @@ class WordXml:
     """Basic helper class for the Word XML format."""
 
     _W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
-    _NS = {"w": _W}
+    _W14 = "http://schemas.microsoft.com/office/word/2010/wordml"
+    _NS = {
+        "w": _W,
+        "w14": _W14,
+    }
 
     @classmethod
     def _xpath(cls, node, expr):
@@ -26,6 +33,10 @@ class WordXml:
     @classmethod
     def _wtag(cls, tag):
         return f"{{{cls._W}}}{tag}"
+
+    @classmethod
+    def _w14tag(cls, tag):
+        return f"{{{cls._W14}}}{tag}"
 
     @classmethod
     def _wval(cls, node, prop):
@@ -114,41 +125,80 @@ class DocxNode(WordXml):
         self.head_node = node
         self.nodes = [node]
 
-    def add_node(self, node):
+    def add_node(self, node) -> None:
         """Extend the list of nodes"""
         self.nodes.append(node)
 
-    def _node_wtag(self, tag):
+    def _node_wtag(self, tag) -> Optional[str]:
         return self.head_node.get(self._wtag(tag))
 
-    def _node_xpath(self, expr):
+    def _node_xpath(self, expr) -> Generator[object, None, None]:
         for node in self.nodes:
             yield from node.xpath(expr, namespaces=self._NS)
 
-    def _node_wval(self, prop):
+    def _node_wval(self, prop) -> Optional[str]:
         return self._node_wattr(prop, "val")
 
-    def _node_wtype(self, prop):
+    def _node_wtype(self, prop) -> Optional[str]:
         return self._node_wattr(prop, "type")
 
-    def _node_wattr(self, prop, attr):
+    def _node_wtypes(self, prop) -> Generator[str, None, None]:
+        yield from self._node_wattrs(prop, "type")
+
+    def _node_wattr(self, prop, attr) -> Optional[str]:
+        for value in self._node_wattrs(prop, attr):
+            return value
+        return None
+
+    def _node_wattrs(self, prop, attr) -> Generator[str, None, None]:
+        tag = self._wtag(attr)
         for node in self.nodes:
             for pnode in self._xpath(node, prop):
-                return pnode.get(self._wtag(attr))
-        return None
+                value = pnode.get(tag)
+                if value is not None:
+                    yield value
 
 
 class DocxParagraph(DocxNode, IDocumentParagraph):
     """A Paragraph inside a .docx."""
+    R_XPATH = "w:r | w:ins/w:r"
+    T_XPATH = "w:r/w:t | w:ins/w:r/w:t"
 
     def __init__(self, doc, para):
         super().__init__(doc, para)
         while self.is_nonfinal(para):
             self.add_node(para := para.getnext())
             para.set("__wp2tt_skip__", "yes")
+        self._para_ids = [self._get_para_id(node) for node in self.nodes]
+
+    def __repr__(self):
+        """String description of the paragraph object"""
+        pids = "/".join(self._para_ids)
+        return f"<w:p {pids}>"
+
+    def _get_para_id(self, para) -> str:
+        """Hopefully unique paragraph ID"""
+        w14id = para.get(self._w14tag("paraId"))
+        if w14id:
+            return f'w14:paraId="{w14id}"'
+
+        SNIPPET_LEN = 10
+        texts = []
+        tlen = 0
+        for tnode in para.xpath(self.T_XPATH, namespaces=self._NS):
+            text = tnode.text
+            texts.append(text)
+            tlen += len(text)
+            if tlen >= SNIPPET_LEN:
+                break
+        text = "".join(texts)
+        if len(text) <= SNIPPET_LEN:
+            return f'"{text}"'
+        return f'"{text[:SNIPPET_LEN-3]}"...'
 
     def is_nonfinal(self, para):
         """True iff a <w:p> para has deleted, tracked newline"""
+        # TODO: Probably incorrect
         for _ in self._xpath(para, "./w:pPr/w:rPr/w:del"):
             return True
         return False
@@ -158,12 +208,12 @@ class DocxParagraph(DocxNode, IDocumentParagraph):
 
     def text(self):
         """Yields strings of plain text."""
-        for node in self._node_xpath("w:r/w:t | w:ins/w:r/w:t"):
+        for node in self._node_xpath(self.T_XPATH):
             yield node.text
 
     def spans(self):
         """Yield DocxSpan per text span."""
-        for node in self._node_xpath("w:r | w:ins/w:r"):
+        for node in self._node_xpath(self.R_XPATH):
             yield DocxSpan(self.doc, node)
 
     def format(self) -> ManualFormat:
@@ -178,11 +228,19 @@ class DocxParagraph(DocxNode, IDocumentParagraph):
 
     def is_page_break(self):
         """True iff the paragraph is a page break."""
-        return self._node_wtype("w:r/w:br") == "page"
+        # <w:p w14:paraId="513A8F68" w14:textId="6BE9644B" w:rsidR="0003349C" w:rsidRDefault="008112F5" w:rsidP="008112F5">
+        for break_type in self._node_wtypes("w:r/w:br"):
+            if break_type == "page":
+                return True
+        return False
 
 
 class DocxSpan(DocxNode, IDocumentSpan):
     """A span of characters inside a .docx."""
+
+    def __repr__(self):
+        """String description of the paragraph object"""
+        return repr(" ".join(t for t in self.text()))
 
     def style_wpid(self):
         return self._node_wval("w:rPr/w:rStyle")

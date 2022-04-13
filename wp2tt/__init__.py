@@ -62,8 +62,6 @@ class State:
 
     curr_char_style = attr.ib(default=None)
     prev_para_style = attr.ib(default=None)
-    curr_para_text = attr.ib(default="")
-    prev_para_text = attr.ib(default=None)
     is_empty = attr.ib(default=True)
     is_post_empty = attr.ib(default=False)
     is_post_break = attr.ib(default=False)
@@ -336,7 +334,9 @@ class WordProcessorToInDesignTaggedText:
         """Create a Style object for everything in the document."""
         self.styles = {}
         self.create_special_styles()
-        counts: Mapping[str, Iterator[int]] = collections.defaultdict(lambda: itertools.count(start=1))
+        counts: Mapping[str, Iterator[int]] = collections.defaultdict(
+            lambda: itertools.count(start=1)
+        )
         for style_kwargs in self.doc.styles_defined():
             if style_kwargs.get("automatic"):
                 group = self.SPECIAL_GROUP
@@ -565,19 +565,27 @@ class WordProcessorToInDesignTaggedText:
         if self.stop_marker:
             self.check_for_stop_paragraph(para)
         style = self.apply_rules_to(self.get_paragraph_style(para))
-        with self.ParagraphContext(self, style):
-            for rng in para.spans():
-                self.convert_range(rng)
-            if style and style.variable:
-                self.define_variable_from_paragraph(style.variable, para)
+
+        self.writer.enter_paragraph(style)
+        for rng in para.spans():
+            self.convert_range(rng)
+        if style and style.variable:
+            self.define_variable_from_paragraph(style.variable, para)
+        self.writer.leave_paragraph()
 
         # For the next paragraph
         if para.is_page_break():
+            logging.debug("Paragraph %r has a page break", para)
             self.state.is_post_break = True
             self.state.is_empty = False
-        elif not self.state.is_empty:
-            self.state.is_post_break = False
+        elif self.state.is_post_break:
+            if self.state.is_empty:
+                logging.debug("Paragraph %r is empty, next is still post-break", para)
+            else:
+                self.state.is_post_break = False
+
         self.state.is_post_empty = self.state.is_empty
+        self.state.prev_para_style = style
 
     def get_paragraph_style(self, para: IDocumentParagraph) -> Optional[Style]:
         """Return style to be used for a paragraph"""
@@ -588,10 +596,10 @@ class WordProcessorToInDesignTaggedText:
 
         # Manual formatting
         fmt = para.format()
-        if self.state.is_post_empty:
-            fmt = fmt | ManualFormat.SPACED
         if self.state.is_post_break:
             fmt = fmt | ManualFormat.NEW_PAGE
+        elif self.state.is_post_empty:
+            fmt = fmt | ManualFormat.SPACED
 
         # Check for paragraph with a character style
         char_fmts = {rng.format() for rng in para.spans()}
@@ -599,21 +607,23 @@ class WordProcessorToInDesignTaggedText:
             self.state.para_char_fmt = char_fmts.pop()
             fmt = fmt | self.state.para_char_fmt
 
-        if fmt:
-            return self.get_manual_style("paragraph", fmt)
-
-        return self.get_manual_style("paragraph", ManualFormat.NORMAL)
+        return self.get_manual_style("paragraph", fmt)
 
     def get_manual_style(self, realm: str, fmt: ManualFormat) -> Optional[Style]:
         """When using manual formatting, create/get a style"""
         if not fmt:
-            return None
+            if realm != "paragraph":
+                return None
 
         if fmt in self.manual_styles:
             return self.manual_styles[fmt]
 
-        cls = type(fmt)
-        basename = "_".join(f.name for f in cls if fmt & f and f.name)
+        if fmt:
+            basename = "_".join(f.name for f in ManualFormat if fmt & f and f.name)
+        else:
+            basename = fmt.name or "DEFAULT"
+            logging.debug("%r -> %r", fmt, basename)
+
         name = f"{self.SPECIAL_GROUP}/({basename})"
         self.manual_styles[fmt] = self.found_style_definition(
             realm=realm,
@@ -671,31 +681,14 @@ class WordProcessorToInDesignTaggedText:
         self.state = state
         return prev
 
-    class ParagraphContext(contextlib.AbstractContextManager):
-        """Context manager for styles inside a paragraph"""
-
-        def __init__(self, outer, style):
-            super().__init__()
-            self.outer = outer
-            self.writer = self.outer.writer
-            self.style = style
-            self.writer.enter_paragraph(self.style)
-
-        def __exit__(self, *args):
-            self.writer.leave_paragraph()
-            self.outer.set_state(
-                State(
-                    prev_para_style=self.style,
-                    prev_para_text=self.outer.state.curr_para_text,
-                )
-            )
-
     def convert_range(self, rng):
         """Convert all text and styles in a Range"""
         self.switch_character_style(self.get_character_style(rng))
         self.convert_range_text(rng)
         for footnote in rng.footnotes():
             self.convert_footnote(footnote)
+            if self.state.is_post_break:
+                logging.debug("Has footnote, not empty")
             self.state.is_empty = False
         if self.args.convert_comments:
             for cmt in rng.comments():
@@ -747,7 +740,6 @@ class WordProcessorToInDesignTaggedText:
         if not text:
             return
         self.writer.write_text(text)
-        self.state.curr_para_text += text
 
     def convert_footnote(self, footnote, ref_style=None):
         """Convert one footnote to tagged text."""
