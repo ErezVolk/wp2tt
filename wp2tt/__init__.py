@@ -549,7 +549,7 @@ class WordProcessorToInDesignTaggedText:
         try:
             self.stop_marker_found = False
             self.state.is_post_empty = False
-            self.state.is_post_break = True  # In a sense
+            self.state.is_post_break = False
             for para in self.doc.paragraphs():
                 self.convert_paragraph(para)
             if self.stop_marker:
