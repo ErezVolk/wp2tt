@@ -549,7 +549,7 @@ class WordProcessorToInDesignTaggedText:
         try:
             self.stop_marker_found = False
             self.state.is_post_empty = False
-            self.state.is_post_break = False
+            self.state.is_post_break = True  # In a sense
             for para in self.doc.paragraphs():
                 self.convert_paragraph(para)
             if self.stop_marker:
@@ -612,6 +612,7 @@ class WordProcessorToInDesignTaggedText:
     def get_manual_style(self, realm: str, fmt: ManualFormat) -> Optional[Style]:
         """When using manual formatting, create/get a style"""
         if not fmt:
+            # Only paragraphs get a "NORMAL" style
             if realm != "paragraph":
                 return None
 
