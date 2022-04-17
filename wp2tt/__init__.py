@@ -497,6 +497,7 @@ class WordProcessorToInDesignTaggedText:
         kwargs.setdefault("name", kwargs["internal_name"])
 
         style = Style(**kwargs)
+        logging.debug("Created %s", style)
         self.styles[self.style_key(style=style)] = style
         return style
 
@@ -626,12 +627,16 @@ class WordProcessorToInDesignTaggedText:
             basename = fmt.name or "DEFAULT"
             logging.debug("%r -> %r", fmt, basename)
 
+        # In the manual case, we may not have the basic style
+        parent = self.style(realm=realm, wpid=self.base_names[realm])
+
         name = f"{self.SPECIAL_GROUP}/({basename})"
         self.manual_styles[fmt] = self.found_style_definition(
             realm=realm,
             internal_name=name,
             wpid=name,
-            parent_wpid=self.base_names[realm],
+            parent_style=parent,
+            parent_wpid=parent.wpid,
             automatic=True,
         )
         return self.manual_styles[fmt]
