@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Read Markdown document"""
-import logging  # noqa: F401
+import logging
+from pathlib import Path
 import contextlib
 
 from typing import Dict
@@ -136,12 +137,12 @@ class MarkdownUnRenderer:
 class MarkdownInput(IDocumentInput, contextlib.ExitStack):
     """A Markdown reader."""
 
-    def __init__(self, path):
+    def __init__(self, path: Path):
         super().__init__()
         self._read_markdown(path)
         self._properties = DocumentProperties(has_rtl=False)
 
-    def _read_markdown(self, path: str):
+    def _read_markdown(self, path: Path):
         renderer = MarkdownUnRenderer()
         parse = mistune.Markdown(renderer=renderer)
         with open(path, "r", encoding="utf8") as mdfo:

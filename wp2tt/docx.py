@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """MS Word .docx parser"""
 import contextlib
+from pathlib import Path
 import zipfile
-from lxml import etree
 
 from typing import Generator
 from typing import Optional
+
+from lxml import etree
 
 from wp2tt.input import IDocumentComment
 from wp2tt.input import IDocumentFootnote
@@ -48,12 +50,12 @@ class WordXml:
 class DocxInput(contextlib.ExitStack, WordXml, IDocumentInput):
     """A .docx reader."""
 
-    def __init__(self, path):
+    def __init__(self, path: Path):
         super().__init__()
         self._read_docx(path)
         self._initialize_properties()
 
-    def _read_docx(self, path):
+    def _read_docx(self, path: Path):
         self._zip = self.enter_context(zipfile.ZipFile(path))
         self.document = self._load_xml("word/document.xml")
         self.footnotes = self._load_xml("word/footnotes.xml")

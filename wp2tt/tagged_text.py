@@ -4,7 +4,7 @@ import collections
 import contextlib
 import itertools
 import logging
-import os
+from pathlib import Path
 import re
 
 from typing import Iterator
@@ -22,7 +22,7 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
 
     def __init__(
         self,
-        filename: str,
+        filename: Path,
         debug=False,
         properties: Optional[DocumentProperties] = None,
     ):
@@ -37,12 +37,13 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
         else:
             self._properties = properties
 
+        self._filename.parent.mkdir(parents=True, exist_ok=True)
         self._fo = self.enter_context(open(self._filename, "w", encoding="UTF-16LE"))
-        ufo_fn = self._filename + ".utf8"
+        ufo_fn = self._filename.with_suffix(".utf8")
         if self._debug:
             self._ufo = self.enter_context(open(ufo_fn, "w", encoding="UTF-8"))
-        elif os.path.isfile(ufo_fn):
-            os.unlink(ufo_fn)
+        elif ufo_fn.is_file():
+            ufo_fn.unlink()
 
     def _writeln(self, line="") -> None:
         self._write(line)

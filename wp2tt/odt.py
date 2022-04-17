@@ -2,6 +2,7 @@
 """.odt file parsing"""
 import contextlib
 import logging
+from pathlib import Path
 import zipfile
 
 import lxml.etree
@@ -42,7 +43,7 @@ class OoXml:
 class XodtInput(contextlib.ExitStack, OoXml, IDocumentInput):
     """A reader for .odt and .fodt."""
 
-    def __init__(self, path: str, zipped: bool):
+    def __init__(self, path: Path, zipped: bool):
         super().__init__()
         self._zipped = zipped
         if zipped:

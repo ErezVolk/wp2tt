@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """Utility classes"""
+from collections.abc import Sequence
 import contextlib
 import logging
-import os
+from pathlib import Path
 
-from collections.abc import Sequence
 from typing import Generator
+from typing import List
 
 from wp2tt.input import IDocumentInput
 from wp2tt.input import IDocumentParagraph
@@ -18,10 +19,10 @@ from wp2tt.styles import DocumentProperties
 class MultiInput(IDocumentInput, contextlib.ExitStack):
     """Input from multiple files."""
 
-    def __init__(self, paths: Sequence[str]):
+    def __init__(self, paths: Sequence[Path]):
         super().__init__()
         self._paths = paths
-        self._inputs = [
+        self._inputs: List[IDocumentInput] = [
             self.enter_context(ByExtensionInput(path))
             for path in paths
         ]
@@ -69,10 +70,11 @@ class MultiInput(IDocumentInput, contextlib.ExitStack):
 class ByExtensionInput(IDocumentInput, contextlib.ExitStack):
     """An input, based on the file's extension."""
 
-    def __init__(self, path):
+    _input: IDocumentInput
+
+    def __init__(self, path: Path):
         super().__init__()
-        _, ext = os.path.splitext(path)
-        ext = ext.lower()
+        ext = path.suffix.lower()
         if ext == ".docx":
             self._input = DocxInput(path)
         elif ext == ".odt":
