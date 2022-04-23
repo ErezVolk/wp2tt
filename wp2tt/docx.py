@@ -87,6 +87,7 @@ class DocxInput(contextlib.ExitStack, WordXml, IDocumentInput):
                 "wpid": stag.get(self._wtag("styleId")),
                 "parent_wpid": self._wval(stag, "w:basedOn"),
                 "next_wpid": self._wval(stag, "w:next"),
+                "custom": stag.get(self._wtag("customStyle")),
             }
 
     def styles_in_use(self):

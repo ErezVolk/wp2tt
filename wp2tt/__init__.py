@@ -57,12 +57,19 @@ class ParseDict(argparse.Action):
         setattr(namespace, self.dest, dict(val.split("=", 1) for val in values))
 
 
-@attr.s
+@attr.s(slots=True, frozen=True)
+class ManualFormatCustomStyle:
+    """Manual formatting, possibly applied to a custom style"""
+    fmt = attr.ib(type=ManualFormat)
+    unadorned = attr.ib(type=Optional[str])
+
+
+@attr.s(slots=True)
 class State:
     """Context of styles"""
 
-    curr_char_style = attr.ib(default=None)
-    prev_para_style = attr.ib(default=None)
+    curr_char_style = attr.ib(default=None, type=Optional[Style])
+    prev_para_style = attr.ib(default=None, type=Optional[Style])
     is_empty = attr.ib(default=True)
     is_post_empty = attr.ib(default=False)
     is_post_break = attr.ib(default=False)
@@ -103,7 +110,7 @@ class WordProcessorToInDesignTaggedText:
     config: Mapping[str, str]
     doc: IDocumentInput
     footnote_ref_style: Style
-    manual_styles: Dict[ManualFormat, Style]
+    manual_styles: Dict[ManualFormatCustomStyle, Style]
     output_fn: Path
     parser: argparse.ArgumentParser
     rerunner_fn: Path
@@ -339,9 +346,6 @@ class WordProcessorToInDesignTaggedText:
         counts: Mapping[str, Iterator[int]] = collections.defaultdict(
             lambda: itertools.count(start=1)
         )
-        # TODO: customStyles (-m should use them)
-        # TODO: <w:style w:type="paragraph" w:customStyle="1" w:styleId="a0">
-        # TODO: <w:style w:type="character" w:customStyle="1" w:styleId="a">
         for style_kwargs in self.doc.styles_defined():
             if style_kwargs.get("automatic"):
                 group = self.SPECIAL_GROUP
@@ -604,8 +608,10 @@ class WordProcessorToInDesignTaggedText:
         """Return style to be used for a paragraph"""
         self.state.para_char_fmt = ManualFormat.NORMAL
 
+        # The style object without any manual overrides
+        unadorned = self.style("paragraph", para.style_wpid())
         if not self.args.manual:
-            return self.style("paragraph", para.style_wpid())
+            return unadorned
 
         # Manual formatting
         fmt = para.format()
@@ -620,36 +626,46 @@ class WordProcessorToInDesignTaggedText:
             self.state.para_char_fmt = char_fmts.pop()
             fmt = fmt | self.state.para_char_fmt
 
-        return self.get_manual_style("paragraph", fmt)
+        return self.get_manual_style("paragraph", unadorned, fmt)
 
-    def get_manual_style(self, realm: str, fmt: ManualFormat) -> Optional[Style]:
+    def get_manual_style(self, realm: str, unadorned: Optional[Style], fmt: ManualFormat) -> Optional[Style]:
         """When using manual formatting, create/get a style"""
-        if not fmt:
-            # Only paragraphs get a "NORMAL" style
-            if realm != "paragraph":
-                return None
+        if unadorned is not None:
+            if not unadorned.custom:
+                # Only look at unadorned style if it's custom
+                unadorned = None
 
-        if fmt in self.manual_styles:
-            return self.manual_styles[fmt]
+        if not fmt:  # No manual formatting
+            # Only paragraphs get a named "NORMAL" style
+            if unadorned is not None or realm != "paragraph":
+                return unadorned
+
+        uaid = unadorned.wpid if unadorned else None
+        mfcs = ManualFormatCustomStyle(fmt, uaid)
+        if mfcs in self.manual_styles:
+            return self.manual_styles[mfcs]
 
         if fmt:
-            basename = "_".join(f.name for f in ManualFormat if fmt & f and f.name)
+            fmtname = "_".join(f.name for f in ManualFormat if fmt & f and f.name)
         else:
-            basename = fmt.name or "DEFAULT"
-            logging.debug("%r -> %r", fmt, basename)
+            fmtname = fmt.name or "DEFAULT"
+            logging.debug("%r -> %r", fmt, fmtname)
 
         # In the manual case, we may not have the basic style
-        parent = self.style(realm=realm, wpid=self.base_names[realm])
+        parent = unadorned or self.style(realm=realm, wpid=self.base_names[realm])
 
-        name = f"{self.SPECIAL_GROUP}/({basename})"
-        self.manual_styles[fmt] = self.found_style_definition(
+        if unadorned:
+            name = f"{self.SPECIAL_GROUP}/{unadorned.name} ({fmtname})"
+        else:
+            name = f"{self.SPECIAL_GROUP}/({fmtname})"
+        self.manual_styles[mfcs] = self.found_style_definition(
             realm=realm,
             internal_name=name,
             wpid=name,
             parent_style=parent,
             automatic=True,
         )
-        return self.manual_styles[fmt]
+        return self.manual_styles[mfcs]
 
     def apply_rules_to(self, style: Optional[Style]) -> Optional[Style]:
         """Convert style according to user-defined rules"""
@@ -713,15 +729,16 @@ class WordProcessorToInDesignTaggedText:
 
     def get_character_style(self, rng):
         """Returns Style object for a Range"""
+        unadorned = self.style("character", rng.style_wpid())
         if not self.args.manual:
-            return self.style("character", rng.style_wpid())
+            return unadorned
 
         # Manual formatting
         fmt = rng.format()
         if fmt == self.state.para_char_fmt:
             # Format already included in paragraph style
             fmt = ManualFormat.NORMAL
-        return self.get_manual_style("character", fmt)
+        return self.get_manual_style("character", unadorned, fmt)
 
     NON_WHITESPACE = re.compile(r"\S")
 

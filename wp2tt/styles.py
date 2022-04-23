@@ -20,17 +20,21 @@ class Style:
     parent_wpid = attr.ib(default=None, metadata=ATTR_READONLY)
     next_wpid = attr.ib(default=None, metadata=ATTR_READONLY)
     automatic = attr.ib(default=None, metadata=ATTR_READONLY)
+    custom = attr.ib(default=False, metadata=ATTR_READONLY)
     idtt = attr.ib(default="")
     variable = attr.ib(default=None)
 
-    used = attr.ib(default=None, metadata=ATTR_NO_INI)
-    count = attr.ib(default=0, metadata=ATTR_NO_INI)
+    used = attr.ib(default=None, metadata=ATTR_NO_INI, eq=False)
+    count = attr.ib(default=0, metadata=ATTR_NO_INI, eq=False)
 
-    parent_style = attr.ib(default=None, metadata=ATTR_NO_INI)
-    next_style = attr.ib(default=None, metadata=ATTR_NO_INI)
+    parent_style = attr.ib(default=None, metadata=ATTR_NO_INI, eq=False)
+    next_style = attr.ib(default=None, metadata=ATTR_NO_INI, eq=False)
 
     def __str__(self):
-        return f"<{self.realm} {repr(self.name)}>"
+        if self.custom:
+            return f"<{self.realm} {repr(self.name)} (custom)>"
+        else:
+            return f"<{self.realm} {repr(self.name)}>"
 
 
 @attr.s(slots=True)
