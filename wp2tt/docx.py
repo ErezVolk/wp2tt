@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """MS Word .docx parser"""
 import contextlib
-from pathlib import Path
 import zipfile
 
+from os import PathLike
 from typing import Generator
 from typing import Optional
 
@@ -33,15 +33,15 @@ class WordXml:
         return node.xpath(expr, namespaces=cls._NS)
 
     @classmethod
-    def _wtag(cls, tag):
+    def _wtag(cls, tag: str) -> str:
         return f"{{{cls._W}}}{tag}"
 
     @classmethod
-    def _w14tag(cls, tag):
+    def _w14tag(cls, tag: str) -> str:
         return f"{{{cls._W14}}}{tag}"
 
     @classmethod
-    def _wval(cls, node, prop):
+    def _wval(cls, node, prop) -> Optional[str]:
         for pnode in cls._xpath(node, prop):
             return pnode.get(cls._wtag("val"))
         return None
@@ -50,12 +50,12 @@ class WordXml:
 class DocxInput(contextlib.ExitStack, WordXml, IDocumentInput):
     """A .docx reader."""
 
-    def __init__(self, path: Path):
+    def __init__(self, path: PathLike):
         super().__init__()
         self._read_docx(path)
         self._initialize_properties()
 
-    def _read_docx(self, path: Path):
+    def _read_docx(self, path: PathLike):
         self._zip = self.enter_context(zipfile.ZipFile(path))
         self.document = self._load_xml("word/document.xml")
         self.footnotes = self._load_xml("word/footnotes.xml")
@@ -165,6 +165,7 @@ class DocxParagraph(DocxNode, IDocumentParagraph):
     """A Paragraph inside a .docx."""
     R_XPATH = "w:r | w:ins/w:r"
     T_XPATH = "w:r/w:t | w:ins/w:r/w:t"
+    SNIPPET_LEN = 10
 
     def __init__(self, doc, para):
         super().__init__(doc, para)
@@ -184,23 +185,21 @@ class DocxParagraph(DocxNode, IDocumentParagraph):
         if w14id:
             return f'w14:paraId="{w14id}"'
 
-        SNIPPET_LEN = 10
         texts = []
         tlen = 0
         for tnode in para.xpath(self.T_XPATH, namespaces=self._NS):
             text = tnode.text
             texts.append(text)
             tlen += len(text)
-            if tlen >= SNIPPET_LEN:
+            if tlen >= self.SNIPPET_LEN:
                 break
         text = "".join(texts)
-        if len(text) <= SNIPPET_LEN:
+        if len(text) <= self.SNIPPET_LEN:
             return f'"{text}"'
-        return f'"{text[:SNIPPET_LEN-3]}"...'
+        return f'"{text[:self.SNIPPET_LEN-3]}"...'
 
     def is_nonfinal(self, para):
         """True iff a <w:p> para has deleted, tracked newline"""
-        # TODO: Probably incorrect
         for _ in self._xpath(para, "./w:pPr/w:rPr/w:del"):
             return True
         return False
@@ -230,7 +229,6 @@ class DocxParagraph(DocxNode, IDocumentParagraph):
 
     def is_page_break(self):
         """True iff the paragraph is a page break."""
-        # <w:p w14:paraId="513A8F68" w14:textId="6BE9644B" w:rsidR="0003349C" w:rsidRDefault="008112F5" w:rsidP="008112F5">
         for break_type in self._node_wtypes("w:r/w:br"):
             if break_type == "page":
                 return True

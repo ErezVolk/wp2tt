@@ -327,6 +327,7 @@ class WordProcessorToInDesignTaggedText:
         self.link_rules()
 
     def create_reader(self) -> IDocumentInput:
+        """Create the approriate document reader object"""
         if self.args.append:
             return MultiInput([self.args.input] + self.args.append)
         return ByExtensionInput(self.args.input)
@@ -338,6 +339,9 @@ class WordProcessorToInDesignTaggedText:
         counts: Mapping[str, Iterator[int]] = collections.defaultdict(
             lambda: itertools.count(start=1)
         )
+        # TODO: customStyles (-m should use them)
+        # TODO: <w:style w:type="paragraph" w:customStyle="1" w:styleId="a0">
+        # TODO: <w:style w:type="character" w:customStyle="1" w:styleId="a">
         for style_kwargs in self.doc.styles_defined():
             if style_kwargs.get("automatic"):
                 group = self.SPECIAL_GROUP
@@ -395,6 +399,7 @@ class WordProcessorToInDesignTaggedText:
             style.next_style = self.style_or_none(style.realm, style.next_wpid)
 
     def style_or_none(self, realm: str, wpid: str) -> Optional[Style]:
+        """Given a realm/wpid pair, return our internal Style object"""
         if not wpid:
             return None
         return self.styles[self.style_key(realm=realm, wpid=wpid)]
@@ -458,11 +463,17 @@ class WordProcessorToInDesignTaggedText:
     def found_style_definition(
         self, realm: str, internal_name: str, wpid: str, **kwargs
     ) -> Style:
+        """Called when encountering a style definition.
+
+        Generate a Tagged Text style definition.
+        """
         if realm not in self.base_names:
             logging.error("What about %s:%r [%r]?", realm, wpid, internal_name)
             self.base_names[realm] = self.args.base_character_style
 
-        if wpid != self.base_names.get(realm):
+        if (parent_style := kwargs.get("parent_style")):
+            kwargs.setdefault("parent_wpid", parent_style.wpid)
+        elif wpid != self.base_names.get(realm):
             kwargs.setdefault("parent_wpid", self.base_names.get(realm))
 
         # Allow any special overrides (color, name, etc.)
@@ -636,7 +647,6 @@ class WordProcessorToInDesignTaggedText:
             internal_name=name,
             wpid=name,
             parent_style=parent,
-            parent_wpid=parent.wpid,
             automatic=True,
         )
         return self.manual_styles[fmt]
