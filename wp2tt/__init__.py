@@ -217,7 +217,7 @@ class WordProcessorToInDesignTaggedText:
             self.output_fn = self.args.input.with_suffix(".txt")
 
         self.settings_fn = self.output_fn.with_suffix(".ini")
-        self.rerunner_fn = self.output_fn.with_suffix(".rerun")
+        self.rerunner_fn = Path(f"{self.output_fn}.rerun")
         self.stop_marker = self.args.stop_at
 
     def configure_logging(self):
@@ -319,7 +319,8 @@ class WordProcessorToInDesignTaggedText:
                 cli.extend(
                     [self.quote_fn(path) for path in self.args.append]
                 )
-            cli.extend(["2>&1", "|tee", self.rerunner_fn.with_suffix(".output").absolute()])
+            log_fn = Path(f"{self.rerunner_fn}.output")
+            cli.extend(["2>&1", "|tee", log_fn.absolute()])
             fobj.write(" ".join(map(str, cli)))
             fobj.write("\n")
         self.rerunner_fn.chmod(0o755)
