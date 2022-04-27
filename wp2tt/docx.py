@@ -230,7 +230,7 @@ class DocxParagraph(DocxNode, IDocumentParagraph):
 
     def is_page_break(self):
         """True iff the paragraph is a page break."""
-        for break_type in self._node_wtypes("w:r/w:br"):
+        for break_type in self._node_wtypes("w:r/w:br | w:ins/w:r/w:br"):
             if break_type == "page":
                 return True
         return False
