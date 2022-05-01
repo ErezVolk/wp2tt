@@ -27,6 +27,7 @@ from wp2tt.ini import ini_fields
 from wp2tt.ini import ConfigSection
 from wp2tt.input import IDocumentInput
 from wp2tt.input import IDocumentParagraph
+from wp2tt.input import IDocumentSpan
 from wp2tt.input import ManualFormat
 from wp2tt.styles import Style
 from wp2tt.styles import Rule
@@ -60,6 +61,7 @@ class ParseDict(argparse.Action):
 @attr.s(slots=True, frozen=True)
 class ManualFormatCustomStyle:
     """Manual formatting, possibly applied to a custom style"""
+
     fmt = attr.ib(type=ManualFormat)
     unadorned = attr.ib(type=Optional[str])
 
@@ -77,7 +79,9 @@ class State:
 
 
 class WordProcessorToInDesignTaggedText:
-    """Read a word processor file. Write an InDesign Tagged Text file. What's not to like?"""
+    """Read a word processor file. Write an InDesign Tagged Text file.
+
+    What's not to like?"""
 
     SETTING_FILE_ENCODING = "UTF-8"
     CONFIG_SECTION_NAME = "General"
@@ -139,10 +143,12 @@ class WordProcessorToInDesignTaggedText:
     def parse_command_line(self):
         """Find out what we're supposed to do."""
         self.parser = argparse.ArgumentParser(
-            description=f"Word Processor to InDesign Tagged Text Converter, v{WP2TT_VERSION}"
+            description=f"Word Processor to InDesign Tagged Text, v{WP2TT_VERSION}"
         )
         self.parser.add_argument("input", type=Path, help="Input word processor file")
-        self.parser.add_argument("output", type=Path, nargs="?", help="InDesign Tagged Text file")
+        self.parser.add_argument(
+            "output", type=Path, nargs="?", help="InDesign Tagged Text file"
+        )
         self.parser.add_argument(
             "-a",
             "--append",
@@ -209,6 +215,12 @@ class WordProcessorToInDesignTaggedText:
             action="store_true",
             help="Do not (over)write the rerruner script.",
         )
+        self.parser.add_argument(
+            "--direction",
+            choices=["RTL", "LTR"],
+            default="RTL",
+            help="Default text direction.",
+        )
         self.args = self.parser.parse_args()
 
         if self.args.output:
@@ -219,6 +231,7 @@ class WordProcessorToInDesignTaggedText:
         self.settings_fn = self.output_fn.with_suffix(".ini")
         self.rerunner_fn = Path(f"{self.output_fn}.rerun")
         self.stop_marker = self.args.stop_at
+        self.format_mask = ~ManualFormat[self.args.direction]
 
     def configure_logging(self):
         """Set logging level and format."""
@@ -316,9 +329,7 @@ class WordProcessorToInDesignTaggedText:
                 cli.append("--debug")
             if self.args.append:
                 cli.append("--append")
-                cli.extend(
-                    [self.quote_fn(path) for path in self.args.append]
-                )
+                cli.extend([self.quote_fn(path) for path in self.args.append])
             log_fn = Path(f"{self.rerunner_fn}.output")
             cli.extend(["2>&1", "|tee", log_fn.absolute()])
             fobj.write(" ".join(map(str, cli)))
@@ -476,7 +487,7 @@ class WordProcessorToInDesignTaggedText:
             logging.error("What about %s:%r [%r]?", realm, wpid, internal_name)
             self.base_names[realm] = self.args.base_character_style
 
-        if (parent_style := kwargs.get("parent_style")):
+        if parent_style := kwargs.get("parent_style"):
             kwargs.setdefault("parent_wpid", parent_style.wpid)
         elif wpid != self.base_names.get(realm):
             kwargs.setdefault("parent_wpid", self.base_names.get(realm))
@@ -615,21 +626,31 @@ class WordProcessorToInDesignTaggedText:
             return unadorned
 
         # Manual formatting
-        fmt = para.format()
+        fmt = self.get_format(para)
         if self.state.is_post_break:
             fmt = fmt | ManualFormat.NEW_PAGE
         elif self.state.is_post_empty:
             fmt = fmt | ManualFormat.SPACED
 
         # Check for paragraph with a character style
-        char_fmts = {rng.format() for rng in para.spans()}
+        char_fmts = {self.get_format(rng) for rng in para.spans()}
         if len(char_fmts) == 1:
             self.state.para_char_fmt = char_fmts.pop()
             fmt = fmt | self.state.para_char_fmt
 
         return self.get_manual_style("paragraph", unadorned, fmt)
 
-    def get_manual_style(self, realm: str, unadorned: Optional[Style], fmt: ManualFormat) -> Optional[Style]:
+    def get_format(
+        self, node: Union[IDocumentParagraph, IDocumentSpan]
+    ) -> ManualFormat:
+        """Return the marked part of a paragraph/span's format.
+
+        i.e., masking out the default direction."""
+        return node.format() & self.format_mask
+
+    def get_manual_style(
+        self, realm: str, unadorned: Optional[Style], fmt: ManualFormat
+    ) -> Optional[Style]:
         """When using manual formatting, create/get a style"""
         if unadorned is not None:
             if not unadorned.custom:
@@ -735,7 +756,7 @@ class WordProcessorToInDesignTaggedText:
             return unadorned
 
         # Manual formatting
-        fmt = rng.format()
+        fmt = self.get_format(rng)
         if fmt == self.state.para_char_fmt:
             # Format already included in paragraph style
             fmt = ManualFormat.NORMAL
@@ -923,8 +944,8 @@ class WordProcessorToInDesignTaggedText:
 
 
 # TODO:
+# - DOCX: find default RTL
 # - DOCX: <w:bookmarkStart w:name="X"/> / <w:instrText>PAGEREF ..
-# - IDTT:
 # - ODT: footnotes
 # - ODT: comments
 # - PUB: Support non-ME docs
@@ -944,7 +965,7 @@ class WordProcessorToInDesignTaggedText:
 # - Really need a test suite of some sort.
 # - Manual format: collapse with existing styles
 # - A flag to only create/update the ini file
-# - Maybe add front matter (best done in Id? either that or the template thingy (ooh, jinja2!))
+# - Maybe add front matter (best done in Id? either that or jinja2!)
 # - Something usable for those balloons (footnote+hl? endnote? convert to note in jsx?)
 #   bold: w:b (w:bCs?); italic: w:i (w:iCs?); undeline w:u
 #   font: <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New" w:cs="Courier New">

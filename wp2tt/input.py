@@ -21,6 +21,8 @@ class ManualFormat(enum.Flag):
     JUSTIFIED = enum.auto()
     NEW_PAGE = enum.auto()
     SPACED = enum.auto()
+    RTL = enum.auto()
+    LTR = enum.auto()
 
     BOLD = enum.auto()
     ITALIC = enum.auto()

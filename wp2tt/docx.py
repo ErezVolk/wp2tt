@@ -255,11 +255,16 @@ class DocxSpan(DocxNode, IDocumentSpan):
             yield DocxComment(self.doc, cmr)
 
     def format(self) -> ManualFormat:
-        fmt = ManualFormat.NORMAL
+        fmt = ManualFormat.LTR
         for _ in self._node_xpath("w:rPr/w:b | w:rPr/w:bCs"):
             fmt = fmt | ManualFormat.BOLD
+            break
         for _ in self._node_xpath("w:rPr/w:i | w:rPr/w:iCs"):
             fmt = fmt | ManualFormat.ITALIC
+            break
+        for _ in self._node_xpath("w:rPr/w:rtl"):
+            fmt = fmt & ~ManualFormat.LTR | ManualFormat.RTL
+            break
         return fmt
 
     def text(self):
