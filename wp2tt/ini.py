@@ -1,11 +1,12 @@
 """Ini file helper"""
-import attr
 import configparser
 
 from typing import Dict
 from typing import Generator
 from typing import Tuple
 from typing import Union
+
+import attr
 
 ATTR_KEY = "special"
 ATTR_VALUE_READONLY = "readonly"

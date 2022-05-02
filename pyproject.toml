@@ -1,4 +1,17 @@
+[tool.pylint.MASTER]
+extension-pkg-allow-list = [
+    "lxml",
+]
+
 [tool.pylint.messages_control]
 disable = [
   "too-many-public-methods",
 ]
+
+[[tool.mypy.overrides]]
+module = [
+    "markdown.*",
+    "mistune.*",
+]
+ignore_missing_imports = true
+

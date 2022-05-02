@@ -114,6 +114,7 @@ class WordProcessorToInDesignTaggedText:
     config: Mapping[str, str]
     doc: IDocumentInput
     footnote_ref_style: Style
+    format_mask: ManualFormat
     manual_styles: Dict[ManualFormatCustomStyle, Style]
     output_fn: Path
     parser: argparse.ArgumentParser
@@ -936,7 +937,8 @@ class WordProcessorToInDesignTaggedText:
             else:
                 section.pop(ini_name, None)
 
-    def quote_fn(self, path: Union[Path, str]) -> str:
+    @classmethod
+    def quote_fn(cls, path: Union[Path, str]) -> str:
         """Courtesy wrapper"""
         if isinstance(path, str):
             path = Path(path)

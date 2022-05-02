@@ -22,10 +22,11 @@ class MultiInput(IDocumentInput, contextlib.ExitStack):
     def __init__(self, paths: Sequence[Path]):
         super().__init__()
         self._paths = paths
-        self._inputs: List[IDocumentInput] = [
-            self.enter_context(ByExtensionInput(path))
-            for path in paths
-        ]
+        self._inputs: List[IDocumentInput] = []
+        for path in paths:
+            one = ByExtensionInput(path)
+            self._inputs.append(one)
+            self.enter_context(one)
 
     @property
     def properties(self):
