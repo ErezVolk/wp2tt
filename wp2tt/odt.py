@@ -168,17 +168,6 @@ class OdtParagraph(OdtNode, IDocumentParagraph):
 
 class OdtSpanBase(OdtNode, IDocumentSpan):
     """Base for .odt span classes"""
-    def style_wpid(self):
-        return None
-
-    def footnotes(self):
-        pass
-
-    def comments(self):
-        pass
-
-    def text(self):
-        pass
 
 
 class OdtHeadSpan(OdtSpanBase):

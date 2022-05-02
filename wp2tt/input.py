@@ -7,6 +7,7 @@ import enum
 
 from typing import Dict
 from typing import Generator
+from typing import Optional
 from typing import Tuple
 
 from wp2tt.styles import DocumentProperties
@@ -28,31 +29,25 @@ class ManualFormat(enum.Flag):
     ITALIC = enum.auto()
 
 
-class IDocumentSpan(ABC):
-    """A span of characters inside a document."""
+class IDocumentInput(ABC):
+    """A document."""
 
-    @abstractmethod
-    def style_wpid(self) -> str:
-        """Returns the wpid for this span's style."""
+    @property
+    @abstractproperty
+    def properties(self) -> DocumentProperties:
+        """A DocumentProperties object."""
         raise NotImplementedError()
 
-    @abstractmethod
-    def footnotes(self):
-        """Yields an IDocumentFootnote object for each footnote in this span."""
+    def styles_defined(self) -> Generator[Dict[str, str], None, None]:
+        """Yield a Style object kwargs for every style defined in the document."""
         raise NotImplementedError()
 
-    @abstractmethod
-    def comments(self):
-        """Yields an IDocumentComment object for each comment in this span."""
+    def styles_in_use(self) -> Generator[Tuple[str, str], None, None]:
+        """Yield a pair (realm, wpid) for every style used in the document."""
         raise NotImplementedError()
 
-    def format(self) -> ManualFormat:
-        """Returns manual formatting on this span."""
-        return ManualFormat.NORMAL
-
-    @abstractmethod
-    def text(self) -> Generator[str, None, None]:
-        """Yields strings of plain text."""
+    def paragraphs(self) -> Generator["IDocumentParagraph", None, None]:
+        """Yields an IDocumentParagraph object for each body paragraph."""
         raise NotImplementedError()
 
 
@@ -78,30 +73,31 @@ class IDocumentParagraph(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    def spans(self) -> Generator[IDocumentSpan, None, None]:
+    def spans(self) -> Generator["IDocumentSpan", None, None]:
         """Yield an IDocumentSpan per text span."""
         raise NotImplementedError()
 
 
-class IDocumentInput(ABC):
-    """A document."""
+class IDocumentSpan(ABC):
+    """A span of characters inside a document."""
 
-    @property
-    @abstractproperty
-    def properties(self) -> DocumentProperties:
-        """A DocumentProperties object."""
-        raise NotImplementedError()
+    def style_wpid(self) -> Optional[str]:
+        """Returns the wpid for this span's style."""
+        return None
 
-    def styles_defined(self) -> Generator[Dict[str, str], None, None]:
-        """Yield a Style object kwargs for every style defined in the document."""
-        raise NotImplementedError()
+    def footnotes(self) -> Generator["IDocumentFootnote", None, None]:
+        """Yields an IDocumentFootnote object for each footnote in this span."""
 
-    def styles_in_use(self) -> Generator[Tuple[str, str], None, None]:
-        """Yield a pair (realm, wpid) for every style used in the document."""
-        raise NotImplementedError()
+    def comments(self) -> Generator["IDocumentComment", None, None]:
+        """Yields an IDocumentComment object for each comment in this span."""
 
-    def paragraphs(self) -> Generator[IDocumentParagraph, None, None]:
-        """Yields an IDocumentParagraph object for each body paragraph."""
+    def format(self) -> ManualFormat:
+        """Returns manual formatting on this span."""
+        return ManualFormat.NORMAL
+
+    @abstractmethod
+    def text(self) -> Generator[str, None, None]:
+        """Yields strings of plain text."""
         raise NotImplementedError()
 
 

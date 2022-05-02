@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Read Markdown document"""
+# pylint: disable=unused-argument
 import logging
 from pathlib import Path
 import contextlib
