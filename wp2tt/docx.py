@@ -14,7 +14,7 @@ from wp2tt.input import IDocumentFootnote
 from wp2tt.input import IDocumentInput
 from wp2tt.input import IDocumentParagraph
 from wp2tt.input import IDocumentSpan
-from wp2tt.input import ManualFormat
+from wp2tt.format import ManualFormat
 from wp2tt.styles import DocumentProperties
 
 
@@ -29,8 +29,11 @@ class WordXml:
     }
 
     @classmethod
-    def _xpath(cls, node, expr):
-        return node.xpath(expr, namespaces=cls._NS)
+    def _xpath(cls, nodes, expr) -> Generator[object, None, None]:
+        if not isinstance(nodes, list):
+            nodes = [nodes]
+        for node in nodes:
+            yield from node.xpath(expr, namespaces=cls._NS)
 
     @classmethod
     def _wtag(cls, tag: str) -> str:
@@ -41,9 +44,12 @@ class WordXml:
         return f"{{{cls._W14}}}{tag}"
 
     @classmethod
-    def _wval(cls, node, prop) -> Optional[str]:
-        for pnode in cls._xpath(node, prop):
-            return pnode.get(cls._wtag("val"))
+    def _wval(cls, nodes, prop) -> Optional[str]:
+        if not isinstance(nodes, list):
+            nodes = [nodes]
+        for node in nodes:
+            for pnode in cls._xpath(node, prop):
+                return pnode.get(cls._wtag("val"))
         return None
 
 
@@ -81,6 +87,8 @@ class DocxInput(contextlib.ExitStack, WordXml, IDocumentInput):
         """Yield a Style object kwargs for every style defined in the document."""
         styles = self._load_xml("word/styles.xml")
         for stag in self._xpath(styles, "//w:style[@w:type][w:name[@w:val]]"):
+            fmt = DocxParagraph.node_format(stag)
+            fmt |= DocxSpan.node_format(stag)
             yield {
                 "realm": stag.get(self._wtag("type")),
                 "internal_name": self._wval(stag, "w:name"),
@@ -88,6 +96,7 @@ class DocxInput(contextlib.ExitStack, WordXml, IDocumentInput):
                 "parent_wpid": self._wval(stag, "w:basedOn"),
                 "next_wpid": self._wval(stag, "w:next"),
                 "custom": stag.get(self._wtag("customStyle")),
+                "fmt": fmt,
             }
 
     def styles_in_use(self):
@@ -220,8 +229,13 @@ class DocxParagraph(DocxNode, IDocumentParagraph):
 
     def format(self) -> ManualFormat:
         """Returns manual formatting on this paragraph."""
-        justification = self._node_wval("w:pPr/w:jc")
+        return self.node_format(self.nodes)
+
+    @classmethod
+    def node_format(cls, nodes):
+        """Returns manual formatting on a paragraph/style."""
         fmt = ManualFormat.NORMAL
+        justification = cls._wval(nodes, "w:pPr/w:jc")
         if justification == "center":
             fmt = fmt | ManualFormat.CENTERED
         elif justification == "both":
@@ -255,14 +269,20 @@ class DocxSpan(DocxNode, IDocumentSpan):
             yield DocxComment(self.doc, cmr)
 
     def format(self) -> ManualFormat:
+        """Manual formatting for this span"""
+        return self.node_format(self.nodes)
+
+    @classmethod
+    def node_format(cls, nodes) -> ManualFormat:
+        """Manual formatting for a span/style"""
         fmt = ManualFormat.LTR
-        for _ in self._node_xpath("w:rPr/w:b | w:rPr/w:bCs"):
+        for _ in cls._xpath(nodes, "w:rPr/w:b | w:rPr/w:bCs"):
             fmt = fmt | ManualFormat.BOLD
             break
-        for _ in self._node_xpath("w:rPr/w:i | w:rPr/w:iCs"):
+        for _ in cls._xpath(nodes, "w:rPr/w:i | w:rPr/w:iCs"):
             fmt = fmt | ManualFormat.ITALIC
             break
-        for _ in self._node_xpath("w:rPr/w:rtl"):
+        for _ in cls._xpath(nodes, "w:rPr/w:rtl"):
             fmt = fmt & ~ManualFormat.LTR | ManualFormat.RTL
             break
         return fmt

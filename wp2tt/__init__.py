@@ -28,7 +28,7 @@ from wp2tt.ini import ConfigSection
 from wp2tt.input import IDocumentInput
 from wp2tt.input import IDocumentParagraph
 from wp2tt.input import IDocumentSpan
-from wp2tt.input import ManualFormat
+from wp2tt.format import ManualFormat
 from wp2tt.styles import Style
 from wp2tt.styles import Rule
 from wp2tt.proxies import ByExtensionInput
@@ -657,6 +657,9 @@ class WordProcessorToInDesignTaggedText:
             if not unadorned.custom:
                 # Only look at unadorned style if it's custom
                 unadorned = None
+
+        if fmt and unadorned is not None:
+            fmt &= ~unadorned.fmt
 
         if not fmt:  # No manual formatting
             # Only paragraphs get a named "NORMAL" style

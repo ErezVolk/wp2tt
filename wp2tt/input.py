@@ -3,30 +3,14 @@
 from abc import abstractmethod
 from abc import abstractproperty
 from abc import ABC
-import enum
 
 from typing import Dict
 from typing import Generator
 from typing import Optional
 from typing import Tuple
 
+from wp2tt.format import ManualFormat
 from wp2tt.styles import DocumentProperties
-
-
-class ManualFormat(enum.Flag):
-    """Manual Formatting"""
-
-    NORMAL = 0
-
-    CENTERED = enum.auto()
-    JUSTIFIED = enum.auto()
-    NEW_PAGE = enum.auto()
-    SPACED = enum.auto()
-    RTL = enum.auto()
-    LTR = enum.auto()
-
-    BOLD = enum.auto()
-    ITALIC = enum.auto()
 
 
 class IDocumentInput(ABC):

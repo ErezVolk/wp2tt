@@ -4,6 +4,7 @@ import attr
 from wp2tt.ini import ATTR_KEY
 from wp2tt.ini import ATTR_VALUE_READONLY
 from wp2tt.ini import ATTR_VALUE_HIDDEN
+from wp2tt.format import ManualFormat
 
 ATTR_READONLY = {ATTR_KEY: ATTR_VALUE_READONLY}
 ATTR_NO_INI = {ATTR_KEY: ATTR_VALUE_HIDDEN}
@@ -21,6 +22,7 @@ class Style:
     next_wpid = attr.ib(default=None, metadata=ATTR_READONLY)
     automatic = attr.ib(default=None, metadata=ATTR_READONLY)
     custom = attr.ib(default=False, metadata=ATTR_READONLY)
+    fmt = attr.ib(type=ManualFormat, default=ManualFormat.NORMAL, metadata=ATTR_READONLY)
     idtt = attr.ib(default="")
     variable = attr.ib(default=None)
 
