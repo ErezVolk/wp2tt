@@ -34,8 +34,8 @@ class Style:
 
     def __str__(self):
         if self.custom:
-            return f"<{self.realm} {repr(self.name)} (custom)>"
-        return f"<{self.realm} {repr(self.name)}>"
+            return f"<{self.realm} {repr(self.name)}"
+        return f"<{self.realm} {repr(self.name)} (built-in)>"
 
 
 @attr.s(slots=True)

@@ -143,14 +143,14 @@ class WordProcessorToInDesignTaggedText:
 
     def parse_command_line(self):
         """Find out what we're supposed to do."""
-        self.parser = argparse.ArgumentParser(
+        parser = self.parser = argparse.ArgumentParser(
             description=f"Word Processor to InDesign Tagged Text, v{WP2TT_VERSION}"
         )
-        self.parser.add_argument("input", type=Path, help="Input word processor file")
-        self.parser.add_argument(
+        parser.add_argument("input", type=Path, help="Input word processor file")
+        parser.add_argument(
             "output", type=Path, nargs="?", help="InDesign Tagged Text file"
         )
-        self.parser.add_argument(
+        parser.add_argument(
             "-a",
             "--append",
             type=Path,
@@ -158,28 +158,28 @@ class WordProcessorToInDesignTaggedText:
             nargs="*",
             help="Concatenate more input file(s) to the same output",
         )
-        self.parser.add_argument(
+        parser.add_argument(
             "-s",
             "--stop-at",
             metavar="TEXT",
             required=False,
             help="Stop importing when TEXT is found",
         )
-        self.parser.add_argument(
+        parser.add_argument(
             "-c",
             "--base-character-style",
             metavar="NAME",
             default=self.DEFAULT_BASE,
             help="Base all character styles on this.",
         )
-        self.parser.add_argument(
+        parser.add_argument(
             "-p",
             "--base-paragraph-style",
             metavar="NAME",
             default=self.DEFAULT_BASE,
             help="Base all paragraph styles on this.",
         )
-        self.parser.add_argument(
+        parser.add_argument(
             "-v",
             "--style-to-variable",
             metavar="STYLE=VARIABLE",
@@ -187,42 +187,51 @@ class WordProcessorToInDesignTaggedText:
             action=ParseDict,
             help="Map paragraph styles to document variables.",
         )
-        self.parser.add_argument(
+
+        group = parser.add_mutually_exclusive_group()
+        group.add_argument(
             "-m",
             "--manual",
             action="store_true",
             help="Create styles for some manual formatting.",
         )
-        self.parser.add_argument(
+        group.add_argument(
+            "-M",
+            "--manual-light",
+            action="store_true",
+            help="Like --manual, but only for character styles",
+        )
+
+        parser.add_argument(
             "-f",
             "--fresh-start",
             action="store_true",
             help="Do not read any existing settings.",
         )
-        self.parser.add_argument(
+        parser.add_argument(
             "-d",
             "--debug",
             action="store_true",
             help="Print interesting debug information.",
         )
-        self.parser.add_argument(
+        parser.add_argument(
             "-C",
             "--convert-comments",
             action="store_true",
             help="Convert comments to balloons.",
         )
-        self.parser.add_argument(
+        parser.add_argument(
             "--no-rerunner",
             action="store_true",
             help="Do not (over)write the rerruner script.",
         )
-        self.parser.add_argument(
+        parser.add_argument(
             "--direction",
             choices=["RTL", "LTR"],
             default="RTL",
             help="Default text direction.",
         )
-        self.args = self.parser.parse_args()
+        self.args = parser.parse_args()
 
         if self.args.output:
             self.output_fn = self.args.output
@@ -326,6 +335,8 @@ class WordProcessorToInDesignTaggedText:
                 )
             if self.args.manual:
                 cli.append("--manual")
+            elif self.args.manual_light:
+                cli.append("--manual-light")
             if self.args.debug:
                 cli.append("--debug")
             if self.args.append:
@@ -756,7 +767,7 @@ class WordProcessorToInDesignTaggedText:
     def get_character_style(self, rng):
         """Returns Style object for a Range"""
         unadorned = self.style("character", rng.style_wpid())
-        if not self.args.manual:
+        if not self.args.manual and not self.args.manual_light:
             return unadorned
 
         # Manual formatting
