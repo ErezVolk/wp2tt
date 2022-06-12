@@ -89,6 +89,7 @@ class DocxInput(contextlib.ExitStack, WordXml, IDocumentInput):
         for stag in self._xpath(styles, "//w:style[@w:type][w:name[@w:val]]"):
             fmt = DocxParagraph.node_format(stag)
             fmt |= DocxSpan.node_format(stag)
+            fmt &= ~(ManualFormat.LTR | ManualFormat.RTL)
             yield {
                 "realm": stag.get(self._wtag("type")),
                 "internal_name": self._wval(stag, "w:name"),
