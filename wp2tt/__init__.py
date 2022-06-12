@@ -751,7 +751,7 @@ class WordProcessorToInDesignTaggedText:
         self.state = state
         return prev
 
-    def convert_range(self, rng):
+    def convert_range(self, rng: IDocumentSpan):
         """Convert all text and styles in a Range"""
         self.switch_character_style(self.get_character_style(rng))
         self.convert_range_text(rng)
@@ -764,11 +764,21 @@ class WordProcessorToInDesignTaggedText:
             for cmt in rng.comments():
                 self.convert_comment(cmt)
 
-    def get_character_style(self, rng):
+    NON_WHITESPACE = re.compile(r"\S")
+
+    def get_character_style(self, rng: IDocumentSpan) -> Optional[Style]:
         """Returns Style object for a Range"""
         unadorned = self.style("character", rng.style_wpid())
         if not self.args.manual and not self.args.manual_light:
             return unadorned
+
+        # Don't look at manual formatting for all-whitespace span
+        # TODO: This breaks on "<LTR>Hey</LTR> <LTR>World</LTR>"
+        # for text in rng.text():
+        #     if self.NON_WHITESPACE.search(text):
+        #         break
+        # else:
+        #     return unadorned
 
         # Manual formatting
         fmt = self.get_format(rng)
@@ -777,9 +787,7 @@ class WordProcessorToInDesignTaggedText:
             fmt = ManualFormat.NORMAL
         return self.get_manual_style("character", unadorned, fmt)
 
-    NON_WHITESPACE = re.compile(r"\S")
-
-    def convert_range_text(self, rng):
+    def convert_range_text(self, rng: IDocumentSpan):
         """Convert text in a Range object"""
         for text in rng.text():
             self.write_text(text)
@@ -857,7 +865,7 @@ class WordProcessorToInDesignTaggedText:
             if rule.applied:
                 logging.info("%s application(s) of %s", rule.applied, rule)
 
-    def style(self, realm: str, wpid: str) -> Optional[Style]:
+    def style(self, realm: str, wpid: Optional[str]) -> Optional[Style]:
         """Return a Style object"""
         if not wpid:
             return None

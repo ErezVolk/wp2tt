@@ -29,7 +29,7 @@ class WordXml:
     }
 
     @classmethod
-    def _xpath(cls, nodes, expr) -> Generator[object, None, None]:
+    def _xpath(cls, nodes, expr) -> Generator[etree._Element, None, None]:
         if not isinstance(nodes, list):
             nodes = [nodes]
         for node in nodes:
