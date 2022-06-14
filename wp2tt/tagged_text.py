@@ -2,6 +2,7 @@
 """Tagged text creation"""
 import collections
 import contextlib
+import io
 import itertools
 import logging
 import re
@@ -21,7 +22,7 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
 
     def __init__(self, properties: Optional[DocumentProperties] = None):
         super().__init__()
-        self.contents: str = ""
+        self._buffer = io.StringIO()
         self._styles: List[Style] = []
         self._headers_written = False
         self._shades: Mapping[str, Iterator[int]] = collections.defaultdict(itertools.count)
@@ -163,4 +164,8 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
 
     def _write(self, string: str) -> None:
         if string:
-            self.contents = self.contents + string
+            self._buffer.write(string)
+
+    @property
+    def contents(self) -> str:
+        return self._buffer.getvalue()
