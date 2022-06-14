@@ -231,6 +231,11 @@ class WordProcessorToInDesignTaggedText:
             default="RTL",
             help="Default text direction.",
         )
+        parser.add_argument(
+            "--vav",
+            action="store_true",
+            help="Convert to VAV WITH HOLAM ligature.",
+        )
         self.args = parser.parse_args()
 
         if self.args.output:
@@ -337,6 +342,8 @@ class WordProcessorToInDesignTaggedText:
                 cli.append("--manual")
             elif self.args.manual_light:
                 cli.append("--manual-light")
+            if self.args.vav:
+                cli.append("--vav")
             if self.args.debug:
                 cli.append("--debug")
             if self.args.append:
@@ -580,10 +587,9 @@ class WordProcessorToInDesignTaggedText:
         """The main conversion loop: parse document, write tagged text"""
         logging.info("Writing %s", self.output_fn)
         self.set_state(State())
-        with InDesignTaggedTextOutput(
-            self.output_fn, self.args.debug, self.doc.properties
-        ) as self.writer:
+        with InDesignTaggedTextOutput(self.doc.properties) as self.writer:
             self.convert_document()
+            self.write_output()
 
     def convert_document(self):
         """Convert a document, one paragraph at a time"""
@@ -598,6 +604,19 @@ class WordProcessorToInDesignTaggedText:
                 logging.debug("In other words, no %r", self.stop_marker)
         except StopMarkerFound as marker:
             logging.info(marker)
+
+    def write_output(self):
+        """Write the actual output file(s)"""
+        text = self.writer.contents
+        if self.args.vav:
+            text = text.replace("\u05D5\u05B9", "\uFB4B")
+        self.output_fn.parent.mkdir(parents=True, exist_ok=True)
+        with open(self.output_fn, "w", encoding="UTF-16LE") as fo:
+            fo.write(text)
+        if self.args.debug:
+            utf8_fn = self.output_fn.with_suffix(".utf8")
+            with open(utf8_fn, "w", encoding="UTF-8") as fo:
+                fo.write(text)
 
     def convert_paragraph(self, para: IDocumentParagraph) -> None:
         """Convert entire paragraph"""

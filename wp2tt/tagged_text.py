@@ -4,7 +4,6 @@ import collections
 import contextlib
 import itertools
 import logging
-from pathlib import Path
 import re
 
 from typing import Iterator
@@ -20,30 +19,16 @@ from wp2tt.styles import Style
 class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
     """Writes to a tagged text file"""
 
-    def __init__(
-        self,
-        filename: Path,
-        debug=False,
-        properties: Optional[DocumentProperties] = None,
-    ):
+    def __init__(self, properties: Optional[DocumentProperties] = None):
         super().__init__()
-        self._filename = filename
+        self.contents: str = ""
         self._styles: List[Style] = []
         self._headers_written = False
         self._shades: Mapping[str, Iterator[int]] = collections.defaultdict(itertools.count)
-        self._debug = debug
         if properties is None:
             self._properties = DocumentProperties()
         else:
             self._properties = properties
-
-        self._filename.parent.mkdir(parents=True, exist_ok=True)
-        self._fo = self.enter_context(open(self._filename, "w", encoding="UTF-16LE"))
-        ufo_fn = self._filename.with_suffix(".utf8")
-        if self._debug:
-            self._ufo = self.enter_context(open(ufo_fn, "w", encoding="UTF-8"))
-        elif ufo_fn.is_file():
-            ufo_fn.unlink()
 
     def _writeln(self, line="") -> None:
         self._write(line)
@@ -178,6 +163,4 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
 
     def _write(self, string: str) -> None:
         if string:
-            self._fo.write(string)
-            if self._debug:
-                self._ufo.write(string)
+            self.contents = self.contents + string
