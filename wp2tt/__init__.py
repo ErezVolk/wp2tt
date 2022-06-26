@@ -170,14 +170,14 @@ class WordProcessorToInDesignTaggedText:
             "--base-character-style",
             metavar="NAME",
             default=self.DEFAULT_BASE,
-            help="Base all character styles on this.",
+            help="Base all character styles on this",
         )
         parser.add_argument(
             "-p",
             "--base-paragraph-style",
             metavar="NAME",
             default=self.DEFAULT_BASE,
-            help="Base all paragraph styles on this.",
+            help="Base all paragraph styles on this",
         )
         parser.add_argument(
             "-v",
@@ -185,7 +185,7 @@ class WordProcessorToInDesignTaggedText:
             metavar="STYLE=VARIABLE",
             nargs="+",
             action=ParseDict,
-            help="Map paragraph styles to document variables.",
+            help="Map paragraph styles to document variables",
         )
 
         group = parser.add_mutually_exclusive_group()
@@ -193,7 +193,7 @@ class WordProcessorToInDesignTaggedText:
             "-m",
             "--manual",
             action="store_true",
-            help="Create styles for some manual formatting.",
+            help="Create styles for some manual formatting",
         )
         group.add_argument(
             "-M",
@@ -206,35 +206,40 @@ class WordProcessorToInDesignTaggedText:
             "-f",
             "--fresh-start",
             action="store_true",
-            help="Do not read any existing settings.",
+            help="Do not read any existing settings",
         )
         parser.add_argument(
             "-d",
             "--debug",
             action="store_true",
-            help="Print interesting debug information.",
+            help="Print interesting debug information",
         )
         parser.add_argument(
             "-C",
             "--convert-comments",
             action="store_true",
-            help="Convert comments to balloons.",
+            help="Convert comments to balloons",
         )
         parser.add_argument(
             "--no-rerunner",
             action="store_true",
-            help="Do not (over)write the rerruner script.",
+            help="Do not (over)write the rerruner script",
         )
         parser.add_argument(
             "--direction",
             choices=["RTL", "LTR"],
             default="RTL",
-            help="Default text direction.",
+            help="Default text direction",
+        )
+        parser.add_argument(
+            "--maqaf",
+            action="store_true",
+            help="Convert equal sign to Hebrew maqaf",
         )
         parser.add_argument(
             "--vav",
             action="store_true",
-            help="Convert to VAV WITH HOLAM ligature.",
+            help="Convert to VAV WITH HOLAM ligature",
         )
         self.args = parser.parse_args()
 
@@ -342,6 +347,8 @@ class WordProcessorToInDesignTaggedText:
                 cli.append("--manual")
             elif self.args.manual_light:
                 cli.append("--manual-light")
+            if self.args.maqaf:
+                cli.append("--maqaf")
             if self.args.vav:
                 cli.append("--vav")
             if self.args.debug:
@@ -608,6 +615,8 @@ class WordProcessorToInDesignTaggedText:
     def write_output(self):
         """Write the actual output file(s)"""
         text = self.writer.contents
+        if self.args.maqaf:
+            text = text.replace("=", "\u05BE")
         if self.args.vav:
             text = text.replace("\u05D5\u05B9", "\uFB4B")
         self.output_fn.parent.mkdir(parents=True, exist_ok=True)
