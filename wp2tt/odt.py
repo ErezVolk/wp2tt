@@ -5,7 +5,9 @@ import logging
 from pathlib import Path
 import zipfile
 
-import lxml.etree
+from typing import Generator
+
+from lxml import etree
 
 from wp2tt.input import IDocumentFootnote
 from wp2tt.input import IDocumentInput
@@ -28,7 +30,7 @@ class OoXml:
         "text": "character",
     }
 
-    def _xpath(self, node, expr):
+    def _xpath(self, node, expr) -> Generator[etree._Element, None, None]:
         return node.xpath(expr, namespaces=self._NS)
 
     def _ootag(self, tag):
@@ -109,7 +111,7 @@ class XodtInput(contextlib.ExitStack, OoXml, IDocumentInput):
     @classmethod
     def _open_flat(cls, path):
         with open(path, "r", encoding="utf8") as fobj:
-            return lxml.etree.parse(fobj).getroot()
+            return etree.parse(fobj).getroot()
 
     def _load_xml(self, path_in_zip):
         """Parse an XML file inside the zipped doc, return root node."""
@@ -118,7 +120,7 @@ class XodtInput(contextlib.ExitStack, OoXml, IDocumentInput):
 
         try:
             with self._zip.open(path_in_zip) as fobj:
-                return lxml.etree.parse(fobj).getroot()
+                return etree.parse(fobj).getroot()
         except KeyError:
             return None
 
@@ -149,7 +151,7 @@ class OdtParagraph(OdtNode, IDocumentParagraph):
 
     def spans(self):
         """Yield OdtSpan per text span."""
-        for event, node in lxml.etree.iterwalk(self.node, events=("start", "end")):
+        for event, node in etree.iterwalk(self.node, events=("start", "end")):
             if event == "start":
                 if node.tag == self._ootag("text:tab"):
                     yield OdtTabSpan(self.doc, node)

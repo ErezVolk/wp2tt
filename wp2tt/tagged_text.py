@@ -73,6 +73,7 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
     def _write_style_definition(self, style: Style) -> None:
         logging.debug("InDesign: %s", style)
         id_realm = style.realm[:4].capitalize()
+        idtt: list[str] = []
         if style.idtt:
             idtt = [style.idtt]
         else:

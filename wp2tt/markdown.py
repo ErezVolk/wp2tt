@@ -162,15 +162,22 @@ class MarkdownInput(IDocumentInput, contextlib.ExitStack):
     def styles_defined(self) -> Generator[Dict[str, str], None, None]:
         """Yield a Style object kwargs for every style defined in the document."""
         for realm, wpid in self.styles_in_use():
-            yield {"realm": realm, "internal_name": wpid, "wpid": wpid}
+            yield {
+                "realm": realm or "",
+                "internal_name": wpid or "",
+                "wpid": wpid or "",
+            }
+
+    def xpath(self, expr) -> Generator[etree._Element, None, None]:
+        yield from self._root.xpath(expr)
 
     def styles_in_use(self):
         """Yield a pair (realm, wpid) for every style used in the document."""
-        for node in self._root.xpath("//p[@wpid]"):
+        for node in self.xpath("//p[@wpid]"):
             yield "paragraph", node.get("wpid")
-        for node in self._root.xpath("//s[@wpid]"):
+        for node in self.xpath("//s[@wpid]"):
             yield "character", node.get("wpid")
-        for node in self._root.xpath("//li"):
+        for node in self.xpath("//li"):
             yield "paragraph", "list item"
             break
 

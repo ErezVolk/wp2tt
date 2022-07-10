@@ -62,20 +62,20 @@ class ParseDict(argparse.Action):
 class ManualFormatCustomStyle:
     """Manual formatting, possibly applied to a custom style"""
 
-    fmt = attr.ib(type=ManualFormat)
-    unadorned = attr.ib(type=Optional[str])
+    fmt: ManualFormat = attr.ib()
+    unadorned: Optional[str] = attr.ib()
 
 
 @attr.s(slots=True)
 class State:
     """Context of styles"""
 
-    curr_char_style = attr.ib(default=None, type=Optional[Style])
-    prev_para_style = attr.ib(default=None, type=Optional[Style])
-    is_empty = attr.ib(default=True)
-    is_post_empty = attr.ib(default=False)
-    is_post_break = attr.ib(default=False)
-    para_char_fmt = attr.ib(default=ManualFormat.NORMAL)
+    curr_char_style: Optional[Style] = attr.ib(default=None)
+    prev_para_style: Optional[Style] = attr.ib(default=None)
+    is_empty: bool = attr.ib(default=True)
+    is_post_empty: bool = attr.ib(default=False)
+    is_post_break: bool = attr.ib(default=False)
+    para_char_fmt: ManualFormat = attr.ib(default=ManualFormat.NORMAL)
 
 
 class WordProcessorToInDesignTaggedText:
@@ -357,7 +357,9 @@ class WordProcessorToInDesignTaggedText:
                 cli.append("--append")
                 cli.extend([self.quote_fn(path) for path in self.args.append])
             log_fn = Path(f"{self.rerunner_fn}.output")
-            cli.extend(["2>&1", "|tee", log_fn.absolute()])
+            cli.append("2>&1")
+            cli.append("|tee")
+            cli.append(str(log_fn.absolute()))
             fobj.write(" ".join(map(str, cli)))
             fobj.write("\n")
         self.rerunner_fn.chmod(0o755)
@@ -459,9 +461,13 @@ class WordProcessorToInDesignTaggedText:
                     inherit_from=rule.turn_this_style,
                 )
                 if rule.when_following is not None:
-                    rule.when_following_styles = [
+                    wfs = [
                         self.find_style_by_ini_ref(ini_ref)
                         for ini_ref in re.findall(r"\[.*?\]", rule.when_following)
+                    ]
+                    rule.when_following_styles = [
+                        style for style in wfs
+                        if style is not None
                     ]
             except BadReferenceInRule:
                 logging.warning("Ignoring rule with bad references: %s", rule)
@@ -482,9 +488,9 @@ class WordProcessorToInDesignTaggedText:
         if not mobj:
             logging.debug("Malformed %r", ini_ref)
             raise BadReferenceInRule()
+        realm = mobj.group("realm").lower()
+        internal_name = mobj.group("internal_name")
         try:
-            realm = mobj.group("realm").lower()
-            internal_name = mobj.group("internal_name")
             return next(
                 style
                 for style in self.styles.values()
@@ -620,12 +626,12 @@ class WordProcessorToInDesignTaggedText:
         if self.args.vav:
             text = text.replace("\u05D5\u05B9", "\uFB4B")
         self.output_fn.parent.mkdir(parents=True, exist_ok=True)
-        with open(self.output_fn, "w", encoding="UTF-16LE") as fo:
-            fo.write(text)
+        with open(self.output_fn, "w", encoding="UTF-16LE") as fobj:
+            fobj.write(text)
         if self.args.debug:
             utf8_fn = self.output_fn.with_suffix(".utf8")
-            with open(utf8_fn, "w", encoding="UTF-8") as fo:
-                fo.write(text)
+            with open(utf8_fn, "w", encoding="UTF-8") as fobj:
+                fobj.write(text)
 
     def convert_paragraph(self, para: IDocumentParagraph) -> None:
         """Convert entire paragraph"""

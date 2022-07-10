@@ -145,7 +145,7 @@ class DocxNode(WordXml):
     def _node_wtag(self, tag) -> Optional[str]:
         return self.head_node.get(self._wtag(tag))
 
-    def _node_xpath(self, expr) -> Generator[object, None, None]:
+    def _node_xpath(self, expr) -> Generator[etree._Element, None, None]:
         for node in self.nodes:
             yield from node.xpath(expr, namespaces=self._NS)
 
@@ -256,7 +256,7 @@ class DocxSpan(DocxNode, IDocumentSpan):
 
     def __repr__(self):
         """String description of the paragraph object"""
-        return repr(" ".join(t for t in self.text()))
+        return repr(" ".join(t for t in self.text() if t is not None))
 
     def style_wpid(self):
         return self._node_wval("w:rPr/w:rStyle")
