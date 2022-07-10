@@ -274,7 +274,7 @@ class WordProcessorToInDesignTaggedText:
         if self.stop_marker:
             self.config["stop_marker"] = self.stop_marker
         else:
-            self.stop_marker = self.config.get("stop_marker")
+            self.stop_marker = self.config.get("stop_marker") or ""
 
     def load_rules(self):
         """Convert Rule sections into Rule objects."""

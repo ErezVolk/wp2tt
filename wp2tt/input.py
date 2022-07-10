@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 """Base class for input sources (document formats)."""
 from abc import abstractmethod
-from abc import abstractproperty
 from abc import ABC
 
 from typing import Dict
@@ -17,7 +16,7 @@ class IDocumentInput(ABC):
     """A document."""
 
     @property
-    @abstractproperty
+    @abstractmethod
     def properties(self) -> DocumentProperties:
         """A DocumentProperties object."""
         raise NotImplementedError()
@@ -71,9 +70,11 @@ class IDocumentSpan(ABC):
 
     def footnotes(self) -> Generator["IDocumentFootnote", None, None]:
         """Yields an IDocumentFootnote object for each footnote in this span."""
+        raise NotImplementedError()
 
     def comments(self) -> Generator["IDocumentComment", None, None]:
         """Yields an IDocumentComment object for each comment in this span."""
+        raise NotImplementedError()
 
     def format(self) -> ManualFormat:
         """Returns manual formatting on this span."""
