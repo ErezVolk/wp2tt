@@ -33,7 +33,7 @@ from wp2tt.styles import Style
 from wp2tt.styles import Rule
 from wp2tt.proxies import ByExtensionInput
 from wp2tt.proxies import MultiInput
-from wp2tt.output import IOutput
+from wp2tt.proxies import ProxyInput
 from wp2tt.output import WhitespaceStripper
 from wp2tt.tagged_text import InDesignTaggedTextOutput
 
@@ -128,7 +128,7 @@ class WordProcessorToInDesignTaggedText:
     stop_marker_found: bool
     style_sections_used: Set[str]
     styles: Dict[str, Style]
-    writer: IOutput
+    writer: InDesignTaggedTextOutput
 
     def run(self):
         """Main entry point."""
@@ -373,7 +373,7 @@ class WordProcessorToInDesignTaggedText:
         self.link_styles()
         self.link_rules()
 
-    def create_reader(self) -> IDocumentInput:
+    def create_reader(self) -> ProxyInput:
         """Create the approriate document reader object"""
         if self.args.append:
             return MultiInput([self.args.input] + self.args.append)

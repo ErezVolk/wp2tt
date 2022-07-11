@@ -174,6 +174,7 @@ class DocxNode(WordXml):
 
 class DocxParagraph(DocxNode, IDocumentParagraph):
     """A Paragraph inside a .docx."""
+
     R_XPATH = "w:r | w:ins/w:r"
     T_XPATH = "w:r/w:t | w:ins/w:r/w:t"
     SNIPPET_LEN = 10

@@ -16,7 +16,12 @@ from wp2tt.odt import XodtInput
 from wp2tt.styles import DocumentProperties
 
 
-class MultiInput(IDocumentInput, contextlib.ExitStack):
+class ProxyInput(IDocumentInput, contextlib.ExitStack):
+    """Just a proxy IDocumentInput"""
+    pass
+
+
+class MultiInput(ProxyInput):
     """Input from multiple files."""
 
     def __init__(self, paths: Sequence[Path]):
@@ -68,7 +73,7 @@ class MultiInput(IDocumentInput, contextlib.ExitStack):
         logging.debug("%u paragraphs(s) in %u docs", total, len(self._paths))
 
 
-class ByExtensionInput(IDocumentInput, contextlib.ExitStack):
+class ByExtensionInput(ProxyInput):
     """An input, based on the file's extension."""
 
     _input: IDocumentInput
