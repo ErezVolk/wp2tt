@@ -30,7 +30,7 @@ class OoXml:
         "text": "character",
     }
 
-    def _xpath(self, node, expr) -> Generator[etree._Element, None, None]:
+    def _xpath(self, node, expr) -> Generator[etree._Entity, None, None]:
         return node.xpath(expr, namespaces=self._NS)
 
     def _ootag(self, tag):

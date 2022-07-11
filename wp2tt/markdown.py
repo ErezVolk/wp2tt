@@ -168,7 +168,7 @@ class MarkdownInput(IDocumentInput, contextlib.ExitStack):
                 "wpid": wpid or "",
             }
 
-    def xpath(self, expr) -> Generator[etree._Element, None, None]:
+    def xpath(self, expr) -> Generator[etree._Entity, None, None]:
         yield from self._root.xpath(expr)
 
     def styles_in_use(self):

@@ -4,8 +4,10 @@ import contextlib
 import zipfile
 
 from os import PathLike
+from typing import Any
 from typing import Generator
 from typing import Optional
+from typing import Union
 
 from lxml import etree
 
@@ -29,7 +31,7 @@ class WordXml:
     }
 
     @classmethod
-    def _xpath(cls, nodes, expr) -> Generator[etree._Element, None, None]:
+    def _xpath(cls, nodes: Union[list[etree._Entity], etree._Entity], expr: str) -> Generator[etree._Entity, None, None]:
         if not isinstance(nodes, list):
             nodes = [nodes]
         for node in nodes:
@@ -72,7 +74,7 @@ class DocxInput(contextlib.ExitStack, WordXml, IDocumentInput):
             has_rtl=self._has_node("w:rtl"),
         )
 
-    def _has_node(self, wtag):
+    def _has_node(self, wtag: str):
         for root in (self.document, self.footnotes, self.comments):
             if root is not None:
                 for _ in self._xpath(root, wtag):
@@ -80,10 +82,10 @@ class DocxInput(contextlib.ExitStack, WordXml, IDocumentInput):
         return False
 
     @property
-    def properties(self):
+    def properties(self) -> DocumentProperties:
         return self._properties
 
-    def styles_defined(self):
+    def styles_defined(self) -> Generator[dict[str, Any], None, None]:
         """Yield a Style object kwargs for every style defined in the document."""
         styles = self._load_xml("word/styles.xml")
         for stag in self._xpath(styles, "//w:style[@w:type][w:name[@w:val]]"):
@@ -100,7 +102,7 @@ class DocxInput(contextlib.ExitStack, WordXml, IDocumentInput):
                 "fmt": fmt,
             }
 
-    def styles_in_use(self):
+    def styles_in_use(self) -> Generator[tuple[str, str], None, None]:
         """Yield a pair (realm, wpid) for every style used in the document."""
         for node in (self.document, self.footnotes, self.comments):
             if node is None:
@@ -110,14 +112,14 @@ class DocxInput(contextlib.ExitStack, WordXml, IDocumentInput):
                     wpid = snode.get(self._wtag("val"))
                     yield (realm, wpid)
 
-    def paragraphs(self):
+    def paragraphs(self) -> Generator["DocxParagraph", None, None]:
         """Yields a DocxParagraph object for each body paragraph."""
         # "//w:body/w:p[not(preceding-sibling::w:p/w:pPr/w:rPr/w:del)]"
         for para in self._xpath(self.document, "//w:body/w:p"):
             if not para.get("__wp2tt_skip__"):
                 yield DocxParagraph(self, para)
 
-    def _load_xml(self, path_in_zip):
+    def _load_xml(self, path_in_zip: str) -> etree._Entity:
         """Parse an XML file inside the zipped doc, return root node."""
         try:
             with self._zip.open(path_in_zip) as fobj:
@@ -133,37 +135,37 @@ class DocxNode(WordXml):
     used for parargaph breaks deleted with track changes.
     """
 
-    def __init__(self, doc, node):
+    def __init__(self, doc: DocxInput, node: etree._Entity):
         self.doc = doc
         self.head_node = node
         self.nodes = [node]
 
-    def add_node(self, node) -> None:
+    def add_node(self, node: etree._Entity) -> None:
         """Extend the list of nodes"""
         self.nodes.append(node)
 
-    def _node_wtag(self, tag) -> Optional[str]:
+    def _node_wtag(self, tag: str) -> Optional[str]:
         return self.head_node.get(self._wtag(tag))
 
-    def _node_xpath(self, expr) -> Generator[etree._Element, None, None]:
+    def _node_xpath(self, expr: str) -> Generator[etree._Entity, None, None]:
         for node in self.nodes:
             yield from node.xpath(expr, namespaces=self._NS)
 
-    def _node_wval(self, prop) -> Optional[str]:
+    def _node_wval(self, prop: str) -> Optional[str]:
         return self._node_wattr(prop, "val")
 
-    def _node_wtype(self, prop) -> Optional[str]:
+    def _node_wtype(self, prop: str) -> Optional[str]:
         return self._node_wattr(prop, "type")
 
-    def _node_wtypes(self, prop) -> Generator[str, None, None]:
+    def _node_wtypes(self, prop: str) -> Generator[str, None, None]:
         yield from self._node_wattrs(prop, "type")
 
-    def _node_wattr(self, prop, attr) -> Optional[str]:
+    def _node_wattr(self, prop: str, attr: str) -> Optional[str]:
         for value in self._node_wattrs(prop, attr):
             return value
         return None
 
-    def _node_wattrs(self, prop, attr) -> Generator[str, None, None]:
+    def _node_wattrs(self, prop: str, attr: str) -> Generator[str, None, None]:
         tag = self._wtag(attr)
         for node in self.nodes:
             for pnode in self._xpath(node, prop):
@@ -179,7 +181,7 @@ class DocxParagraph(DocxNode, IDocumentParagraph):
     T_XPATH = "w:r/w:t | w:ins/w:r/w:t"
     SNIPPET_LEN = 10
 
-    def __init__(self, doc, para):
+    def __init__(self, doc: DocxInput, para: etree._Entity):
         super().__init__(doc, para)
         while self.is_nonfinal(para):
             self.add_node(para := para.getnext())
@@ -191,13 +193,13 @@ class DocxParagraph(DocxNode, IDocumentParagraph):
         pids = "/".join(self._para_ids)
         return f"<w:p {pids}>"
 
-    def _get_para_id(self, para) -> str:
+    def _get_para_id(self, para: etree._Entity) -> str:
         """Hopefully unique paragraph ID"""
         w14id = para.get(self._w14tag("paraId"))
         if w14id:
             return f'w14:paraId="{w14id}"'
 
-        texts = []
+        texts: list[str] = []
         tlen = 0
         for tnode in para.xpath(self.T_XPATH, namespaces=self._NS):
             text = tnode.text
@@ -210,21 +212,21 @@ class DocxParagraph(DocxNode, IDocumentParagraph):
             return f'"{text}"'
         return f'"{text[:self.SNIPPET_LEN-3]}"...'
 
-    def is_nonfinal(self, para):
+    def is_nonfinal(self, para: etree._Entity) -> bool:
         """True iff a <w:p> para has deleted, tracked newline"""
         for _ in self._xpath(para, "./w:pPr/w:rPr/w:del"):
             return True
         return False
 
-    def style_wpid(self):
+    def style_wpid(self) -> Optional[str]:
         return self._node_wval("./w:pPr/w:pStyle")
 
-    def text(self):
+    def text(self) -> Generator[str, None, None]:
         """Yields strings of plain text."""
         for node in self._node_xpath(self.T_XPATH):
             yield node.text
 
-    def spans(self):
+    def spans(self) -> Generator["DocxSpan", None, None]:
         """Yield DocxSpan per text span."""
         for node in self._node_xpath(self.R_XPATH):
             yield DocxSpan(self.doc, node)
@@ -234,7 +236,7 @@ class DocxParagraph(DocxNode, IDocumentParagraph):
         return self.node_format(self.nodes)
 
     @classmethod
-    def node_format(cls, nodes):
+    def node_format(cls, nodes: list[etree._Entity]) -> ManualFormat:
         """Returns manual formatting on a paragraph/style."""
         fmt = ManualFormat.NORMAL
         justification = cls._wval(nodes, "w:pPr/w:jc")
@@ -244,7 +246,7 @@ class DocxParagraph(DocxNode, IDocumentParagraph):
             fmt = fmt | ManualFormat.JUSTIFIED
         return fmt
 
-    def is_page_break(self):
+    def is_page_break(self) -> bool:
         """True iff the paragraph is a page break."""
         for break_type in self._node_wtypes("w:r/w:br | w:ins/w:r/w:br"):
             if break_type == "page":
@@ -259,14 +261,14 @@ class DocxSpan(DocxNode, IDocumentSpan):
         """String description of the paragraph object"""
         return repr(" ".join(t for t in self.text() if t is not None))
 
-    def style_wpid(self):
+    def style_wpid(self) -> Optional[str]:
         return self._node_wval("w:rPr/w:rStyle")
 
-    def footnotes(self):
+    def footnotes(self) -> Generator["DocxFootnote", None, None]:
         for fnr in self._node_xpath("w:footnoteReference"):
             yield DocxFootnote(self.doc, fnr)
 
-    def comments(self):
+    def comments(self) -> Generator["DocxComment", None, None]:
         for cmr in self._node_xpath("w:commentReference"):
             yield DocxComment(self.doc, cmr)
 
@@ -275,7 +277,7 @@ class DocxSpan(DocxNode, IDocumentSpan):
         return self.node_format(self.nodes)
 
     @classmethod
-    def node_format(cls, nodes) -> ManualFormat:
+    def node_format(cls, nodes: list[etree._Entity]) -> ManualFormat:
         """Manual formatting for a span/style"""
         fmt = ManualFormat.LTR
         for _ in cls._xpath(nodes, "w:rPr/w:b | w:rPr/w:bCs"):
@@ -289,7 +291,7 @@ class DocxSpan(DocxNode, IDocumentSpan):
             break
         return fmt
 
-    def text(self):
+    def text(self) -> Generator[str, None, None]:
         for node in self._node_xpath("w:tab | w:t"):
             if node.tag == self._wtag("tab"):
                 yield "\t"
@@ -300,7 +302,7 @@ class DocxSpan(DocxNode, IDocumentSpan):
 class DocxFootnote(DocxNode, IDocumentFootnote):
     """IDocumentFootnote for .docx"""
 
-    def paragraphs(self):
+    def paragraphs(self) -> Generator[DocxParagraph, None, None]:
         """Yields DocxParagraph for each paragraph in a footnote"""
         fnid = self._node_wtag("id")
         for para in self._xpath(self.doc.footnotes, f'w:footnote[@w:id="{fnid}"]/w:p'):
@@ -310,7 +312,7 @@ class DocxFootnote(DocxNode, IDocumentFootnote):
 class DocxComment(DocxNode, IDocumentComment):
     """IDocumentComment for .docx"""
 
-    def paragraphs(self):
+    def paragraphs(self) -> Generator[DocxParagraph, None, None]:
         """Yields DocxParagraph for each paragraph in a comment"""
         cmid = self._node_wtag("id")
         for para in self._xpath(self.doc.comments, f'w:comment[@w:id="{cmid}"]/w:p'):
