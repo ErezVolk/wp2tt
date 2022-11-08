@@ -20,6 +20,8 @@ from wp2tt.styles import Style
 class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
     """Writes to a tagged text file"""
 
+    _curr_char_style: Optional[Style] = None
+
     def __init__(self, properties: Optional[DocumentProperties] = None):
         super().__init__()
         self._buffer = io.StringIO()
@@ -120,6 +122,8 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
         """Start a paragraph with a specified style."""
         self._write_headers()
         self._set_style("Para", style)
+        if self._curr_char_style:
+            self._set_style("Char", self._curr_char_style)
 
     def _set_style(self, realm: str, style: Optional[Style]) -> None:
         if style:
@@ -137,11 +141,14 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
 
     def leave_paragraph(self) -> None:
         """Finalize paragraph."""
+        if self._curr_char_style:
+            self._set_style("Char", None)
         self._writeln()
 
     def set_character_style(self, style: Optional[Style] = None) -> None:
         """Start a span using a specific character style."""
         self._set_style("Char", style)
+        self._curr_char_style = style
 
     def enter_footnote(self) -> None:
         """Add a footnote reference and enter the footnote."""

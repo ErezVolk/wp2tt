@@ -1015,7 +1015,6 @@ class WordProcessorToInDesignTaggedText:
 # - [paragraph style] keep_last_n_chars
 # - character style rule (grep)
 # - Non-unicode when not required?
-# - Import MarkDown
 # - Paragraph direction (w:r/w:rPr/w:rtl -> <pParaDir:1>; but what about the basic dir?)
 # - For post edit/proof: Manual formatting consolidation, TBD
 # - Para: global base -> body base, heading base

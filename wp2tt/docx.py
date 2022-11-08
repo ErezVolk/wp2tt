@@ -31,7 +31,9 @@ class WordXml:
     }
 
     @classmethod
-    def _xpath(cls, nodes: Union[list[etree._Entity], etree._Entity], expr: str) -> Generator[etree._Entity, None, None]:
+    def _xpath(
+        cls, nodes: Union[list[etree._Entity], etree._Entity], expr: str
+    ) -> Generator[etree._Entity, None, None]:
         if not isinstance(nodes, list):
             nodes = [nodes]
         for node in nodes:
