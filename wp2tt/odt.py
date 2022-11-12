@@ -3,7 +3,6 @@
 import contextlib
 import logging
 from pathlib import Path
-import zipfile
 
 from typing import Generator
 
@@ -14,6 +13,7 @@ from wp2tt.input import IDocumentInput
 from wp2tt.input import IDocumentParagraph
 from wp2tt.input import IDocumentSpan
 from wp2tt.styles import DocumentProperties
+from wp2tt.zip import ZipDocument
 
 
 class OoXml:
@@ -106,7 +106,7 @@ class XodtInput(contextlib.ExitStack, OoXml, IDocumentInput):
             yield OdtParagraph(self, para)
 
     def _open_zip(self, path):
-        return self.enter_context(zipfile.ZipFile(path))
+        return self.enter_context(ZipDocument(path))
 
     @classmethod
     def _open_flat(cls, path):
@@ -118,11 +118,7 @@ class XodtInput(contextlib.ExitStack, OoXml, IDocumentInput):
         if not self._zipped:
             return self._flat
 
-        try:
-            with self._zip.open(path_in_zip) as fobj:
-                return etree.parse(fobj).getroot()
-        except KeyError:
-            return None
+        return self._zip.load_xml(path_in_zip)
 
 
 class OdtNode(OoXml):

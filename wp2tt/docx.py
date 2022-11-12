@@ -1,13 +1,9 @@
-#!/usr/bin/env python3
 """MS Word .docx parser"""
 import contextlib
-import zipfile
 
 from os import PathLike
 from typing import Any
 from typing import Generator
-from typing import Optional
-from typing import Union
 
 from lxml import etree
 
@@ -18,6 +14,7 @@ from wp2tt.input import IDocumentParagraph
 from wp2tt.input import IDocumentSpan
 from wp2tt.format import ManualFormat
 from wp2tt.styles import DocumentProperties
+from wp2tt.zip import ZipDocument
 
 
 class WordXml:
@@ -32,7 +29,7 @@ class WordXml:
 
     @classmethod
     def _xpath(
-        cls, nodes: Union[list[etree._Entity], etree._Entity], expr: str
+        cls, nodes: list[etree._Entity] | etree._Entity, expr: str
     ) -> Generator[etree._Entity, None, None]:
         if not isinstance(nodes, list):
             nodes = [nodes]
@@ -48,7 +45,7 @@ class WordXml:
         return f"{{{cls._W14}}}{tag}"
 
     @classmethod
-    def _wval(cls, nodes, prop) -> Optional[str]:
+    def _wval(cls, nodes, prop) -> str | None:
         if not isinstance(nodes, list):
             nodes = [nodes]
         for node in nodes:
@@ -59,6 +56,7 @@ class WordXml:
 
 class DocxInput(contextlib.ExitStack, WordXml, IDocumentInput):
     """A .docx reader."""
+    # TODO: word/_rels/document.xml.rels:Relationships/Relationship[Id="rId4" Target="media/image1.jpeg"]
 
     def __init__(self, path: PathLike):
         super().__init__()
@@ -66,10 +64,10 @@ class DocxInput(contextlib.ExitStack, WordXml, IDocumentInput):
         self._initialize_properties()
 
     def _read_docx(self, path: PathLike):
-        self._zip = self.enter_context(zipfile.ZipFile(path))
-        self.document = self._load_xml("word/document.xml")
-        self.footnotes = self._load_xml("word/footnotes.xml")
-        self.comments = self._load_xml("word/comments.xml")
+        self._zip = self.enter_context(ZipDocument(path))
+        self.document = self._zip.load_xml("word/document.xml")
+        self.footnotes = self._zip.load_xml("word/footnotes.xml")
+        self.comments = self._zip.load_xml("word/comments.xml")
 
     def _initialize_properties(self):
         self._properties = DocumentProperties(
@@ -89,7 +87,7 @@ class DocxInput(contextlib.ExitStack, WordXml, IDocumentInput):
 
     def styles_defined(self) -> Generator[dict[str, Any], None, None]:
         """Yield a Style object kwargs for every style defined in the document."""
-        styles = self._load_xml("word/styles.xml")
+        styles = self._zip.load_xml("word/styles.xml")
         for stag in self._xpath(styles, "//w:style[@w:type][w:name[@w:val]]"):
             fmt = DocxParagraph.node_format(stag)
             fmt |= DocxSpan.node_format(stag)
@@ -121,14 +119,6 @@ class DocxInput(contextlib.ExitStack, WordXml, IDocumentInput):
             if not para.get("__wp2tt_skip__"):
                 yield DocxParagraph(self, para)
 
-    def _load_xml(self, path_in_zip: str) -> etree._Entity:
-        """Parse an XML file inside the zipped doc, return root node."""
-        try:
-            with self._zip.open(path_in_zip) as fobj:
-                return etree.parse(fobj).getroot()
-        except KeyError:
-            return None
-
 
 class DocxNode(WordXml):
     """Base helper class for object which represent a node in a docx.
@@ -146,23 +136,23 @@ class DocxNode(WordXml):
         """Extend the list of nodes"""
         self.nodes.append(node)
 
-    def _node_wtag(self, tag: str) -> Optional[str]:
+    def _node_wtag(self, tag: str) -> str | None:
         return self.head_node.get(self._wtag(tag))
 
     def _node_xpath(self, expr: str) -> Generator[etree._Entity, None, None]:
         for node in self.nodes:
             yield from node.xpath(expr, namespaces=self._NS)
 
-    def _node_wval(self, prop: str) -> Optional[str]:
+    def _node_wval(self, prop: str) -> str | None:
         return self._node_wattr(prop, "val")
 
-    def _node_wtype(self, prop: str) -> Optional[str]:
+    def _node_wtype(self, prop: str) -> str | None:
         return self._node_wattr(prop, "type")
 
     def _node_wtypes(self, prop: str) -> Generator[str, None, None]:
         yield from self._node_wattrs(prop, "type")
 
-    def _node_wattr(self, prop: str, attr: str) -> Optional[str]:
+    def _node_wattr(self, prop: str, attr: str) -> str | None:
         for value in self._node_wattrs(prop, attr):
             return value
         return None
@@ -220,7 +210,7 @@ class DocxParagraph(DocxNode, IDocumentParagraph):
             return True
         return False
 
-    def style_wpid(self) -> Optional[str]:
+    def style_wpid(self) -> str | None:
         return self._node_wval("./w:pPr/w:pStyle")
 
     def text(self) -> Generator[str, None, None]:
@@ -263,7 +253,7 @@ class DocxSpan(DocxNode, IDocumentSpan):
         """String description of the paragraph object"""
         return repr(" ".join(t for t in self.text() if t is not None))
 
-    def style_wpid(self) -> Optional[str]:
+    def style_wpid(self) -> str | None:
         return self._node_wval("w:rPr/w:rStyle")
 
     def footnotes(self) -> Generator["DocxFootnote", None, None]:

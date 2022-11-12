@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """wp2tt Style objects"""
-from typing import Optional
+from typing import Union
 
 import attr
 from wp2tt.ini import ATTR_KEY
@@ -10,6 +10,8 @@ from wp2tt.format import ManualFormat
 
 ATTR_READONLY = {ATTR_KEY: ATTR_VALUE_READONLY}
 ATTR_NO_INI = {ATTR_KEY: ATTR_VALUE_HIDDEN}
+
+OptionalStyle = Union["Style", None]
 
 
 @attr.s(slots=True)
@@ -31,8 +33,8 @@ class Style:
     used: bool = attr.ib(default=False, metadata=ATTR_NO_INI, eq=False)
     count: int = attr.ib(default=0, metadata=ATTR_NO_INI, eq=False)
 
-    parent_style: Optional["Style"] = attr.ib(default=None, metadata=ATTR_NO_INI, eq=False)
-    next_style: Optional["Style"] = attr.ib(default=None, metadata=ATTR_NO_INI, eq=False)
+    parent_style: OptionalStyle = attr.ib(default=None, metadata=ATTR_NO_INI, eq=False)
+    next_style: OptionalStyle = attr.ib(default=None, metadata=ATTR_NO_INI, eq=False)
 
     def __str__(self):
         if self.custom:
@@ -51,8 +53,8 @@ class Rule:
     when_following: str = attr.ib(default=None)
     when_first_in_doc: str = attr.ib(default=None)
 
-    turn_this_style: Optional[Style] = attr.ib(default=None, metadata=ATTR_NO_INI)
-    into_this_style: Optional[Style] = attr.ib(default=None, metadata=ATTR_NO_INI)
+    turn_this_style: OptionalStyle = attr.ib(default=None, metadata=ATTR_NO_INI)
+    into_this_style: OptionalStyle = attr.ib(default=None, metadata=ATTR_NO_INI)
     when_following_styles: list[Style] = attr.ib(default=None, metadata=ATTR_NO_INI)
 
     valid: bool = attr.ib(default=True, metadata=ATTR_NO_INI)

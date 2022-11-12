@@ -5,7 +5,6 @@ extension-pkg-allow-list = [
 
 [tool.pylint.messages_control]
 disable = [
-  "no-self-use",
   "too-few-public-methods",
   "too-many-instance-attributes",
   "too-many-public-methods",
@@ -18,3 +17,5 @@ module = [
 ]
 ignore_missing_imports = true
 
+[tool.pyright]
+pythonVersion = "3.10"

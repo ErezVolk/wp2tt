@@ -8,24 +8,23 @@ import logging
 import re
 
 from typing import Iterator
-from typing import List
 from typing import Mapping
-from typing import Optional
 
 from wp2tt.output import IOutput
 from wp2tt.styles import DocumentProperties
 from wp2tt.styles import Style
+from wp2tt.styles import OptionalStyle
 
 
 class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
     """Writes to a tagged text file"""
 
-    _curr_char_style: Optional[Style] = None
+    _curr_char_style: OptionalStyle = None
 
-    def __init__(self, properties: Optional[DocumentProperties] = None):
+    def __init__(self, properties: DocumentProperties | None = None):
         super().__init__()
         self._buffer = io.StringIO()
-        self._styles: List[Style] = []
+        self._styles: list[Style] = []
         self._headers_written = False
         self._shades: Mapping[str, Iterator[int]] = collections.defaultdict(itertools.count)
         if properties is None:
@@ -99,11 +98,11 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
         for elem in idtt:
             self._write(elem)
 
-        if style.parent_style and style.parent_style.used:
+        if style.parent_style is not None and style.parent_style.used:
             self._write("<BasedOn:")
             self._write(self._idname(style.parent_style))
             self._write(">")
-        if style.next_style and style.next_style.used:
+        if style.next_style is not None and style.next_style.used:
             self._write("<Nextstyle:")
             self._write(self._idname(style.next_style))
             self._write(">")
@@ -118,14 +117,14 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
         self._write(">")
         self._write(">")
 
-    def enter_paragraph(self, style: Optional[Style] = None) -> None:
+    def enter_paragraph(self, style: OptionalStyle = None) -> None:
         """Start a paragraph with a specified style."""
         self._write_headers()
         self._set_style("Para", style)
         if self._curr_char_style:
             self._set_style("Char", self._curr_char_style)
 
-    def _set_style(self, realm: str, style: Optional[Style]) -> None:
+    def _set_style(self, realm: str, style: OptionalStyle) -> None:
         if style:
             self.define_style(style)
         self._write("<")
@@ -145,7 +144,7 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
             self._set_style("Char", None)
         self._writeln()
 
-    def set_character_style(self, style: Optional[Style] = None) -> None:
+    def set_character_style(self, style: OptionalStyle = None) -> None:
         """Start a span using a specific character style."""
         self._set_style("Char", style)
         self._curr_char_style = style
@@ -176,4 +175,5 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
 
     @property
     def contents(self) -> str:
+        """The actual tagged text"""
         return self._buffer.getvalue()

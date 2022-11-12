@@ -3,9 +3,9 @@
 import re
 
 from abc import ABC
-from typing import Optional
 
 from wp2tt.styles import Style
+from wp2tt.styles import OptionalStyle
 
 
 class IOutput(ABC):
@@ -19,7 +19,7 @@ class IOutput(ABC):
         """Add a text variable."""
         raise NotImplementedError()
 
-    def enter_paragraph(self, style: Optional[Style] = None):
+    def enter_paragraph(self, style: OptionalStyle = None):
         """Start a paragraph with a specified style."""
         raise NotImplementedError()
 
@@ -27,7 +27,7 @@ class IOutput(ABC):
         """Finalize paragraph."""
         raise NotImplementedError()
 
-    def set_character_style(self, style: Optional[Style] = None) -> None:
+    def set_character_style(self, style: OptionalStyle = None) -> None:
         """Start a span using a specific character style."""
         raise NotImplementedError()
 

@@ -6,7 +6,6 @@ import logging
 from pathlib import Path
 
 from typing import Generator
-from typing import List
 
 from wp2tt.input import IDocumentInput
 from wp2tt.input import IDocumentParagraph
@@ -18,7 +17,6 @@ from wp2tt.styles import DocumentProperties
 
 class ProxyInput(IDocumentInput, contextlib.ExitStack):
     """Just a proxy IDocumentInput"""
-    pass
 
 
 class MultiInput(ProxyInput):
@@ -27,7 +25,7 @@ class MultiInput(ProxyInput):
     def __init__(self, paths: Sequence[Path]):
         super().__init__()
         self._paths = paths
-        self._inputs: List[IDocumentInput] = []
+        self._inputs: list[IDocumentInput] = []
         for path in paths:
             one = ByExtensionInput(path)
             self._inputs.append(one)

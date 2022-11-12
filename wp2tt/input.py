@@ -3,10 +3,7 @@
 from abc import abstractmethod
 from abc import ABC
 
-from typing import Dict
 from typing import Generator
-from typing import Optional
-from typing import Tuple
 
 from wp2tt.format import ManualFormat
 from wp2tt.styles import DocumentProperties
@@ -21,11 +18,11 @@ class IDocumentInput(ABC):
         """A DocumentProperties object."""
         raise NotImplementedError()
 
-    def styles_defined(self) -> Generator[Dict[str, str], None, None]:
+    def styles_defined(self) -> Generator[dict[str, str], None, None]:
         """Yield a Style object kwargs for every style defined in the document."""
         raise NotImplementedError()
 
-    def styles_in_use(self) -> Generator[Tuple[str, str], None, None]:
+    def styles_in_use(self) -> Generator[tuple[str, str], None, None]:
         """Yield a pair (realm, wpid) for every style used in the document."""
         raise NotImplementedError()
 
@@ -64,7 +61,7 @@ class IDocumentParagraph(ABC):
 class IDocumentSpan(ABC):
     """A span of characters inside a document."""
 
-    def style_wpid(self) -> Optional[str]:
+    def style_wpid(self) -> str | None:
         """Returns the wpid for this span's style."""
         return None
 

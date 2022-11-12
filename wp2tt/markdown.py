@@ -5,7 +5,6 @@ import logging
 from pathlib import Path
 import contextlib
 
-from typing import Dict
 from typing import Generator
 
 import mistune
@@ -159,7 +158,7 @@ class MarkdownInput(IDocumentInput, contextlib.ExitStack):
     def properties(self):
         return self._properties
 
-    def styles_defined(self) -> Generator[Dict[str, str], None, None]:
+    def styles_defined(self) -> Generator[dict[str, str], None, None]:
         """Yield a Style object kwargs for every style defined in the document."""
         for realm, wpid in self.styles_in_use():
             yield {
@@ -169,6 +168,7 @@ class MarkdownInput(IDocumentInput, contextlib.ExitStack):
             }
 
     def xpath(self, expr) -> Generator[etree._Entity, None, None]:
+        """Wrapper for `lxml.xpath()`"""
         yield from self._root.xpath(expr)
 
     def styles_in_use(self):
