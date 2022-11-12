@@ -1002,6 +1002,7 @@ class WordProcessorToInDesignTaggedText:
 
 
 # TODO:
+# - Embedded image (word/_rels/document.xml.rels; <w:drawing/wp:inline/a:graphic/a:graphicData/pic:pic/pic:blipFill/a:blip>
 # - DOCX: find default RTL
 # - DOCX: <w:bookmarkStart w:name="X"/> / <w:instrText>PAGEREF ..
 # - ODT: footnotes
