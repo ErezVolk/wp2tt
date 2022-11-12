@@ -2,6 +2,7 @@
 """Base class for input sources (document formats)."""
 from abc import abstractmethod
 from abc import ABC
+from os import PathLike
 
 from typing import Generator
 
@@ -80,6 +81,14 @@ class IDocumentSpan(ABC):
     @abstractmethod
     def text(self) -> Generator[str, None, None]:
         """Yields strings of plain text."""
+        raise NotImplementedError()
+
+    def image_suffix(self) -> str | None:
+        """If linked to an image, returns extension (e.g., ".jpeg")."""
+        return None
+
+    def save_image(self, path: PathLike):
+        """If linked to a file, writes it."""
         raise NotImplementedError()
 
 

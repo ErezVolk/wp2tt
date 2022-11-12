@@ -111,7 +111,9 @@ class WordProcessorToInDesignTaggedText:
     doc: IDocumentInput
     footnote_ref_style: Style
     format_mask: ManualFormat
+    image_count = itertools.count(1)
     manual_styles: dict[ManualFormatCustomStyle, Style]
+    output_dir: Path
     output_fn: Path
     parser: argparse.ArgumentParser
     rerunner_fn: Path
@@ -244,6 +246,7 @@ class WordProcessorToInDesignTaggedText:
         else:
             self.output_fn = self.args.input.with_suffix(".txt")
 
+        self.output_dir = self.output_fn.parent
         self.settings_fn = self.output_fn.with_suffix(".ini")
         self.rerunner_fn = Path(f"{self.output_fn}.rerun")
         self.stop_marker = self.args.stop_at
@@ -363,9 +366,9 @@ class WordProcessorToInDesignTaggedText:
     def read_input(self):
         """Unzip and parse the input files."""
         logging.info("Reading %s", self.args.input)
-        with self.create_reader() as self.doc:
-            self.scan_style_definitions()
-            self.scan_style_mentions()
+        self.doc = self.create_reader()
+        self.scan_style_definitions()
+        self.scan_style_mentions()
         self.link_styles()
         self.link_rules()
 
@@ -596,6 +599,7 @@ class WordProcessorToInDesignTaggedText:
         """The main conversion loop: parse document, write tagged text"""
         logging.info("Writing %s", self.output_fn)
         self.set_state(State())
+        self.output_dir.mkdir(parents=True, exist_ok=True)
         with InDesignTaggedTextOutput(self.doc.properties) as self.writer:
             self.convert_document()
             self.write_output()
@@ -621,7 +625,6 @@ class WordProcessorToInDesignTaggedText:
             text = text.replace("=", "\u05BE")
         if self.args.vav:
             text = text.replace("\u05D5\u05B9", "\uFB4B")
-        self.output_fn.parent.mkdir(parents=True, exist_ok=True)
         with open(self.output_fn, "w", encoding="UTF-16LE") as fobj:
             fobj.write(text)
         if self.args.debug:
@@ -785,6 +788,8 @@ class WordProcessorToInDesignTaggedText:
         """Convert all text and styles in a Range"""
         self.switch_character_style(self.get_character_style(rng))
         self.convert_range_text(rng)
+        if rng.image_suffix() is not None:
+            self.convert_image(rng)
         for footnote in rng.footnotes():
             self.convert_footnote(footnote)
             if self.state.is_post_break:
@@ -816,6 +821,14 @@ class WordProcessorToInDesignTaggedText:
             # Format already included in paragraph style
             fmt = ManualFormat.NORMAL
         return self.get_manual_style("character", unadorned, fmt)
+
+    def convert_image(self, rng: IDocumentSpan):
+        """Save an image, keep a placeholder in the output"""
+        name = f"image{next(self.image_count):03d}{rng.image_suffix()}"
+        path = self.output_dir / name
+        logging.debug("Writing %s", path)
+        rng.save_image(path)
+        self.writer.write_text(f"[[IMAGE:{name}]]")
 
     def convert_range_text(self, rng: IDocumentSpan):
         """Convert text in a Range object"""
@@ -917,7 +930,7 @@ class WordProcessorToInDesignTaggedText:
         if section_name in self.style_sections_used:
             return
 
-        if style.parent_style:
+        if style.parent_style is not None:
             if not style.parent_style.used:
                 logging.debug(
                     "[%s] leads to missing %r", section_name, style.parent_wpid
@@ -929,7 +942,7 @@ class WordProcessorToInDesignTaggedText:
         self.update_setting_section(section_name, style)
         self.style_sections_used.add(section_name)
 
-        if style.next_style and style.next_style.used:
+        if style.next_style is not None and style.next_style.used:
             self.activate_style(style.next_style)
         elif style.next_wpid:
             logging.debug("[%s] leads to missing %r", section_name, style.next_wpid)
@@ -998,7 +1011,6 @@ class WordProcessorToInDesignTaggedText:
 
 
 # TODO:
-# - Embedded image (word/_rels/document.xml.rels; <w:drawing/wp:inline/a:graphic/a:graphicData/pic:pic/pic:blipFill/a:blip>
 # - DOCX: find default RTL
 # - DOCX: <w:bookmarkStart w:name="X"/> / <w:instrText>PAGEREF ..
 # - ODT: footnotes
