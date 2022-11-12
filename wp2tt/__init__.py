@@ -113,6 +113,7 @@ class WordProcessorToInDesignTaggedText:
     footnote_ref_style: Style
     format_mask: ManualFormat
     image_count = itertools.count(1)
+    image_style: Style
     manual_styles: dict[ManualFormatCustomStyle, Style]
     output_dir: Path
     output_fn: Path
@@ -832,13 +833,13 @@ class WordProcessorToInDesignTaggedText:
 
     def convert_image(self, rng: IDocumentSpan):
         """Save an image, keep a placeholder in the output"""
-        name = f"image{next(self.image_count):03d}{rng.image_suffix()}"
-        path = self.output_dir / name
+        suffix = rng.image_suffix()
+        path = self.output_dir / f"image{next(self.image_count):03d}{suffix}"
         logging.debug("Writing %s", path)
         rng.save_image(path)
 
         prev = self.switch_character_style(self.image_style)
-        self.writer.write_text(name)
+        self.writer.write_text(path.name)
         self.switch_character_style(prev)
 
     def convert_range_text(self, rng: IDocumentSpan):
