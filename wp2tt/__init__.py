@@ -85,6 +85,7 @@ class WordProcessorToInDesignTaggedText:
     DEFAULT_BASE = SPECIAL_GROUP + "/(Basic Style)"
     FOOTNOTE_REF_STYLE = SPECIAL_GROUP + "/(Footnote Reference in Text)"
     COMMENT_REF_STYLE = SPECIAL_GROUP + "/(Comment Reference)"
+    IMAGE_STYLE = SPECIAL_GROUP + "/(Image)"
 
     IGNORED_STYLES = {
         "character": ["annotation reference"],
@@ -421,6 +422,13 @@ class WordProcessorToInDesignTaggedText:
             wpid=self.COMMENT_REF_STYLE,
             parent_wpid=self.FOOTNOTE_REF_STYLE,
             idtt="<cColor:Cyan><cColorTint:100>",
+            automatic=True,
+        )
+        self.image_style = self.found_style_definition(
+            realm="character",
+            internal_name=self.IMAGE_STYLE,
+            wpid=self.IMAGE_STYLE,
+            idtt="<cColor:Yellow><cColorTint:100>",
             automatic=True,
         )
         self.manual_styles = {}
@@ -828,7 +836,10 @@ class WordProcessorToInDesignTaggedText:
         path = self.output_dir / name
         logging.debug("Writing %s", path)
         rng.save_image(path)
-        self.writer.write_text(f"[[IMAGE:{name}]]")
+
+        prev = self.switch_character_style(self.image_style)
+        self.writer.write_text(name)
+        self.switch_character_style(prev)
 
     def convert_range_text(self, rng: IDocumentSpan):
         """Convert text in a Range object"""
