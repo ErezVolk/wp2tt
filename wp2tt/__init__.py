@@ -10,6 +10,7 @@ from pathlib import Path
 import re
 import shlex
 import shutil
+import subprocess
 import sys
 
 from typing import Iterator
@@ -241,6 +242,11 @@ class WordProcessorToInDesignTaggedText:
             action="store_true",
             help="Convert to VAV WITH HOLAM ligature",
         )
+        parser.add_argument(
+            "--emf2svg",
+            action="store_true",
+            help="Convert EMF images to SVG using emf2svg-conv",
+        )
         self.args = parser.parse_args()
 
         if self.args.output:
@@ -354,6 +360,8 @@ class WordProcessorToInDesignTaggedText:
                 cli.append("--vav")
             if self.args.debug:
                 cli.append("--debug")
+            if self.args.emf2svg:
+                cli.append("--emf2svg")
             if self.args.append:
                 cli.append("--append")
                 cli.extend([self.quote_fn(path) for path in self.args.append])
@@ -837,6 +845,19 @@ class WordProcessorToInDesignTaggedText:
         path = self.output_dir / f"image{next(self.image_count):03d}{suffix}"
         logging.debug("Writing %s", path)
         rng.save_image(path)
+
+        if suffix == ".emf" and self.args.emf2svg:
+            svg = path.with_suffix(".svg")
+            logging.debug("Converting %s -> %s", path.name, svg.name)
+            subprocess.run(
+                [
+                    "emf2svg-conv",
+                    "-i", str(path),
+                    "-o", str(svg),
+                ],
+                check=True,
+            )
+            path = svg
 
         prev = self.switch_character_style(self.image_style)
         self.writer.write_text(path.name)
