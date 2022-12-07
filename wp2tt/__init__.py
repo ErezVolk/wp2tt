@@ -694,6 +694,13 @@ class WordProcessorToInDesignTaggedText:
         elif self.state.is_post_empty:
             fmt = fmt | ManualFormat.SPACED
 
+        for rng in para.spans():
+            for text in rng.text():
+                if text[0].isspace():
+                    fmt = fmt | ManualFormat.INDENTED
+                break  # Just the first
+            break  # Just the first
+
         # Check for paragraph with a character style
         char_fmts = {self.get_format(rng) for rng in para.spans()}
         if len(char_fmts) == 1:
@@ -866,8 +873,10 @@ class WordProcessorToInDesignTaggedText:
     def convert_range_text(self, rng: IDocumentSpan):
         """Convert text in a Range object"""
         for text in rng.text():
+            if self.state.is_empty and self.args.manual:
+                text = text.lstrip()
             self.write_text(text)
-            if self.NON_WHITESPACE.search(text):
+            if not text.isspace():
                 self.state.is_empty = False
 
     def switch_character_style(self, style):

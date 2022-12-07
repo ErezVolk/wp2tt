@@ -13,6 +13,7 @@ class ManualFormat(enum.Flag):
     SPACED = enum.auto()
     RTL = enum.auto()
     LTR = enum.auto()
+    INDENTED = enum.auto()
 
     BOLD = enum.auto()
     ITALIC = enum.auto()
