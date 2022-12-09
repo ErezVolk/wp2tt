@@ -4,6 +4,7 @@ import argparse
 import collections
 import configparser
 import contextlib
+import hashlib
 import itertools
 import logging
 from pathlib import Path
@@ -13,6 +14,7 @@ import shutil
 import subprocess
 import sys
 
+from os import PathLike
 from typing import Iterator
 from typing import Mapping
 
@@ -247,6 +249,11 @@ class WordProcessorToInDesignTaggedText:
             action="store_true",
             help="Convert EMF images to SVG using emf2svg-conv",
         )
+        parser.add_argument(
+            "--cache",
+            type=Path,
+            help="Cache directory for converted files like SVG",
+        )
         self.args = parser.parse_args()
 
         if self.args.output:
@@ -362,6 +369,9 @@ class WordProcessorToInDesignTaggedText:
                 cli.append("--debug")
             if self.args.emf2svg:
                 cli.append("--emf2svg")
+            if self.args.cache:
+                cli.append("--cache")
+                cli.append(self.quote_fn(self.args.cache))
             if self.args.append:
                 cli.append("--append")
                 cli.extend([self.quote_fn(path) for path in self.args.append])
@@ -855,20 +865,37 @@ class WordProcessorToInDesignTaggedText:
 
         if suffix == ".emf" and self.args.emf2svg:
             svg = path.with_suffix(".svg")
-            logging.debug("Converting %s -> %s", path.name, svg.name)
-            subprocess.run(
-                [
-                    "emf2svg-conv",
-                    "-i", str(path),
-                    "-o", str(svg),
-                ],
-                check=True,
-            )
-            path = svg
+            cached = self.get_cached(path, ".svg")
+            if cached is not None and cached.is_file():
+                logging.debug("Cached %s -> %s", cached.name, svg.name)
+                shutil.copy(cached, path)
+            else:
+                logging.debug("Converting %s -> %s", path.name, svg.name)
+                subprocess.run(
+                    [
+                        "emf2svg-conv",
+                        "-i", str(path),
+                        "-o", str(svg),
+                    ],
+                    check=True,
+                )
+                path = svg
+                if cached is not None:
+                    logging.debug("Caching %s -> %s", svg.name, cached.name)
+                    cached.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy(path, cached)
 
         prev = self.switch_character_style(self.image_style)
         self.writer.write_text(path.name)
         self.switch_character_style(prev)
+
+    def get_cached(self, path: PathLike, suffix: str) -> Path | None:
+        """Return where a converted version should be cached, if configured"""
+        if self.args.cache is None:
+            return None
+        with open(path, "rb") as fobj:
+            md5 = hashlib.md5(fobj.read()).hexdigest()
+        return self.args.cache / f"{md5}{suffix}"
 
     def convert_range_text(self, rng: IDocumentSpan):
         """Convert text in a Range object"""

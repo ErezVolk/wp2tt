@@ -41,13 +41,15 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
         if style in self._styles:
             return
 
-        if style.parent_style and style.parent_style.used:
-            self.define_style(style.parent_style)
+        if style.parent_style is not None:
+            if style.parent_style.used:
+                self.define_style(style.parent_style)
 
         self._styles.append(style)
 
-        if style.next_style and style.next_style.used:
-            self.define_style(style.next_style)
+        if style.next_style is not None:
+            if style.next_style.used:
+                self.define_style(style.next_style)
         if self._headers_written:
             self._write_style_definition(style)
 
