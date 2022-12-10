@@ -951,8 +951,8 @@ class WordProcessorToInDesignTaggedText:
             mathml = formula.mathml()
 
             eqn = ziamath.zmath.Math(mathml)
-            with open(path, "wt", encoding="utf-8") as fobj:
-                svg = eqn.svg()
+            with open(path, "wb") as fobj:
+                svg = eqn.svg().encode("utf-8")
                 fobj.write(svg)
 
             if self.args.debug:
@@ -984,11 +984,9 @@ class WordProcessorToInDesignTaggedText:
             return
         if isinstance(svg, Path):
             with open(svg, "rb") as fobj:
-                svgb = fobj.read()
-        else:
-            svgb = svg
+                svg = fobj.read()
         with open(path_like.with_suffix(".png"), "wb") as fobj:
-            fobj.write(cairosvg.svg2png(svgb))
+            fobj.write(cairosvg.svg2png(svg))
 
     def read_file(self, path: PathLike) -> bytes:
         """Read contents of a file"""
