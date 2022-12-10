@@ -21,9 +21,10 @@ class MathConverter:
         return cls.transform.apply(omml)
 
     @classmethod
-    def mathml_to_svg(cls, mathml: etree._ElementTree) -> bytes:
+    def mathml_to_svg(cls, mathml: etree._ElementTree, size: int | None) -> bytes:
         """Convert MathML to SVG"""
-        return ziamath.zmath.Math(mathml).svg().encode("utf-8")
+        converted = ziamath.zmath.Math(mathml, size=size or 12)
+        return converted.svg().encode("utf-8")
 
     @classmethod
     def _load_xslt(cls, try_ms=True) -> etree.XSLT:
