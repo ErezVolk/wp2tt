@@ -93,6 +93,7 @@ class WordProcessorToInDesignTaggedText:
     FOOTNOTE_REF_STYLE = SPECIAL_GROUP + "/(Footnote Reference in Text)"
     COMMENT_REF_STYLE = SPECIAL_GROUP + "/(Comment Reference)"
     IMAGE_STYLE = SPECIAL_GROUP + "/(Image)"
+    FORMULA_STYLE = SPECIAL_GROUP + "/(Formula)"
 
     IGNORED_STYLES = {
         "character": ["annotation reference"],
@@ -120,6 +121,7 @@ class WordProcessorToInDesignTaggedText:
     doc: IDocumentInput
     footnote_ref_style: Style
     format_mask: ManualFormat
+    formula_style: Style
     image_count = itertools.count(1)
     image_style: Style
     manual_styles: dict[ManualFormatCustomStyle, Style]
@@ -255,6 +257,11 @@ class WordProcessorToInDesignTaggedText:
             action="store_true",
             help="Don't convert EMF images to SVG using emf2svg-conv",
         )
+        parser.add_argument(
+            "--no-svg2png",
+            action="store_true",
+            help="Don't save png copies of generated SVG file",
+        )
         group = parser.add_mutually_exclusive_group()
         group.add_argument(
             "--no-cache",
@@ -385,6 +392,8 @@ class WordProcessorToInDesignTaggedText:
                 cli.append("--vav")
             if self.args.debug:
                 cli.append("--debug")
+            if self.args.no_svg2png:
+                cli.append("--no-svg2png")
             if self.args.no_emf2svg:
                 cli.append("--no-emf2svg")
             if self.args.no_cache:
@@ -467,6 +476,13 @@ class WordProcessorToInDesignTaggedText:
             realm="character",
             internal_name=self.IMAGE_STYLE,
             wpid=self.IMAGE_STYLE,
+            idtt="<cColor:Yellow><cColorTint:100>",
+            automatic=True,
+        )
+        self.formula_style = self.found_style_definition(
+            realm="character",
+            internal_name=self.FORMULA_STYLE,
+            wpid=self.FORMULA_STYLE,
             idtt="<cColor:Yellow><cColorTint:100>",
             automatic=True,
         )
@@ -911,6 +927,7 @@ class WordProcessorToInDesignTaggedText:
                     ],
                     check=True,
                 )
+                self.svg2png(svg, path)
                 path = svg
                 if cached is not None:
                     logging.debug("Caching %s -> %s", svg.name, cached.name)
@@ -943,13 +960,16 @@ class WordProcessorToInDesignTaggedText:
                     fobj.write(formula.raw())
                 with open(path.with_suffix(".mathml"), "w", encoding="utf-8") as fobj:
                     fobj.write(mathml)
-                with open(path.with_suffix(".png"), "wb") as fobj:
-                    fobj.write(cairosvg.svg2png(svg))
+            self.svg2png(svg, path)
 
             if cached is not None:
                 logging.debug("Caching %s -> %s", path.name, cached.name)
                 cached.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy(path, cached)
+
+        prev = self.switch_character_style(self.formula_style)
+        self.writer.write_text(path.name)
+        self.switch_character_style(prev)
 
     def get_cached(self, get_contents: Callable[[], bytes], suffix: str) -> Path | None:
         """Return where a converted version should be cached, if configured"""
@@ -957,6 +977,18 @@ class WordProcessorToInDesignTaggedText:
             return None
         md5 = hashlib.md5(get_contents()).hexdigest()
         return self.cache / f"{md5}{suffix}"
+
+    def svg2png(self, svg: Path | bytes, path_like: Path):
+        """Helper to convert SVG to png"""
+        if self.args.no_svg2png:
+            return
+        if isinstance(svg, Path):
+            with open(svg, "rb") as fobj:
+                svgb = fobj.read()
+        else:
+            svgb = svg
+        with open(path_like.with_suffix(".png"), "wb") as fobj:
+            fobj.write(cairosvg.svg2png(svgb))
 
     def read_file(self, path: PathLike) -> bytes:
         """Read contents of a file"""
