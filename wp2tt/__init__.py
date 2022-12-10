@@ -251,9 +251,9 @@ class WordProcessorToInDesignTaggedText:
             help="Convert to VAV WITH HOLAM ligature",
         )
         parser.add_argument(
-            "--emf2svg",
+            "--no-emf2svg",
             action="store_true",
-            help="Convert EMF images to SVG using emf2svg-conv",
+            help="Don't convert EMF images to SVG using emf2svg-conv",
         )
         group = parser.add_mutually_exclusive_group()
         group.add_argument(
@@ -385,8 +385,8 @@ class WordProcessorToInDesignTaggedText:
                 cli.append("--vav")
             if self.args.debug:
                 cli.append("--debug")
-            if self.args.emf2svg:
-                cli.append("--emf2svg")
+            if self.args.no_emf2svg:
+                cli.append("--no-emf2svg")
             if self.args.no_cache:
                 cli.append("--no-cache")
             if self.args.cache:
@@ -895,7 +895,7 @@ class WordProcessorToInDesignTaggedText:
         logging.debug("Writing %s", path)
         span.save(path)
 
-        if suffix == ".emf" and self.args.emf2svg:
+        if suffix == ".emf" and not self.args.no_emf2svg:
             svg = path.with_suffix(".svg")
             cached = self.get_cached(lambda: self.read_file(path), ".svg")
             if cached is not None and cached.is_file():

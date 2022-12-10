@@ -27,7 +27,7 @@ class Omml2Mathml:
             dom = etree.parse(cls.MS_XSLT)
         else:
             encoded = TEIC_XSLT.encode()
-            compressed = base64.a85decode(encoded, foldspaces=True)
+            compressed = base64.a85decode(encoded)
             raw = bz2.decompress(compressed)
             dom = etree.parse(BytesIO(raw))
 
@@ -42,11 +42,7 @@ class Omml2Mathml:
 
         raw = resp.content
         compressed = bz2.compress(raw, compresslevel=9)
-        encoded = base64.a85encode(
-            compressed,
-            foldspaces=True,
-            wrapcol=88,
-        )
+        encoded = base64.a85encode(compressed, wrapcol=88)
         return encoded.decode()
 
 
@@ -54,7 +50,7 @@ if __name__ == "__main__":
     URL = "https://raw.githubusercontent.com/TEIC/Stylesheets/v7.54.0/docx/from/omml2mml.xsl"
     BUFFER = Omml2Mathml.make_buffer(URL)
     print(
-        f'''# {URL} -> bz -> a85\n'''
+        f'''# {URL} -> bz2 -> a85\n'''
         f'''TEIC_XSLT = r"""\n'''
         f'''{BUFFER}\n"""'''
     )
