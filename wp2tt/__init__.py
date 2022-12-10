@@ -20,7 +20,6 @@ from typing import Mapping
 
 import attr
 import cairosvg
-import ziamath
 
 from wp2tt.version import WP2TT_VERSION
 from wp2tt.ini import ini_fields
@@ -31,6 +30,7 @@ from wp2tt.input import IDocumentSpan
 from wp2tt.input import IDocumentImage
 from wp2tt.input import IDocumentFormula
 from wp2tt.format import ManualFormat
+from wp2tt.mathml import MathConverter
 from wp2tt.styles import OptionalStyle
 from wp2tt.styles import Style
 from wp2tt.styles import Rule
@@ -950,9 +950,8 @@ class WordProcessorToInDesignTaggedText:
             logging.debug("Converting -> %s", path.name)
             mathml = formula.mathml()
 
-            eqn = ziamath.zmath.Math(mathml)
+            svg = MathConverter.mathml_to_svg(mathml)
             with open(path, "wb") as fobj:
-                svg = eqn.svg().encode("utf-8")
                 fobj.write(svg)
 
             if self.args.debug:

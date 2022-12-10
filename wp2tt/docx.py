@@ -17,7 +17,7 @@ from wp2tt.input import IDocumentInput
 from wp2tt.input import IDocumentParagraph
 from wp2tt.input import IDocumentSpan
 from wp2tt.format import ManualFormat
-from wp2tt.mathml import Omml2Mathml
+from wp2tt.mathml import MathConverter
 from wp2tt.styles import DocumentProperties
 from wp2tt.zip import ZipDocument
 
@@ -348,7 +348,7 @@ class DocxFormula(IDocumentFormula):
         return etree.tostring(self.node, pretty_print=True)
 
     def mathml(self) -> str:
-        encoded = etree.tostring(Omml2Mathml.convert(self.node), pretty_print=True)
+        encoded = etree.tostring(MathConverter.omml_to_mathml(self.node), pretty_print=True)
         return encoded.decode()
 
 
