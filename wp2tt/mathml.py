@@ -34,18 +34,13 @@ class Omml2Mathml:
         return etree.XSLT(dom)
 
     @classmethod
-    def make_buffer(cls, root: str) -> str:
+    def make_buffer(cls, url: str) -> str:
         """Use this to convert the beta XSLT from TEIC."""
-        fname = Path(root) / "docx" / "from" / "omml2mml.xsl"
-        if not fname.is_file():
-            raise ValueError(
-                f"{root} does not seem to be a clone of"
-                " https://github.com/TEIC/Stylesheets"
-            )
+        import requests  # pylint: disable=import-outside-toplevel
+        resp = requests.get(url, timeout=10)
+        resp.raise_for_status()
 
-        with open(fname, "rb") as fobj:
-            raw = fobj.read()
-
+        raw = resp.content
         compressed = bz2.compress(raw, compresslevel=9)
         encoded = base64.a85encode(
             compressed,
@@ -56,14 +51,16 @@ class Omml2Mathml:
 
 
 if __name__ == "__main__":
-    import sys
-    if len(sys.argv) != 2:
-        print(f"Usage: {sys.argv[0]} PATH_TO_TEIC_STYLESHEETS")
-    else:
-        BUFFER = Omml2Mathml.make_buffer(sys.argv[1])
-        print(f'''TEIC_XSLT = r"""\n{BUFFER}\n"""''')
+    URL = "https://raw.githubusercontent.com/TEIC/Stylesheets/v7.54.0/docx/from/omml2mml.xsl"
+    BUFFER = Omml2Mathml.make_buffer(URL)
+    print(
+        f'''# {URL} -> bz -> a85\n'''
+        f'''TEIC_XSLT = r"""\n'''
+        f'''{BUFFER}\n"""'''
+    )
 
 
+# https://raw.githubusercontent.com/TEIC/Stylesheets/v7.54.0/docx/from/omml2mml.xsl -> bz2 -> a85
 TEIC_XSLT = r"""
 6<\%_0gSqh;cuR`$!RBfLB%4%p\nuYs8W-!s8W,6s8W+Ks8W-!s8W+d"BYZ^1].4p!:iAj/7kM)OB$r#ei-6>:<d
 GmRu3"M;JRk$2@Tt:<7Y_2.FXq!"1CoAJH4,c<<O3L"(jIB//e_G,21Z``XNJ]Ca(/4#>?K>!!!,Z!!"DJVn^bS1
