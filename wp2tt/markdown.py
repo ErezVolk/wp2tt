@@ -204,7 +204,7 @@ class MarkdownParagraph(IDocumentParagraph):
             for text in span.text():
                 yield text
 
-    def spans(self):
+    def chunks(self):
         """Yield a MarkdownSpan per text span."""
         yield MarkdownHeadSpan(self.node)
         for span in self.node.xpath("s"):

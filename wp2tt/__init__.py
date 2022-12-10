@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """A utility to convert word processor files (.docx, .odt) to InDesign's Tagged Text."""
 import argparse
 import collections
@@ -15,10 +14,13 @@ import subprocess
 import sys
 
 from os import PathLike
+from typing import Callable
 from typing import Iterator
 from typing import Mapping
 
 import attr
+import cairosvg
+import ziamath
 
 from wp2tt.version import WP2TT_VERSION
 from wp2tt.ini import ini_fields
@@ -26,6 +28,8 @@ from wp2tt.ini import ConfigSection
 from wp2tt.input import IDocumentInput
 from wp2tt.input import IDocumentParagraph
 from wp2tt.input import IDocumentSpan
+from wp2tt.input import IDocumentImage
+from wp2tt.input import IDocumentFormula
 from wp2tt.format import ManualFormat
 from wp2tt.styles import OptionalStyle
 from wp2tt.styles import Style
@@ -110,6 +114,7 @@ class WordProcessorToInDesignTaggedText:
     args: argparse.Namespace
     base_names: dict[str, str]
     base_styles: dict[str, Style]
+    cache: Path | None
     comment_ref_style: Style
     config: Mapping[str, str]
     doc: IDocumentInput
@@ -120,6 +125,7 @@ class WordProcessorToInDesignTaggedText:
     manual_styles: dict[ManualFormatCustomStyle, Style]
     output_dir: Path
     output_fn: Path
+    output_stem: str
     parser: argparse.ArgumentParser
     rerunner_fn: Path
     rules: list[Rule]
@@ -249,7 +255,13 @@ class WordProcessorToInDesignTaggedText:
             action="store_true",
             help="Convert EMF images to SVG using emf2svg-conv",
         )
-        parser.add_argument(
+        group = parser.add_mutually_exclusive_group()
+        group.add_argument(
+            "--no-cache",
+            action="store_true",
+            help="Do not attempt to cache converted files",
+        )
+        group.add_argument(
             "--cache",
             type=Path,
             help="Cache directory for converted files like SVG",
@@ -261,11 +273,17 @@ class WordProcessorToInDesignTaggedText:
         else:
             self.output_fn = self.args.input.with_suffix(".txt")
 
+        self.output_stem = self.output_fn.stem
         self.output_dir = self.output_fn.parent
         self.settings_fn = self.output_fn.with_suffix(".ini")
         self.rerunner_fn = Path(f"{self.output_fn}.rerun")
         self.stop_marker = self.args.stop_at
         self.format_mask = ~ManualFormat[self.args.direction]
+
+        if self.args.cache:
+            self.cache = self.args.cache
+        elif not self.args.no_cache:
+            self.cache = self.output_dir / "cache"
 
     def configure_logging(self):
         """Set logging level and format."""
@@ -369,6 +387,8 @@ class WordProcessorToInDesignTaggedText:
                 cli.append("--debug")
             if self.args.emf2svg:
                 cli.append("--emf2svg")
+            if self.args.no_cache:
+                cli.append("--no-cache")
             if self.args.cache:
                 cli.append("--cache")
                 cli.append(self.quote_fn(self.args.cache))
@@ -668,8 +688,8 @@ class WordProcessorToInDesignTaggedText:
         style = self.apply_rules_to(self.get_paragraph_style(para))
 
         self.writer.enter_paragraph(style)
-        for rng in para.spans():
-            self.convert_range(rng)
+        for chunk in para.chunks():
+            self.convert_chunk(chunk)
         if style and style.variable:
             self.define_variable_from_paragraph(style.variable, para)
         self.writer.leave_paragraph()
@@ -704,15 +724,15 @@ class WordProcessorToInDesignTaggedText:
         elif self.state.is_post_empty:
             fmt = fmt | ManualFormat.SPACED
 
-        for rng in para.spans():
-            for text in rng.text():
+        for span in para.spans():
+            for text in span.text():
                 if text[0].isspace():
                     fmt = fmt | ManualFormat.INDENTED
                 break  # Just the first
             break  # Just the first
 
         # Check for paragraph with a character style
-        char_fmts = {self.get_format(rng) for rng in para.spans()}
+        char_fmts = {self.get_format(span) for span in para.spans()}
         if len(char_fmts) == 1:
             self.state.para_char_fmt = char_fmts.pop()
             fmt = fmt | self.state.para_char_fmt
@@ -818,57 +838,69 @@ class WordProcessorToInDesignTaggedText:
         self.state = state
         return prev
 
-    def convert_range(self, rng: IDocumentSpan):
-        """Convert all text and styles in a Range"""
-        self.switch_character_style(self.get_character_style(rng))
-        self.convert_range_text(rng)
-        if rng.image_suffix() is not None:
-            self.convert_image(rng)
-        for footnote in rng.footnotes():
+    def convert_chunk(self, chunk: IDocumentSpan | IDocumentImage | IDocumentFormula):
+        """Convert all text and styles in a Span"""
+        if isinstance(chunk, IDocumentSpan):
+            self.convert_span(chunk)
+        elif isinstance(chunk, IDocumentImage):
+            self.convert_image(chunk)
+        elif isinstance(chunk, IDocumentFormula):
+            self.convert_formula(chunk)
+
+    def convert_span(self, span: IDocumentSpan):
+        """Convert all text and styles in a Span"""
+        self.switch_character_style(self.get_character_style(span))
+        self.convert_span_text(span)
+        for footnote in span.footnotes():
             self.convert_footnote(footnote)
             if self.state.is_post_break:
                 logging.debug("Has footnote, not empty")
             self.state.is_empty = False
         if self.args.convert_comments:
-            for cmt in rng.comments():
+            for cmt in span.comments():
                 self.convert_comment(cmt)
 
     NON_WHITESPACE = re.compile(r"\S")
 
-    def get_character_style(self, rng: IDocumentSpan) -> OptionalStyle:
-        """Returns Style object for a Range"""
-        unadorned = self.style("character", rng.style_wpid())
+    def get_character_style(self, span: IDocumentSpan) -> OptionalStyle:
+        """Returns Style object for a Span"""
+        unadorned = self.style("character", span.style_wpid())
         if not self.args.manual and not self.args.manual_light:
             return unadorned
 
         # Don't look at manual formatting for all-whitespace span
         # TODO: This breaks on "<LTR>Hey</LTR> <LTR>World</LTR>"
-        # for text in rng.text():
+        # for text in span.text():
         #     if self.NON_WHITESPACE.search(text):
         #         break
         # else:
         #     return unadorned
 
         # Manual formatting
-        fmt = self.get_format(rng)
+        fmt = self.get_format(span)
         if fmt == self.state.para_char_fmt:
             # Format already included in paragraph style
             fmt = ManualFormat.NORMAL
         return self.get_manual_style("character", unadorned, fmt)
 
-    def convert_image(self, rng: IDocumentSpan):
+    def next_image_fn(self, infix: str, suffix: str) -> Path:
+        """Helper to generate next image filename"""
+        count = next(self.image_count)
+        return self.output_dir / f"{self.output_stem}-{infix}-{count:03d}{suffix}"
+
+    def convert_image(self, span: IDocumentImage):
         """Save an image, keep a placeholder in the output"""
-        suffix = rng.image_suffix()
-        path = self.output_dir / f"image{next(self.image_count):03d}{suffix}"
+        suffix = span.suffix()
+        path = self.next_image_fn("image", suffix)
         logging.debug("Writing %s", path)
-        rng.save_image(path)
+        span.save(path)
 
         if suffix == ".emf" and self.args.emf2svg:
             svg = path.with_suffix(".svg")
-            cached = self.get_cached(path, ".svg")
+            cached = self.get_cached(lambda: self.read_file(path), ".svg")
             if cached is not None and cached.is_file():
                 logging.debug("Cached %s -> %s", cached.name, svg.name)
-                shutil.copy(cached, path)
+                shutil.copy(cached, svg)
             else:
                 logging.debug("Converting %s -> %s", path.name, svg.name)
                 subprocess.run(
@@ -883,23 +915,57 @@ class WordProcessorToInDesignTaggedText:
                 if cached is not None:
                     logging.debug("Caching %s -> %s", svg.name, cached.name)
                     cached.parent.mkdir(parents=True, exist_ok=True)
-                    shutil.copy(path, cached)
+                    shutil.copy(svg, cached)
 
         prev = self.switch_character_style(self.image_style)
         self.writer.write_text(path.name)
         self.switch_character_style(prev)
 
-    def get_cached(self, path: PathLike, suffix: str) -> Path | None:
-        """Return where a converted version should be cached, if configured"""
-        if self.args.cache is None:
-            return None
-        with open(path, "rb") as fobj:
-            md5 = hashlib.md5(fobj.read()).hexdigest()
-        return self.args.cache / f"{md5}{suffix}"
+    def convert_formula(self, formula: IDocumentFormula):
+        """Convert a formula."""
+        path = self.next_image_fn("formula", ".svg")
 
-    def convert_range_text(self, rng: IDocumentSpan):
-        """Convert text in a Range object"""
-        for text in rng.text():
+        cached = self.get_cached(get_contents=formula.raw, suffix=".svg")
+        if cached is not None and cached.is_file():
+            logging.debug("Cached %s -> %s", cached.name, path.name)
+            shutil.copy(cached, path)
+        else:
+            logging.debug("Converting -> %s", path.name)
+            mathml = formula.mathml()
+
+            eqn = ziamath.zmath.Math(mathml)
+            with open(path, "wt", encoding="utf-8") as fobj:
+                svg = eqn.svg()
+                fobj.write(svg)
+
+            if self.args.debug:
+                with open(path.with_suffix(".raw"), "wb") as fobj:
+                    fobj.write(formula.raw())
+                with open(path.with_suffix(".mathml"), "w", encoding="utf-8") as fobj:
+                    fobj.write(mathml)
+                with open(path.with_suffix(".png"), "wb") as fobj:
+                    fobj.write(cairosvg.svg2png(svg))
+
+            if cached is not None:
+                logging.debug("Caching %s -> %s", path.name, cached.name)
+                cached.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy(path, cached)
+
+    def get_cached(self, get_contents: Callable[[], bytes], suffix: str) -> Path | None:
+        """Return where a converted version should be cached, if configured"""
+        if self.cache is None:
+            return None
+        md5 = hashlib.md5(get_contents()).hexdigest()
+        return self.cache / f"{md5}{suffix}"
+
+    def read_file(self, path: PathLike) -> bytes:
+        """Read contents of a file"""
+        with open(path, "rb") as fobj:
+            return fobj.read()
+
+    def convert_span_text(self, span: IDocumentSpan):
+        """Convert text in a Span object"""
+        for text in span.text():
             if self.state.is_empty and self.args.manual:
                 text = text.lstrip()
             self.write_text(text)
@@ -928,9 +994,8 @@ class WordProcessorToInDesignTaggedText:
 
     def do_write_text(self, text):
         """Actually send text to `self.writer`."""
-        if not text:
-            return
-        self.writer.write_text(text)
+        if text:
+            self.writer.write_text(text)
 
     def convert_footnote(self, footnote, ref_style=None):
         """Convert one footnote to tagged text."""

@@ -11,10 +11,13 @@ from lxml import etree
 
 from wp2tt.input import IDocumentComment
 from wp2tt.input import IDocumentFootnote
+from wp2tt.input import IDocumentFormula
+from wp2tt.input import IDocumentImage
 from wp2tt.input import IDocumentInput
 from wp2tt.input import IDocumentParagraph
 from wp2tt.input import IDocumentSpan
 from wp2tt.format import ManualFormat
+from wp2tt.mathml import Omml2Mathml
 from wp2tt.styles import DocumentProperties
 from wp2tt.zip import ZipDocument
 
@@ -25,6 +28,7 @@ class WordXml:
     _W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
     _W14 = "http://schemas.microsoft.com/office/word/2010/wordml"
     _A = "http://schemas.openxmlformats.org/drawingml/2006/main"
+    _M = "http://schemas.openxmlformats.org/officeDocument/2006/math"
     _R = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
     _REL = "http://schemas.openxmlformats.org/package/2006/relationships"
     _NS = {
@@ -33,6 +37,7 @@ class WordXml:
         "a": _A,
         "r": _R,
         "rel": _REL,
+        "m": _M,
     }
 
     @classmethod
@@ -44,6 +49,10 @@ class WordXml:
             nodes = [nodes]
         for node in nodes:
             yield from node.xpath(expr, namespaces=cls._NS)
+
+    @classmethod
+    def _mtag(cls, tag: str) -> str:
+        return f"{{{cls._M}}}{tag}"
 
     @classmethod
     def _wtag(cls, tag: str) -> str:
@@ -181,7 +190,7 @@ class DocxNode(WordXml):
 class DocxParagraph(DocxNode, IDocumentParagraph):
     """A Paragraph inside a .docx."""
 
-    R_XPATH = "w:r | w:ins/w:r"
+    R_XPATH = "w:r | w:ins/w:r | m:oMath"
     T_XPATH = "w:r/w:t | w:ins/w:r/w:t"
     SNIPPET_LEN = 10
 
@@ -230,10 +239,17 @@ class DocxParagraph(DocxNode, IDocumentParagraph):
         for node in self._node_xpath(self.T_XPATH):
             yield node.text
 
-    def spans(self) -> Generator["DocxSpan", None, None]:
+    def chunks(self) -> Generator["DocxSpan | DocxImage | DocxFormula", None, None]:
         """Yield DocxSpan per text span."""
         for node in self._node_xpath(self.R_XPATH):
-            yield DocxSpan(self.doc, node)
+            if node.tag == self._mtag("oMath"):
+                yield DocxFormula(node)
+            else:
+                for blip in self.xpath(node, "w:drawing//a:blip[@r:embed]"):
+                    yield DocxImage(self.doc, blip)
+                    break
+                else:
+                    yield DocxSpan(self.doc, node)
 
     def format(self) -> ManualFormat:
         """Returns manual formatting on this paragraph."""
@@ -260,7 +276,6 @@ class DocxParagraph(DocxNode, IDocumentParagraph):
 
 class DocxSpan(DocxNode, IDocumentSpan):
     """A span of characters inside a .docx."""
-    __blip: PurePosixPath | None
 
     def __repr__(self):
         """String description of the paragraph object"""
@@ -303,29 +318,38 @@ class DocxSpan(DocxNode, IDocumentSpan):
             else:
                 yield node.text
 
-    def image_suffix(self) -> str | None:
-        if self._blip is None:
-            return None
-        return self._blip.suffix
 
-    def save_image(self, path: Path):
-        if self._blip is None:
-            raise ValueError("No image to save")
-        with self.doc.zip.open(str(self._blip)) as ifo, open(path, "wb") as ofo:
+class DocxImage(DocxNode, IDocumentImage):
+    """An image inside a .docx."""
+    blip: PurePosixPath
+
+    def __init__(self, doc: DocxInput, blip: etree._Entity):
+        super().__init__(doc, blip)
+        rid = blip.get(self._rtag("embed"))
+        rels = self.doc.relationships
+        for rel in self.doc.xpath(rels, f'//rel:Relationship[@Id="{rid}"]'):
+            self.blip = PurePosixPath("word") / rel.get("Target")
+
+    def suffix(self) -> str:
+        return self.blip.suffix
+
+    def save(self, path: Path):
+        with self.doc.zip.open(str(self.blip)) as ifo, open(path, "wb") as ofo:
             ofo.write(ifo.read())
 
-    @property
-    def _blip(self) -> PurePosixPath | None:
-        try:
-            return self.__blip
-        except AttributeError:
-            self.__blip = None
-            rels = self.doc.relationships
-            for blip in self._node_xpath("w:drawing//a:blip[@r:embed]"):
-                rid = blip.get(self._rtag("embed"))
-                for rel in self.doc.xpath(rels, f'//rel:Relationship[@Id="{rid}"]'):
-                    self.__blip = PurePosixPath("word") / rel.get("Target")
-            return self.__blip
+
+class DocxFormula(IDocumentFormula):
+    """A formula inside a .docx."""
+
+    def __init__(self, node: etree._Entity):
+        self.node = node
+
+    def raw(self) -> bytes:
+        return etree.tostring(self.node, pretty_print=True)
+
+    def mathml(self) -> str:
+        encoded = etree.tostring(Omml2Mathml.convert(self.node), pretty_print=True)
+        return encoded.decode()
 
 
 class DocxFootnote(DocxNode, IDocumentFootnote):

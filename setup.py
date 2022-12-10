@@ -24,7 +24,9 @@ setup(
 
     install_requires=[
         'attrs',
+        'cairosvg',
         'lxml',
         'mistune',
+        'ziamath',
     ]
 )

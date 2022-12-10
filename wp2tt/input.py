@@ -54,9 +54,15 @@ class IDocumentParagraph(ABC):
         raise NotImplementedError()
 
     @abstractmethod
+    def chunks(self) -> Generator["IDocumentSpan | IDocumentImage | IDocumentFormula", None, None]:
+        """Yield all elements in the paragraph."""
+        raise NotImplementedError()
+
     def spans(self) -> Generator["IDocumentSpan", None, None]:
         """Yield an IDocumentSpan per text span."""
-        raise NotImplementedError()
+        for chunk in self.chunks():
+            if isinstance(chunk, IDocumentSpan):
+                yield chunk
 
 
 class IDocumentSpan(ABC):
@@ -83,12 +89,31 @@ class IDocumentSpan(ABC):
         """Yields strings of plain text."""
         raise NotImplementedError()
 
-    def image_suffix(self) -> str | None:
-        """If linked to an image, returns extension (e.g., ".jpeg")."""
-        return None
 
-    def save_image(self, path: PathLike):
-        """If linked to a file, writes it."""
+class IDocumentImage(ABC):
+    """An image inside a document."""
+
+    @abstractmethod
+    def suffix(self) -> str:
+        """Extension (e.g., ".jpeg")."""
+        raise NotImplementedError()
+
+    @abstractmethod
+    def save(self, path: PathLike) -> None:
+        """Writes to a file."""
+        raise NotImplementedError()
+
+
+class IDocumentFormula(ABC):
+    """A formula inside a document."""
+    @abstractmethod
+    def raw(self) -> bytes:
+        """Return the original formula"""
+        raise NotImplementedError()
+
+    @abstractmethod
+    def mathml(self) -> str:
+        """Return formula as MathML."""
         raise NotImplementedError()
 
 

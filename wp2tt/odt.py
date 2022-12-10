@@ -145,7 +145,7 @@ class OdtParagraph(OdtNode, IDocumentParagraph):
         """Yields strings of plain text."""
         yield from self.node.itertext()
 
-    def spans(self):
+    def chunks(self):
         """Yield OdtSpan per text span."""
         for event, node in etree.iterwalk(self.node, events=("start", "end")):
             if event == "start":
