@@ -17,3 +17,5 @@ class ManualFormat(enum.Flag):
 
     BOLD = enum.auto()
     ITALIC = enum.auto()
+    SUBSCRIPT = enum.auto()
+    SUPERSCRIPT = enum.auto()
