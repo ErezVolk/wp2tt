@@ -893,14 +893,6 @@ class WordProcessorToInDesignTaggedText:
         if not self.args.manual and not self.args.manual_light:
             return unadorned
 
-        # Don't look at manual formatting for all-whitespace span
-        # TODO: This breaks on "<LTR>Hey</LTR> <LTR>World</LTR>"
-        # for text in span.text():
-        #     if self.NON_WHITESPACE.search(text):
-        #         break
-        # else:
-        #     return unadorned
-
         # Manual formatting
         fmt = self.get_format(span)
         if fmt == self.state.para_char_fmt:
@@ -1180,41 +1172,3 @@ class WordProcessorToInDesignTaggedText:
         if isinstance(path, str):
             path = Path(path)
         return shlex.quote(str(path.absolute()))
-
-
-# TODO:
-# - DOCX: find default RTL
-# - DOCX: <w:bookmarkStart w:name="X"/> / <w:instrText>PAGEREF ..
-# - ODT: footnotes
-# - ODT: comments
-# - PUB: Support non-ME docs
-# - PUB: Manual
-# - many-to-one wp_name -> name
-# - mapping csv
-# - [paragraph rule] when_first_in_doc
-# - [paragraph rule] when_matches_re
-# - [paragraph style] keep_last_n_chars
-# - character style rule (grep)
-# - Non-unicode when not required?
-# - Paragraph direction (w:r/w:rPr/w:rtl -> <pParaDir:1>; but what about the basic dir?)
-# - For post edit/proof: Manual formatting consolidation, TBD
-# - Para: global base -> body base, heading base
-# - More rule context: after same, after different, first since...
-# - Really need a test suite of some sort.
-# - Manual format: collapse with existing styles
-# - A flag to only create/update the ini file
-# - Maybe add front matter (best done in Id? either that or jinja2!)
-# - Something usable for those balloons (footnote+hl? endnote? convert to note in jsx?)
-#   bold: w:b (w:bCs?); italic: w:i (w:iCs?); undeline w:u
-#   font: <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New" w:cs="Courier New">
-#   override style: <w:i w:val="0">
-# - (f)odt import
-# - Convert editing marks
-# - idml import
-# - Automatic header group
-# - More complex BiDi
-# - Endnotes
-# - Linked styles?
-# - Derivation rules?
-# - Latent styles?
-# - Digraph kerning (probably better in InDesign?)
