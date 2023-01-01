@@ -5,7 +5,7 @@ import contextlib
 import logging
 from pathlib import Path
 
-from typing import Generator
+from typing import Iterable
 
 from wp2tt.input import IDocumentInput
 from wp2tt.input import IDocumentParagraph
@@ -57,7 +57,7 @@ class MultiInput(ProxyInput):
             logging.debug("%u style(s) in %r", in_file, path)
         logging.debug("%u style(s) in %u docs", total, len(self._paths))
 
-    def paragraphs(self) -> Generator[IDocumentParagraph, None, None]:
+    def paragraphs(self) -> Iterable[IDocumentParagraph]:
         """Yields an IDocumentParagraph object for each body paragraph."""
         total = 0
         for path, doc in zip(self._paths, self._inputs):

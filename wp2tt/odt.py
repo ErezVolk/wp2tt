@@ -4,7 +4,7 @@ import contextlib
 import logging
 from pathlib import Path
 
-from typing import Generator
+from typing import Iterable
 
 from lxml import etree
 
@@ -30,7 +30,7 @@ class OoXml:
         "text": "character",
     }
 
-    def _xpath(self, node, expr) -> Generator[etree._Entity, None, None]:
+    def _xpath(self, node, expr) -> Iterable[etree._Entity]:
         return node.xpath(expr, namespaces=self._NS)
 
     def _ootag(self, tag):

@@ -4,7 +4,7 @@ from abc import abstractmethod
 from abc import ABC
 from os import PathLike
 
-from typing import Generator
+from typing import Iterable
 
 from wp2tt.format import ManualFormat
 from wp2tt.styles import DocumentProperties
@@ -19,15 +19,15 @@ class IDocumentInput(ABC):
         """A DocumentProperties object."""
         raise NotImplementedError()
 
-    def styles_defined(self) -> Generator[dict[str, str], None, None]:
+    def styles_defined(self) -> Iterable[dict[str, str]]:
         """Yield a Style object kwargs for every style defined in the document."""
         raise NotImplementedError()
 
-    def styles_in_use(self) -> Generator[tuple[str, str], None, None]:
+    def styles_in_use(self) -> Iterable[tuple[str, str]]:
         """Yield a pair (realm, wpid) for every style used in the document."""
         raise NotImplementedError()
 
-    def paragraphs(self) -> Generator["IDocumentParagraph", None, None]:
+    def paragraphs(self) -> Iterable["IDocumentParagraph"]:
         """Yields an IDocumentParagraph object for each body paragraph."""
         raise NotImplementedError()
 
@@ -49,16 +49,16 @@ class IDocumentParagraph(ABC):
         return False
 
     @abstractmethod
-    def text(self) -> Generator[str, None, None]:
+    def text(self) -> Iterable[str]:
         """Yields strings of plain text."""
         raise NotImplementedError()
 
     @abstractmethod
-    def chunks(self) -> Generator["IDocumentSpan | IDocumentImage | IDocumentFormula", None, None]:
+    def chunks(self) -> Iterable["IDocumentSpan | IDocumentImage | IDocumentFormula"]:
         """Yield all elements in the paragraph."""
         raise NotImplementedError()
 
-    def spans(self) -> Generator["IDocumentSpan", None, None]:
+    def spans(self) -> Iterable["IDocumentSpan"]:
         """Yield an IDocumentSpan per text span."""
         for chunk in self.chunks():
             if isinstance(chunk, IDocumentSpan):
@@ -72,11 +72,11 @@ class IDocumentSpan(ABC):
         """Returns the wpid for this span's style."""
         return None
 
-    def footnotes(self) -> Generator["IDocumentFootnote", None, None]:
+    def footnotes(self) -> Iterable["IDocumentFootnote"]:
         """Yields an IDocumentFootnote object for each footnote in this span."""
         raise NotImplementedError()
 
-    def comments(self) -> Generator["IDocumentComment", None, None]:
+    def comments(self) -> Iterable["IDocumentComment"]:
         """Yields an IDocumentComment object for each comment in this span."""
         raise NotImplementedError()
 
@@ -85,7 +85,7 @@ class IDocumentSpan(ABC):
         return ManualFormat.NORMAL
 
     @abstractmethod
-    def text(self) -> Generator[str, None, None]:
+    def text(self) -> Iterable[str]:
         """Yields strings of plain text."""
         raise NotImplementedError()
 
@@ -120,7 +120,7 @@ class IDocumentFormula(ABC):
 class IDocumentFootnote(ABC):
     """A footnote."""
 
-    def paragraphs(self) -> Generator[IDocumentParagraph, None, None]:
+    def paragraphs(self) -> Iterable[IDocumentParagraph]:
         """Yields an IDocumentParagraph object for each footnote paragraph."""
         raise NotImplementedError()
 
@@ -128,6 +128,6 @@ class IDocumentFootnote(ABC):
 class IDocumentComment(ABC):
     """A comment (balloon)."""
 
-    def paragraphs(self) -> Generator[IDocumentParagraph, None, None]:
+    def paragraphs(self) -> Iterable[IDocumentParagraph]:
         """Yields an IDocumentParagraph object for each comment paragraph."""
         raise NotImplementedError()

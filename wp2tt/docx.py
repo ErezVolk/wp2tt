@@ -5,7 +5,7 @@ from pathlib import Path
 
 from os import PathLike
 from typing import Any
-from typing import Generator
+from typing import Iterable
 
 from lxml import etree
 
@@ -43,7 +43,7 @@ class WordXml:
     @classmethod
     def xpath(
         cls, nodes: list[etree._Entity] | etree._Entity, expr: str
-    ) -> Generator[etree._Entity, None, None]:
+    ) -> Iterable[etree._Entity]:
         """Wrapper for etree.xpath, with namespaces and multiple nodes"""
         if not isinstance(nodes, list):
             nodes = [nodes]
@@ -106,7 +106,7 @@ class DocxInput(contextlib.ExitStack, WordXml, IDocumentInput):
     def properties(self) -> DocumentProperties:
         return self._properties
 
-    def styles_defined(self) -> Generator[dict[str, Any], None, None]:
+    def styles_defined(self) -> Iterable[dict[str, Any]]:
         """Yield a Style object kwargs for every style defined in the document."""
         styles = self.zip.load_xml("word/styles.xml")
         for stag in self.xpath(styles, "//w:style[@w:type][w:name[@w:val]]"):
@@ -123,7 +123,7 @@ class DocxInput(contextlib.ExitStack, WordXml, IDocumentInput):
                 "fmt": fmt,
             }
 
-    def styles_in_use(self) -> Generator[tuple[str, str], None, None]:
+    def styles_in_use(self) -> Iterable[tuple[str, str]]:
         """Yield a pair (realm, wpid) for every style used in the document."""
         for node in (self.document, self.footnotes, self.comments):
             if node is None:
@@ -133,7 +133,7 @@ class DocxInput(contextlib.ExitStack, WordXml, IDocumentInput):
                     wpid = snode.get(self._wtag("val"))
                     yield (realm, wpid)
 
-    def paragraphs(self) -> Generator["DocxParagraph", None, None]:
+    def paragraphs(self) -> Iterable["DocxParagraph"]:
         """Yields a DocxParagraph object for each body paragraph."""
         # "//w:body/w:p[not(preceding-sibling::w:p/w:pPr/w:rPr/w:del)]"
         for para in self.xpath(self.document, "//w:body/w:p"):
@@ -160,7 +160,7 @@ class DocxNode(WordXml):
     def _node_wtag(self, tag: str) -> str | None:
         return self.head_node.get(self._wtag(tag))
 
-    def _node_xpath(self, expr: str) -> Generator[etree._Entity, None, None]:
+    def _node_xpath(self, expr: str) -> Iterable[etree._Entity]:
         for node in self.nodes:
             yield from node.xpath(expr, namespaces=self._NS)
 
@@ -170,7 +170,7 @@ class DocxNode(WordXml):
     def _node_wtype(self, prop: str) -> str | None:
         return self._node_wattr(prop, "type")
 
-    def _node_wtypes(self, prop: str) -> Generator[str, None, None]:
+    def _node_wtypes(self, prop: str) -> Iterable[str]:
         yield from self._node_wattrs(prop, "type")
 
     def _node_wattr(self, prop: str, attr: str) -> str | None:
@@ -178,7 +178,7 @@ class DocxNode(WordXml):
             return value
         return None
 
-    def _node_wattrs(self, prop: str, attr: str) -> Generator[str, None, None]:
+    def _node_wattrs(self, prop: str, attr: str) -> Iterable[str]:
         tag = self._wtag(attr)
         for node in self.nodes:
             for pnode in self.xpath(node, prop):
@@ -234,12 +234,12 @@ class DocxParagraph(DocxNode, IDocumentParagraph):
     def style_wpid(self) -> str | None:
         return self._node_wval("./w:pPr/w:pStyle")
 
-    def text(self) -> Generator[str, None, None]:
+    def text(self) -> Iterable[str]:
         """Yields strings of plain text."""
         for node in self._node_xpath(self.T_XPATH):
             yield node.text
 
-    def chunks(self) -> Generator["DocxSpan | DocxImage | DocxFormula", None, None]:
+    def chunks(self) -> Iterable["DocxSpan | DocxImage | DocxFormula"]:
         """Yield DocxSpan per text span."""
         for node in self._node_xpath(self.R_XPATH):
             if node.tag == self._mtag("oMath"):
@@ -284,11 +284,11 @@ class DocxSpan(DocxNode, IDocumentSpan):
     def style_wpid(self) -> str | None:
         return self._node_wval("w:rPr/w:rStyle")
 
-    def footnotes(self) -> Generator["DocxFootnote", None, None]:
+    def footnotes(self) -> Iterable["DocxFootnote"]:
         for fnr in self._node_xpath("w:footnoteReference"):
             yield DocxFootnote(self.doc, fnr)
 
-    def comments(self) -> Generator["DocxComment", None, None]:
+    def comments(self) -> Iterable["DocxComment"]:
         for cmr in self._node_xpath("w:commentReference"):
             yield DocxComment(self.doc, cmr)
 
@@ -314,7 +314,7 @@ class DocxSpan(DocxNode, IDocumentSpan):
             fmt = fmt & ~ManualFormat.LTR | ManualFormat.RTL
         return fmt
 
-    def text(self) -> Generator[str, None, None]:
+    def text(self) -> Iterable[str]:
         for node in self._node_xpath("w:tab | w:t"):
             if node.tag == self._wtag("tab"):
                 yield "\t"
@@ -358,7 +358,7 @@ class DocxFormula(IDocumentFormula):
 class DocxFootnote(DocxNode, IDocumentFootnote):
     """IDocumentFootnote for .docx"""
 
-    def paragraphs(self) -> Generator[DocxParagraph, None, None]:
+    def paragraphs(self) -> Iterable[DocxParagraph]:
         """Yields DocxParagraph for each paragraph in a footnote"""
         fnid = self._node_wtag("id")
         for para in self.xpath(self.doc.footnotes, f'w:footnote[@w:id="{fnid}"]/w:p'):
@@ -368,7 +368,7 @@ class DocxFootnote(DocxNode, IDocumentFootnote):
 class DocxComment(DocxNode, IDocumentComment):
     """IDocumentComment for .docx"""
 
-    def paragraphs(self) -> Generator[DocxParagraph, None, None]:
+    def paragraphs(self) -> Iterable[DocxParagraph]:
         """Yields DocxParagraph for each paragraph in a comment"""
         cmid = self._node_wtag("id")
         for para in self.xpath(self.doc.comments, f'w:comment[@w:id="{cmid}"]/w:p'):

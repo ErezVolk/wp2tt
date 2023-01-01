@@ -1,7 +1,7 @@
 """Ini file helper"""
 import configparser
 
-from typing import Generator
+from typing import Iterable
 
 import attr
 
@@ -13,7 +13,7 @@ ATTR_VALUE_HIDDEN = "internal"
 ConfigSection = (configparser.SectionProxy | dict[str, str])
 
 
-def ini_fields(klass, writeable=False) -> Generator[tuple[str, str], None, None]:
+def ini_fields(klass, writeable=False) -> Iterable[tuple[str, str]]:
     """Yields a pair (name, ini_name) for all attributes."""
     for field in attr.fields(klass):
         special = field.metadata.get(ATTR_KEY)
