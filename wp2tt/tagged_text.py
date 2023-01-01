@@ -20,6 +20,7 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
     """Writes to a tagged text file"""
 
     _curr_char_style: OptionalStyle = None
+    _in_table: bool = False
 
     def __init__(self, properties: DocumentProperties | None = None):
         super().__init__()
@@ -119,6 +120,35 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
         self._write(">")
         self._write(">")
 
+    def enter_table(self, rows: int, cols: int, style: OptionalStyle = None):
+        """Start a table"""
+        self.enter_paragraph()  # Container
+        self._write(r"<TableStyle:\[Basic Table\]>")
+        self._write(f"<TableStart:{rows},{cols}>")
+        self._in_table = True
+
+    def leave_table(self, style: OptionalStyle = None) -> None:
+        """Finish a table"""
+        self._write("<TableEnd:>")
+        self._in_table = False
+        self.leave_paragraph()  # Container
+
+    def enter_table_row(self):
+        """Start a table row."""
+        self._write("<RowStart:>")
+
+    def leave_table_row(self) -> None:
+        """Finalize table row."""
+        self._write("<RowEnd:>")
+
+    def enter_table_cell(self):
+        """Start a table cell."""
+        self._write("<CellStart:>")
+
+    def leave_table_cell(self) -> None:
+        """Finalize table cell."""
+        self._write("<CellEnd:>")
+
     def enter_paragraph(self, style: OptionalStyle = None) -> None:
         """Start a paragraph with a specified style."""
         self._write_headers()
@@ -144,7 +174,8 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
         """Finalize paragraph."""
         if self._curr_char_style:
             self._set_style("Char", None)
-        self._writeln()
+        if not self._in_table:
+            self._writeln()
 
     def set_character_style(self, style: OptionalStyle = None) -> None:
         """Start a span using a specific character style."""

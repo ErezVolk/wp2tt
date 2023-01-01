@@ -27,6 +27,30 @@ class IOutput(ABC):
         """Finalize paragraph."""
         raise NotImplementedError()
 
+    def enter_table(self, rows: int, cols: int, style: OptionalStyle = None):
+        """Start a table with a specified style."""
+        raise NotImplementedError()
+
+    def leave_table(self) -> None:
+        """Finalize table."""
+        raise NotImplementedError()
+
+    def enter_table_row(self):
+        """Start a table row."""
+        raise NotImplementedError()
+
+    def leave_table_row(self) -> None:
+        """Finalize table row."""
+        raise NotImplementedError()
+
+    def enter_table_cell(self):
+        """Start a table cell."""
+        raise NotImplementedError()
+
+    def leave_table_cell(self) -> None:
+        """Finalize table cell."""
+        raise NotImplementedError()
+
     def set_character_style(self, style: OptionalStyle = None) -> None:
         """Start a span using a specific character style."""
         raise NotImplementedError()

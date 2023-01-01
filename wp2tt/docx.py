@@ -16,6 +16,7 @@ from wp2tt.input import IDocumentImage
 from wp2tt.input import IDocumentInput
 from wp2tt.input import IDocumentParagraph
 from wp2tt.input import IDocumentSpan
+from wp2tt.input import IDocumentTable
 from wp2tt.format import ManualFormat
 from wp2tt.mathml import MathConverter
 from wp2tt.styles import DocumentProperties
@@ -133,12 +134,14 @@ class DocxInput(contextlib.ExitStack, WordXml, IDocumentInput):
                     wpid = snode.get(self._wtag("val"))
                     yield (realm, wpid)
 
-    def paragraphs(self) -> Iterable["DocxParagraph"]:
+    def paragraphs(self) -> Iterable["DocxParagraph | DocxTable"]:
         """Yields a DocxParagraph object for each body paragraph."""
         # "//w:body/w:p[not(preceding-sibling::w:p/w:pPr/w:rPr/w:del)]"
-        for para in self.xpath(self.document, "//w:body/w:p"):
-            if not para.get("__wp2tt_skip__"):
-                yield DocxParagraph(self, para)
+        for node in self.xpath(self.document, "//w:body/*[self::w:p or self::w:tbl]"):
+            if node.tag == self._wtag("tbl"):
+                yield DocxTable(self, node)
+            elif not node.get("__wp2tt_skip__"):
+                yield DocxParagraph(self, node)
 
 
 class DocxNode(WordXml):
@@ -353,6 +356,33 @@ class DocxFormula(IDocumentFormula):
     def mathml(self) -> str:
         encoded = etree.tostring(MathConverter.omml_to_mathml(self.node), pretty_print=True)
         return encoded.decode()
+
+
+class DocxTable(DocxNode, IDocumentTable):
+    """A table inside a .docx"""
+    def __init__(self, doc: DocxInput, node: etree._Entity):
+        """Constructor"""
+        super().__init__(doc, node)
+        self.contents = [
+            list(self.xpath(row, "./w:tc/w:p"))
+            for row in self.xpath(node, "./w:tr")
+        ]
+
+    def style_wpid(self) -> str | None:
+        """Returns the wpid for this table's style."""
+        return self._node_wval("w:tblPr/w:tblStyle")
+
+    def rows(self) -> int:
+        """Number of rows"""
+        return len(self.contents)
+
+    def cols(self) -> int:
+        """Number of columns"""
+        return len(self.contents[0])
+
+    def cell(self, row: int, col: int) -> IDocumentParagraph:
+        """Return a cell"""
+        return DocxParagraph(self.doc, self.contents[row][col])
 
 
 class DocxFootnote(DocxNode, IDocumentFootnote):

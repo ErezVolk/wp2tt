@@ -27,7 +27,7 @@ class IDocumentInput(ABC):
         """Yield a pair (realm, wpid) for every style used in the document."""
         raise NotImplementedError()
 
-    def paragraphs(self) -> Iterable["IDocumentParagraph"]:
+    def paragraphs(self) -> Iterable["IDocumentParagraph | IDocumentTable"]:
         """Yields an IDocumentParagraph object for each body paragraph."""
         raise NotImplementedError()
 
@@ -115,6 +115,25 @@ class IDocumentFormula(ABC):
     def mathml(self) -> str:
         """Return formula as MathML."""
         raise NotImplementedError()
+
+
+class IDocumentTable(ABC):
+    """A table inside a document"""
+
+    def style_wpid(self) -> str | None:
+        """Returns the wpid for this table's style."""
+        return None
+
+    @abstractmethod
+    def rows(self) -> int:
+        """Number of rows"""
+
+    @abstractmethod
+    def cols(self) -> int:
+        """Number of columns"""
+
+    def cell(self, row: int, col: int) -> IDocumentParagraph:
+        """Return a cell"""
 
 
 class IDocumentFootnote(ABC):

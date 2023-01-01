@@ -22,22 +22,23 @@ import attr
 import cairosvg
 
 from wp2tt.version import WP2TT_VERSION
-from wp2tt.ini import ini_fields
+from wp2tt.format import ManualFormat
 from wp2tt.ini import ConfigSection
+from wp2tt.ini import ini_fields
+from wp2tt.input import IDocumentFormula
+from wp2tt.input import IDocumentImage
 from wp2tt.input import IDocumentInput
 from wp2tt.input import IDocumentParagraph
 from wp2tt.input import IDocumentSpan
-from wp2tt.input import IDocumentImage
-from wp2tt.input import IDocumentFormula
-from wp2tt.format import ManualFormat
+from wp2tt.input import IDocumentTable
 from wp2tt.mathml import MathConverter
-from wp2tt.styles import OptionalStyle
-from wp2tt.styles import Style
-from wp2tt.styles import Rule
+from wp2tt.output import WhitespaceStripper
 from wp2tt.proxies import ByExtensionInput
 from wp2tt.proxies import MultiInput
 from wp2tt.proxies import ProxyInput
-from wp2tt.output import WhitespaceStripper
+from wp2tt.styles import OptionalStyle
+from wp2tt.styles import Rule
+from wp2tt.styles import Style
 from wp2tt.tagged_text import InDesignTaggedTextOutput
 
 
@@ -682,8 +683,11 @@ class WordProcessorToInDesignTaggedText:
             self.stop_marker_found = False
             self.state.is_post_empty = False
             self.state.is_post_break = False
-            for para in self.doc.paragraphs():
-                self.convert_paragraph(para)
+            for node in self.doc.paragraphs():
+                if isinstance(node, IDocumentTable):
+                    self.convert_table(node)
+                else:
+                    self.convert_paragraph(node)
             if self.stop_marker:
                 logging.info("Note: Stop marker was never found")
                 logging.debug("In other words, no %r", self.stop_marker)
@@ -703,6 +707,18 @@ class WordProcessorToInDesignTaggedText:
             utf8_fn = self.output_fn.with_suffix(".utf8")
             with open(utf8_fn, "w", encoding="UTF-8") as fobj:
                 fobj.write(text)
+
+    def convert_table(self, table: IDocumentTable) -> None:
+        """Convert entire table"""
+        self.writer.enter_table(rows := table.rows(), cols := table.cols())
+        for row in range(rows):
+            self.writer.enter_table_row()
+            for col in range(cols):
+                self.writer.enter_table_cell()
+                self.convert_paragraph(table.cell(row, col))
+                self.writer.leave_table_cell()
+            self.writer.leave_table_row()
+        self.writer.leave_table()
 
     def convert_paragraph(self, para: IDocumentParagraph) -> None:
         """Convert entire paragraph"""
