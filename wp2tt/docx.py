@@ -124,15 +124,26 @@ class DocxInput(contextlib.ExitStack, WordXml, IDocumentInput):
                 "fmt": fmt,
             }
 
+    _TAG_TO_REALM = {
+        "pStyle": "paragraph",
+        "rStyle": "character",
+        "tblStyle": "table",
+    }
+    _TAG_EXPRS = " or ".join(f"self::w:{tag}" for tag in _TAG_TO_REALM)
+    TAG_XPATH = f"//*[{_TAG_EXPRS}]"
+    WTAG_TO_REALM = {
+        WordXml._wtag(tag): realm
+        for tag, realm in _TAG_TO_REALM.items()
+    }
+
     def styles_in_use(self) -> Iterable[tuple[str, str]]:
         """Yield a pair (realm, wpid) for every style used in the document."""
         for node in (self.document, self.footnotes, self.comments):
             if node is None:
                 continue
-            for realm, tag in (("paragraph", "w:pStyle"), ("character", "w:rStyle")):
-                for snode in self.xpath(node, f"//{tag}"):
-                    wpid = snode.get(self._wtag("val"))
-                    yield (realm, wpid)
+            for snode in self.xpath(node, self.TAG_XPATH):
+                wpid = snode.get(self._wtag("val"))
+                yield (self.WTAG_TO_REALM[snode.tag], wpid)
 
     def paragraphs(self) -> Iterable["DocxParagraph | DocxTable"]:
         """Yields a DocxParagraph object for each body paragraph."""

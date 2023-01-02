@@ -96,11 +96,12 @@ class WordProcessorToInDesignTaggedText:
     COMMENT_REF_STYLE = SPECIAL_GROUP + "/(Comment Reference)"
     IMAGE_STYLE = SPECIAL_GROUP + "/(Image)"
     FORMULA_STYLE = SPECIAL_GROUP + "/(Formula)"
+    TABLE_PARAGRAPH_STYLE = SPECIAL_GROUP + "/(Table Container)"
 
     IGNORED_STYLES = {
         "character": ["annotation reference"],
     }
-    SPECIAL_STYLE = {
+    STYLE_OVERRIDE = {
         "character": {
             COMMENT_REF_STYLE: {
                 "idtt": "<pShadingColor:Cyain><pShadingOn:1><pShadingTint:100>",
@@ -141,6 +142,7 @@ class WordProcessorToInDesignTaggedText:
     stop_marker_found: bool
     style_sections_used: set[str]
     styles: dict[str, Style]
+    table_paragraph_style: Style
     writer: InDesignTaggedTextOutput
 
     def run(self):
@@ -456,6 +458,7 @@ class WordProcessorToInDesignTaggedText:
         self.base_names = {
             "character": self.args.base_character_style,
             "paragraph": self.args.base_paragraph_style,
+            "table": InDesignTaggedTextOutput.BASIC_TABLE_STYLE,
         }
         self.base_styles = {
             realm: self.found_style_definition(
@@ -494,6 +497,12 @@ class WordProcessorToInDesignTaggedText:
             internal_name=self.FORMULA_STYLE,
             wpid=self.FORMULA_STYLE,
             idtt="<cColor:Yellow><cColorTint:100>",
+            automatic=True,
+        )
+        self.table_paragraph_style = self.found_style_definition(
+            realm="paragraph",
+            internal_name=self.TABLE_PARAGRAPH_STYLE,
+            wpid=self.TABLE_PARAGRAPH_STYLE,
             automatic=True,
         )
         self.manual_styles = {}
@@ -598,7 +607,7 @@ class WordProcessorToInDesignTaggedText:
 
         # Allow any special overrides (color, name, etc.)
         try:
-            kwargs.update(self.SPECIAL_STYLE[realm][internal_name])
+            kwargs.update(self.STYLE_OVERRIDE[realm][internal_name])
         except KeyError:
             pass
 
@@ -710,9 +719,12 @@ class WordProcessorToInDesignTaggedText:
 
     def convert_table(self, table: IDocumentTable) -> None:
         """Convert entire table"""
+        self.writer.enter_paragraph(self.table_paragraph_style)
+
         (rows, cols) = table.shape
         rtl = table.format() & ManualFormat.RTL
-        self.writer.enter_table(rows=rows, cols=cols, rtl=rtl)
+        style = self.style("table", table.style_wpid())
+        self.writer.enter_table(rows=rows, cols=cols, rtl=rtl, style=style)
         for row in range(rows):
             self.writer.enter_table_row()
             for col in range(cols):
@@ -721,6 +733,8 @@ class WordProcessorToInDesignTaggedText:
                 self.writer.leave_table_cell()
             self.writer.leave_table_row()
         self.writer.leave_table()
+
+        self.writer.leave_paragraph()
 
     def convert_paragraph(self, para: IDocumentParagraph) -> None:
         """Convert entire paragraph"""
@@ -1121,6 +1135,7 @@ class WordProcessorToInDesignTaggedText:
                 style.parent_wpid = style.parent_style.wpid
             self.activate_style(style.parent_style)
 
+        logging.debug("Activating %s", style)
         self.update_setting_section(section_name, style)
         self.style_sections_used.add(section_name)
 

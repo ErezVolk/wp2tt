@@ -19,6 +19,13 @@ from wp2tt.styles import OptionalStyle
 class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
     """Writes to a tagged text file"""
 
+    BASIC_TABLE_STYLE = r"\[Basic Table\]"
+    REALM_TO_MNEM = {
+        "character": "Char",
+        "paragraph": "Para",
+        "table": "Table",
+    }
+
     _curr_char_style: OptionalStyle = None
     _in_table: bool = False
 
@@ -76,7 +83,6 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
 
     def _write_style_definition(self, style: Style) -> None:
         logging.debug("InDesign: %s", style)
-        id_realm = style.realm[:4].capitalize()
         idtt: list[str] = []
         if style.idtt:
             idtt = [style.idtt]
@@ -95,7 +101,7 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
                 idtt = ["<cColor:Magenta>", "<cColorTint:", str(int(fullness)), ">"]
 
         self._write("<Define")
-        self._write(id_realm)
+        self._write(self.REALM_TO_MNEM[style.realm])
         self._write("Style:")
         self._write(self._idname(style))
         for elem in idtt:
@@ -122,8 +128,7 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
 
     def enter_table(self, rows: int, cols: int, rtl: bool = False, style: OptionalStyle = None):
         """Start a table"""
-        self.enter_paragraph()  # Container
-        self._write(r"<TableStyle:\[Basic Table\]>")
+        self._set_style("Table", style)
         direction = "RTL" if rtl else "LTR"
         self._write(f"<TableStart:{rows},{cols}:0:0:{direction}>")
         self._in_table = True
@@ -132,7 +137,6 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
         """Finish a table"""
         self._write("<TableEnd:>")
         self._in_table = False
-        self.leave_paragraph()  # Container
 
     def enter_table_row(self):
         """Start a table row."""
@@ -157,11 +161,11 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
         if self._curr_char_style:
             self._set_style("Char", self._curr_char_style)
 
-    def _set_style(self, realm: str, style: OptionalStyle) -> None:
+    def _set_style(self, mnem: str, style: OptionalStyle) -> None:
         if style:
             self.define_style(style)
         self._write("<")
-        self._write(realm)
+        self._write(mnem)
         self._write("Style:")
         if style:
             self._write(self._idname(style))
