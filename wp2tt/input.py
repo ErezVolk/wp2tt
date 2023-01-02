@@ -124,13 +124,14 @@ class IDocumentTable(ABC):
         """Returns the wpid for this table's style."""
         return None
 
-    @abstractmethod
-    def rows(self) -> int:
-        """Number of rows"""
+    def format(self) -> ManualFormat:
+        """Returns manual formatting on this paragraph."""
+        return ManualFormat.NORMAL
 
+    @property
     @abstractmethod
-    def cols(self) -> int:
-        """Number of columns"""
+    def shape(self) -> tuple[int, int]:
+        """(number of rows, number of columns)"""
 
     def cell(self, row: int, col: int) -> IDocumentParagraph:
         """Return a cell"""

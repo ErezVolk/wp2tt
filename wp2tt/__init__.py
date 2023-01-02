@@ -710,7 +710,9 @@ class WordProcessorToInDesignTaggedText:
 
     def convert_table(self, table: IDocumentTable) -> None:
         """Convert entire table"""
-        self.writer.enter_table(rows := table.rows(), cols := table.cols())
+        (rows, cols) = table.shape
+        rtl = table.format() & ManualFormat.RTL
+        self.writer.enter_table(rows=rows, cols=cols, rtl=rtl)
         for row in range(rows):
             self.writer.enter_table_row()
             for col in range(cols):

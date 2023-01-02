@@ -120,11 +120,12 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
         self._write(">")
         self._write(">")
 
-    def enter_table(self, rows: int, cols: int, style: OptionalStyle = None):
+    def enter_table(self, rows: int, cols: int, rtl: bool = False, style: OptionalStyle = None):
         """Start a table"""
         self.enter_paragraph()  # Container
         self._write(r"<TableStyle:\[Basic Table\]>")
-        self._write(f"<TableStart:{rows},{cols}>")
+        direction = "RTL" if rtl else "LTR"
+        self._write(f"<TableStart:{rows},{cols}:0:0:{direction}>")
         self._in_table = True
 
     def leave_table(self, style: OptionalStyle = None) -> None:

@@ -372,13 +372,19 @@ class DocxTable(DocxNode, IDocumentTable):
         """Returns the wpid for this table's style."""
         return self._node_wval("w:tblPr/w:tblStyle")
 
-    def rows(self) -> int:
-        """Number of rows"""
-        return len(self.contents)
+    def format(self) -> ManualFormat:
+        """Table formatting (RTL is all we care about"""
+        for bidi in self._node_xpath("./w:tblPr/w:bidiVisual"):
+            return ManualFormat.RTL
+        return ManualFormat.LTR
 
-    def cols(self) -> int:
-        """Number of columns"""
-        return len(self.contents[0])
+    @property
+    def shape(self) -> tuple[int, int]:
+        """(number of rows, number of columns)"""
+        return (
+            len(self.contents),
+            len(self.contents[0]),
+        )
 
     def cell(self, row: int, col: int) -> IDocumentParagraph:
         """Return a cell"""
