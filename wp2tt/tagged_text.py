@@ -146,9 +146,9 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
         """Finalize table row."""
         self._write("<RowEnd:>")
 
-    def enter_table_cell(self):
+    def enter_table_cell(self, rows: int = 1, cols: int = 1):
         """Start a table cell."""
-        self._write("<CellStart:>")
+        self._write("<CellStart:{rows},{cols}>")
 
     def leave_table_cell(self) -> None:
         """Finalize table cell."""

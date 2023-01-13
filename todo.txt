@@ -1,6 +1,7 @@
 Tables:
-- InDesign: <TableStyle><TableStart:5,4,1,0>...<TableEnd>
-- Word: <w:tbl>....?
+- Merged cells, at the very least horizontal
+  - Word: <w:tcPr><w:gridSpan w:val="2"/></w:tcPr>
+  - InDesign: <CellStart:1,2>
 
 - DOCX: find default RTL
 - DOCX: <w:bookmarkStart w:name="X"/> / <w:instrText>PAGEREF ..
