@@ -722,14 +722,15 @@ class WordProcessorToInDesignTaggedText:
         self.writer.enter_paragraph(self.table_paragraph_style)
 
         (rows, cols) = table.shape
-        rtl = table.format() & ManualFormat.RTL
+        rtl = table.format() & ManualFormat.RTL == ManualFormat.RTL
         style = self.style("table", table.style_wpid())
         self.writer.enter_table(rows=rows, cols=cols, rtl=rtl, style=style)
-        for row in range(rows):
+        for row in table.rows():
             self.writer.enter_table_row()
-            for col in range(cols):
-                self.writer.enter_table_cell()
-                self.convert_paragraph(table.cell(row, col))
+            for cell in row.cells():
+                (cell_rows, cell_cols) = cell.shape
+                self.writer.enter_table_cell(rows=cell_rows, cols=cell_cols)
+                self.convert_paragraph(cell.contents())
                 self.writer.leave_table_cell()
             self.writer.leave_table_row()
         self.writer.leave_table()

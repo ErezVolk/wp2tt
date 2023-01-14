@@ -133,8 +133,32 @@ class IDocumentTable(ABC):
     def shape(self) -> tuple[int, int]:
         """(number of rows, number of columns)"""
 
-    def cell(self, row: int, col: int) -> IDocumentParagraph:
-        """Return a cell"""
+    @abstractmethod
+    def rows(self) -> Iterable["IDocumentTableRow"]:
+        """Iterates the rows of the table"""
+        raise NotImplementedError()
+
+
+class IDocumentTableRow(ABC):
+    """A row in a table inside a document"""
+
+    @abstractmethod
+    def cells(self) -> Iterable["IDocumentTableCell"]:
+        """Iterates the cells in the row"""
+        raise NotImplementedError()
+
+
+class IDocumentTableCell(ABC):
+    """A cell in a table inside a document"""
+
+    @property
+    def shape(self) -> tuple[int, int]:
+        """Number of rows and columns this cell spans"""
+        return (1, 1)
+
+    @abstractmethod
+    def contents(self) -> IDocumentParagraph:
+        """Get the contents of this cell"""
 
 
 class IDocumentFootnote(ABC):

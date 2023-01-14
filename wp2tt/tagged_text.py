@@ -28,6 +28,7 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
 
     _curr_char_style: OptionalStyle = None
     _in_table: bool = False
+    _extra_cells: int = 0
 
     def __init__(self, properties: DocumentProperties | None = None):
         super().__init__()
@@ -133,7 +134,7 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
         self._write(f"<TableStart:{rows},{cols}:0:0:{direction}>")
         self._in_table = True
 
-    def leave_table(self, style: OptionalStyle = None) -> None:
+    def leave_table(self) -> None:
         """Finish a table"""
         self._write("<TableEnd:>")
         self._in_table = False
@@ -148,11 +149,14 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
 
     def enter_table_cell(self, rows: int = 1, cols: int = 1):
         """Start a table cell."""
-        self._write("<CellStart:{rows},{cols}>")
+        self._write(f"<CellStart:{rows},{cols}>")
+        self._extra_cells = cols - 1
 
     def leave_table_cell(self) -> None:
         """Finalize table cell."""
         self._write("<CellEnd:>")
+        for _ in range(self._extra_cells):
+            self._write("<CellStart:><CellEnd:>")
 
     def enter_paragraph(self, style: OptionalStyle = None) -> None:
         """Start a paragraph with a specified style."""

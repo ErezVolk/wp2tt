@@ -17,6 +17,8 @@ from wp2tt.input import IDocumentInput
 from wp2tt.input import IDocumentParagraph
 from wp2tt.input import IDocumentSpan
 from wp2tt.input import IDocumentTable
+from wp2tt.input import IDocumentTableRow
+from wp2tt.input import IDocumentTableCell
 from wp2tt.format import ManualFormat
 from wp2tt.mathml import MathConverter
 from wp2tt.styles import DocumentProperties
@@ -374,10 +376,15 @@ class DocxTable(DocxNode, IDocumentTable):
     def __init__(self, doc: DocxInput, node: etree._Entity):
         """Constructor"""
         super().__init__(doc, node)
-        self.contents = [
-            list(self.xpath(row, "./w:tc/w:p"))
+        self.orows = [
+            DocxTableRow(doc, row)
             for row in self.xpath(node, "./w:tr")
         ]
+        self.nrows = len(self.orows)
+        self.ncols = max(
+            sum(cell.shape[1] for cell in row.cells())
+            for row in self.orows
+        )
 
     def style_wpid(self) -> str | None:
         """Returns the wpid for this table's style."""
@@ -385,21 +392,56 @@ class DocxTable(DocxNode, IDocumentTable):
 
     def format(self) -> ManualFormat:
         """Table formatting (RTL is all we care about"""
-        for bidi in self._node_xpath("./w:tblPr/w:bidiVisual"):
+        for _ in self._node_xpath("./w:tblPr/w:bidiVisual"):
             return ManualFormat.RTL
         return ManualFormat.LTR
 
     @property
     def shape(self) -> tuple[int, int]:
         """(number of rows, number of columns)"""
-        return (
-            len(self.contents),
-            len(self.contents[0]),
-        )
+        return (self.nrows, self.ncols)
 
-    def cell(self, row: int, col: int) -> IDocumentParagraph:
-        """Return a cell"""
-        return DocxParagraph(self.doc, self.contents[row][col])
+    def rows(self) -> Iterable["DocxTableRow"]:
+        """Iterates the rows of the table"""
+        for row in self.orows:
+            yield row
+
+
+class DocxTableRow(DocxNode, IDocumentTableRow):
+    """A table row"""
+
+    def __init__(self, doc: DocxInput, node: etree._Entity):
+        """Constructor"""
+        super().__init__(doc, node)
+        self.ocells = [
+            DocxTableCell(doc, cell)
+            for cell in self.xpath(node, "./w:tc")
+        ]
+
+    def cells(self) -> Iterable["DocxTableCell"]:
+        for cell in self.ocells:
+            yield cell
+
+
+class DocxTableCell(DocxNode, IDocumentTableCell):
+    """A table cell"""
+    def __init__(self, doc: DocxInput, node: etree._Entity):
+        """Constructor"""
+        super().__init__(doc, node)
+        try:
+            self.span = int(self._wval(node, "./w:tcPr/w:gridSpan") or "1")
+        except ValueError:
+            self.span = 1
+
+    @property
+    def shape(self) -> tuple[int, int]:
+        return (1, self.span)
+
+    def contents(self) -> DocxParagraph:
+        """Get the contents of this cell"""
+        for pnode in self.xpath(self.nodes, "./w:p"):
+            return DocxParagraph(self.doc, pnode)
+        raise RuntimeError("Table cell without a paragraph")
 
 
 class DocxFootnote(DocxNode, IDocumentFootnote):

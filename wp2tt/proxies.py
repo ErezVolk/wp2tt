@@ -9,6 +9,7 @@ from typing import Iterable
 
 from wp2tt.input import IDocumentInput
 from wp2tt.input import IDocumentParagraph
+from wp2tt.input import IDocumentTable
 from wp2tt.docx import DocxInput
 from wp2tt.markdown import MarkdownInput
 from wp2tt.odt import XodtInput
@@ -57,7 +58,7 @@ class MultiInput(ProxyInput):
             logging.debug("%u style(s) in %r", in_file, path)
         logging.debug("%u style(s) in %u docs", total, len(self._paths))
 
-    def paragraphs(self) -> Iterable[IDocumentParagraph]:
+    def paragraphs(self) -> Iterable[IDocumentParagraph | IDocumentTable]:
         """Yields an IDocumentParagraph object for each body paragraph."""
         total = 0
         for path, doc in zip(self._paths, self._inputs):

@@ -4,7 +4,7 @@ from pathlib import Path
 from lxml import etree
 import ziamath.config
 import ziamath.zmath
-ziamath.config.svg2 = False  # Otherwise InDesign chokes
+ziamath.config.svg2 = False  # type: ignore  # Otherwise InDesign chokes
 
 
 class MathConverter:

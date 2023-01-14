@@ -43,7 +43,7 @@ class IOutput(ABC):
         """Finalize table row."""
         raise NotImplementedError()
 
-    def enter_table_cell(self):
+    def enter_table_cell(self, rows: int = 1, cols: int = 1):
         """Start a table cell."""
         raise NotImplementedError()
 
