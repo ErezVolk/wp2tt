@@ -951,6 +951,7 @@ class WordProcessorToInDesignTaggedText:
             if cached is not None and cached.is_file():
                 logging.debug("Cached %s -> %s", cached.name, svg.name)
                 shutil.copy(cached, svg)
+                path = svg
             else:
                 logging.debug("Converting %s -> %s", path.name, svg.name)
                 subprocess.run(
