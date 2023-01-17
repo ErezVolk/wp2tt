@@ -142,6 +142,11 @@ class Wp2ttParser(ArgumentParser):
             type=Path,
             help="Cache directory for converted files like SVG",
         )
+        self.add_argument(
+            "--remove-old-images",
+            action="store_true",
+            help="Remove all old img-* folders",
+        )
 
     def write_rerunner(self, rerunner: Path, args: Namespace):
         """Write script to rerun the program"""
@@ -158,6 +163,7 @@ class Wp2ttParser(ArgumentParser):
             self._add_str(cli, args, "stop_at")
             self._add_str(cli, args, "base_character_style", self.DEFAULT_BASE)
             self._add_str(cli, args, "base_paragraph_style", self.DEFAULT_BASE)
+            self._add_path(cli, args, "cache")
             self._add_flag(cli, args, "debug")
             self._add_flag(cli, args, "manual")
             self._add_flag(cli, args, "manual_light")
@@ -165,8 +171,8 @@ class Wp2ttParser(ArgumentParser):
             self._add_flag(cli, args, "no_cache")
             self._add_flag(cli, args, "no_emf2svg")
             self._add_flag(cli, args, "no_svg2png")
+            self._add_flag(cli, args, "remove_old_images")
             self._add_flag(cli, args, "vav")
-            self._add_path(cli, args, "cache")
             if args.formula_font_size:
                 cli.append("--formula-font-size")
                 cli.append(str(args.formula_font_size))

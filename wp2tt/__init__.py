@@ -161,9 +161,6 @@ class WordProcessorToInDesignTaggedText:
         self.stop_marker = self.args.stop_at
         self.format_mask = ~ManualFormat[self.args.direction]
 
-        now = datetime.now()
-        self.image_dir = self.output_dir / now.strftime("img-%Y%m%d-%H%M")
-
         if self.args.cache:
             self.cache = Cache(self.args.cache)
         elif not self.args.no_cache:
@@ -487,10 +484,21 @@ class WordProcessorToInDesignTaggedText:
         """The main conversion loop: parse document, write tagged text"""
         logging.info("Writing %s", self.output_fn)
         self.set_state(State())
-        self.output_dir.mkdir(parents=True, exist_ok=True)
+        self.create_output()
         with InDesignTaggedTextOutput(self.doc.properties) as self.writer:
             self.convert_document()
             self.write_output()
+
+    def create_output(self):
+        """Create output directory, clean old image dirs"""
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        now = datetime.now()
+        self.image_dir = self.output_dir / now.strftime("img-%Y%m%d-%H%M")
+        if self.args.remove_old_images:
+            for path in self.output_dir.glob("img-????????-????"):
+                if path.is_dir():
+                    logging.debug("Removing %s", path)
+                    shutil.rmtree(path, ignore_errors=True)
 
     def convert_document(self):
         """Convert a document, one paragraph at a time"""
