@@ -1,8 +1,6 @@
-Tables:
-- Merged cells, at the very least horizontal
-  - Word: <w:tcPr><w:gridSpan w:val="2"/></w:tcPr>
-  - InDesign: <CellStart:1,2>
-
+- Images: subdirectories per date
+- Images: link to cache?
+- Images: when cache is a link to a file, use that (and its suffix)
 - DOCX: find default RTL
 - DOCX: <w:bookmarkStart w:name="X"/> / <w:instrText>PAGEREF ..
 - ODT: footnotes

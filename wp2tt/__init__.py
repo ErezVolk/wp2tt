@@ -3,7 +3,6 @@ import argparse
 import collections
 import configparser
 import contextlib
-import hashlib
 import itertools
 import logging
 from pathlib import Path
@@ -14,7 +13,6 @@ import subprocess
 import sys
 
 from os import PathLike
-from typing import Callable
 from typing import Iterator
 from typing import Mapping
 
@@ -22,6 +20,7 @@ import attr
 import cairosvg
 
 from wp2tt.version import WP2TT_VERSION
+from wp2tt.cache import Cache
 from wp2tt.format import ManualFormat
 from wp2tt.ini import ConfigSection
 from wp2tt.ini import ini_fields
@@ -118,7 +117,7 @@ class WordProcessorToInDesignTaggedText:
     args: argparse.Namespace
     base_names: dict[str, str]
     base_styles: dict[str, Style]
-    cache: Path | None
+    cache: Cache
     comment_ref_style: Style
     config: Mapping[str, str]
     doc: IDocumentInput
@@ -297,9 +296,11 @@ class WordProcessorToInDesignTaggedText:
         self.format_mask = ~ManualFormat[self.args.direction]
 
         if self.args.cache:
-            self.cache = self.args.cache
+            self.cache = Cache(self.args.cache)
         elif not self.args.no_cache:
-            self.cache = self.output_dir / "cache"
+            self.cache = Cache(self.output_dir / "cache")
+        else:
+            self.cache = Cache()
 
     def configure_logging(self):
         """Set logging level and format."""
@@ -947,11 +948,9 @@ class WordProcessorToInDesignTaggedText:
 
         if suffix == ".emf" and not self.args.no_emf2svg:
             svg = path.with_suffix(".svg")
-            cached = self.get_cached(lambda: self.read_file(path), ".svg")
+            cached = self.cache.name(lambda: self.read_file(path), ".svg")
             if cached is not None and cached.is_file():
-                logging.debug("Cached %s -> %s", cached.name, svg.name)
-                shutil.copy(cached, svg)
-                path = svg
+                path = self.cache.get(cached, svg)
             else:
                 logging.debug("Converting %s -> %s", path.name, svg.name)
                 subprocess.run(
@@ -964,10 +963,7 @@ class WordProcessorToInDesignTaggedText:
                 )
                 self.svg2png(svg, path)
                 path = svg
-                if cached is not None:
-                    logging.debug("Caching %s -> %s", svg.name, cached.name)
-                    cached.parent.mkdir(parents=True, exist_ok=True)
-                    shutil.copy(svg, cached)
+                self.cache.put(path, cached)
 
         prev = self.switch_character_style(self.image_style)
         self.writer.write_text(path.name)
@@ -977,10 +973,9 @@ class WordProcessorToInDesignTaggedText:
         """Convert a formula."""
         path = self.next_image_fn("formula", ".svg")
 
-        cached = self.get_cached(get_contents=formula.raw, suffix=".svg")
+        cached = self.cache.name(get_contents=formula.raw, suffix=".svg")
         if cached is not None and cached.is_file():
-            logging.debug("Cached %s -> %s", cached.name, path.name)
-            shutil.copy(cached, path)
+            path = self.cache.get(cached, path)
         else:
             logging.debug("Converting -> %s", path.name)
             mathml = formula.mathml()
@@ -995,22 +990,11 @@ class WordProcessorToInDesignTaggedText:
                 with open(path.with_suffix(".mathml"), "w", encoding="utf-8") as fobj:
                     fobj.write(mathml)
             self.svg2png(svg, path)
-
-            if cached is not None:
-                logging.debug("Caching %s -> %s", path.name, cached.name)
-                cached.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy(path, cached)
+            self.cache.put(path, cached)
 
         prev = self.switch_character_style(self.formula_style)
         self.writer.write_text(path.name)
         self.switch_character_style(prev)
-
-    def get_cached(self, get_contents: Callable[[], bytes], suffix: str) -> Path | None:
-        """Return where a converted version should be cached, if configured"""
-        if self.cache is None:
-            return None
-        md5 = hashlib.md5(get_contents()).hexdigest()
-        return self.cache / f"{md5}{suffix}"
 
     def svg2png(self, svg: Path | bytes, path_like: Path):
         """Helper to convert SVG to png"""
