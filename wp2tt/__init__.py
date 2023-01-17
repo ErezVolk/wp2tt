@@ -57,7 +57,6 @@ class BadReferenceInRule(Exception):
 @attr.s(slots=True, frozen=True)
 class ManualFormatCustomStyle:
     """Manual formatting, possibly applied to a custom style"""
-
     fmt: ManualFormat = attr.ib()
     unadorned: str | None = attr.ib()
 
@@ -65,7 +64,6 @@ class ManualFormatCustomStyle:
 @attr.s(slots=True)
 class State:
     """Context of styles"""
-
     curr_char_style: OptionalStyle = attr.ib(default=None)
     prev_para_style: OptionalStyle = attr.ib(default=None)
     is_empty: bool = attr.ib(default=True)
@@ -80,9 +78,7 @@ class WordProcessorToInDesignTaggedText:
     What's not to like?"""
 
     SETTING_FILE_ENCODING = "UTF-8"
-    CONFIG_SECTION_NAME = "General"
     SPECIAL_GROUP = Wp2ttParser.SPECIAL_GROUP
-    DEFAULT_FORMULA_FONT_SIZE = 12
     FOOTNOTE_REF_STYLE = SPECIAL_GROUP + "/(Footnote Reference in Text)"
     COMMENT_REF_STYLE = SPECIAL_GROUP + "/(Comment Reference)"
     IMAGE_STYLE = SPECIAL_GROUP + "/(Image)"
@@ -192,7 +188,7 @@ class WordProcessorToInDesignTaggedText:
             self.settings.read(self.settings_fn, encoding=self.SETTING_FILE_ENCODING)
 
         self.load_rules()
-        self.config = self.ensure_setting_section(self.CONFIG_SECTION_NAME)
+        self.config = self.ensure_setting_section("General")
         if self.stop_marker:
             self.config["stop_marker"] = self.stop_marker
         else:
