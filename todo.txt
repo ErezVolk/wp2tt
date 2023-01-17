@@ -1,5 +1,5 @@
-- Images: link to cache?
-- Images: when cache is a link to a file, use that (and its suffix)
+- Images: link to cache? Not a good idea
+- Images: Clear older?
 - DOCX: find default RTL
 - DOCX: <w:bookmarkStart w:name="X"/> / <w:instrText>PAGEREF ..
 - ODT: footnotes
