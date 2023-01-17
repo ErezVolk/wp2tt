@@ -1,4 +1,3 @@
-- Images: subdirectories per date
 - Images: link to cache?
 - Images: when cache is a link to a file, use that (and its suffix)
 - DOCX: find default RTL

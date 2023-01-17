@@ -3,6 +3,7 @@ import argparse
 import collections
 import configparser
 import contextlib
+from datetime import datetime
 import itertools
 import logging
 from pathlib import Path
@@ -125,6 +126,7 @@ class WordProcessorToInDesignTaggedText:
     format_mask: ManualFormat
     formula_style: Style
     image_count = itertools.count(1)
+    image_dir: Path
     image_style: Style
     manual_styles: dict[ManualFormatCustomStyle, Style]
     output_dir: Path
@@ -294,6 +296,9 @@ class WordProcessorToInDesignTaggedText:
         self.rerunner_fn = Path(f"{self.output_fn}.rerun")
         self.stop_marker = self.args.stop_at
         self.format_mask = ~ManualFormat[self.args.direction]
+
+        now = datetime.now()
+        self.image_dir = self.output_dir / now.strftime("img-%Y%m%d-%H%M")
 
         if self.args.cache:
             self.cache = Cache(self.args.cache)
@@ -937,7 +942,8 @@ class WordProcessorToInDesignTaggedText:
     def next_image_fn(self, infix: str, suffix: str) -> Path:
         """Helper to generate next image filename"""
         count = next(self.image_count)
-        return self.output_dir / f"{self.output_stem}-{infix}-{count:03d}{suffix}"
+        self.image_dir.mkdir(parents=True, exist_ok=True)
+        return self.image_dir / f"{self.output_stem}-{infix}-{count:03d}{suffix}"
 
     def convert_image(self, span: IDocumentImage):
         """Save an image, keep a placeholder in the output"""
@@ -965,8 +971,12 @@ class WordProcessorToInDesignTaggedText:
                 path = svg
                 self.cache.put(path, cached)
 
-        prev = self.switch_character_style(self.image_style)
-        self.writer.write_text(path.name)
+        self.write_image_link(path, self.image_style)
+
+    def write_image_link(self, path: Path, style: Style):
+        """Write an image placeholder"""
+        prev = self.switch_character_style(style)
+        self.writer.write_text(str(path.relative_to(self.output_dir)))
         self.switch_character_style(prev)
 
     def convert_formula(self, formula: IDocumentFormula):
@@ -992,9 +1002,7 @@ class WordProcessorToInDesignTaggedText:
             self.svg2png(svg, path)
             self.cache.put(path, cached)
 
-        prev = self.switch_character_style(self.formula_style)
-        self.writer.write_text(path.name)
-        self.switch_character_style(prev)
+        self.write_image_link(path, self.formula_style)
 
     def svg2png(self, svg: Path | bytes, path_like: Path):
         """Helper to convert SVG to png"""
