@@ -724,8 +724,6 @@ class WordProcessorToInDesignTaggedText:
             for cmt in span.comments():
                 self.convert_comment(cmt)
 
-    NON_WHITESPACE = re.compile(r"\S")
-
     def get_character_style(self, span: IDocumentSpan) -> OptionalStyle:
         """Returns Style object for a Span"""
         unadorned = self.style("character", span.style_wpid())
