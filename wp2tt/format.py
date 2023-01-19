@@ -19,3 +19,5 @@ class ManualFormat(enum.Flag):
     ITALIC = enum.auto()
     SUBSCRIPT = enum.auto()
     SUPERSCRIPT = enum.auto()
+    RAISED = enum.auto()
+    LOWERED = enum.auto()

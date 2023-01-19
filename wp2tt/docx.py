@@ -326,6 +326,12 @@ class DocxSpan(DocxNode, IDocumentSpan):
                 fmt |= ManualFormat.SUBSCRIPT
             elif vval == "superscript":
                 fmt |= ManualFormat.SUPERSCRIPT
+        for vnode in cls.xpath(nodes, "w:rPr/w:position"):
+            vval = float(vnode.get(cls._wtag("val")))
+            if vval < 0:
+                fmt |= ManualFormat.LOWERED
+            elif vval > 0:
+                fmt |= ManualFormat.RAISED
         for _ in cls.xpath(nodes, "w:rPr/w:rtl"):
             fmt = fmt & ~ManualFormat.LTR | ManualFormat.RTL
         return fmt
