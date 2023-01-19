@@ -3,10 +3,11 @@
 from typing import Union
 
 import attr
-from wp2tt.ini import ATTR_KEY
-from wp2tt.ini import ATTR_VALUE_READONLY
-from wp2tt.ini import ATTR_VALUE_HIDDEN
 from wp2tt.format import ManualFormat
+
+ATTR_KEY = "special"
+ATTR_VALUE_READONLY = "readonly"
+ATTR_VALUE_HIDDEN = "internal"
 
 ATTR_READONLY = {ATTR_KEY: ATTR_VALUE_READONLY}
 ATTR_NO_INI = {ATTR_KEY: ATTR_VALUE_HIDDEN}

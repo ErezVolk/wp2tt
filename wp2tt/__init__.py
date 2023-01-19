@@ -1,7 +1,6 @@
 """A utility to convert word processor files (.docx, .odt) to InDesign's Tagged Text."""
 import argparse
 import collections
-import configparser
 import contextlib
 from datetime import datetime
 import itertools
@@ -21,8 +20,7 @@ import cairosvg
 
 from wp2tt.cache import Cache
 from wp2tt.format import ManualFormat
-from wp2tt.ini import ConfigSection
-from wp2tt.ini import ini_fields
+from wp2tt.ini import SettingsFile
 from wp2tt.input import IDocumentFormula
 from wp2tt.input import IDocumentImage
 from wp2tt.input import IDocumentInput
@@ -77,7 +75,6 @@ class WordProcessorToInDesignTaggedText:
 
     What's not to like?"""
 
-    SETTING_FILE_ENCODING = "UTF-8"
     SPECIAL_GROUP = Wp2ttParser.SPECIAL_GROUP
     FOOTNOTE_REF_STYLE = SPECIAL_GROUP + "/(Footnote Reference in Text)"
     COMMENT_REF_STYLE = SPECIAL_GROUP + "/(Comment Reference)"
@@ -122,9 +119,8 @@ class WordProcessorToInDesignTaggedText:
     parser: Wp2ttParser
     rerunner_fn: Path
     rules: list[Rule]
-    settings: configparser.ConfigParser
+    settings: SettingsFile
     settings_fn: Path
-    settings_touched: bool
     state: State = State()
     stop_marker: str
     stop_marker_found: bool
@@ -177,15 +173,11 @@ class WordProcessorToInDesignTaggedText:
 
     def read_settings(self):
         """Read and parse the ini file."""
-        self.settings = configparser.ConfigParser()
-        self.settings_touched = False
         self.style_sections_used = set()
-        if self.settings_fn.is_file() and not self.args.fresh_start:
-            logging.info("Reading %s", self.settings_fn)
-            self.settings.read(self.settings_fn, encoding=self.SETTING_FILE_ENCODING)
+        self.settings = SettingsFile(self.settings_fn, fresh_start=self.args.fresh_start)
 
         self.load_rules()
-        self.config = self.ensure_setting_section("General")
+        self.config = self.settings.ensure_section("General")
         if self.stop_marker:
             self.config["stop_marker"] = self.stop_marker
         else:
@@ -205,7 +197,7 @@ class WordProcessorToInDesignTaggedText:
                     description=section_name[5:],
                     **{
                         name: section[ini_name]
-                        for name, ini_name in ini_fields(Rule)
+                        for name, ini_name in self.settings.fields(Rule)
                         if ini_name in section
                     },
                 )
@@ -214,13 +206,7 @@ class WordProcessorToInDesignTaggedText:
 
     def write_settings(self):
         """When done, write the settings file for the next time."""
-        if self.settings_touched and self.settings_fn.is_file():
-            logging.debug("Backing up %s", self.settings_fn)
-            shutil.copy(self.settings_fn, self.settings_fn.with_suffix(".bak"))
-
-        logging.info("Writing %s", self.settings_fn)
-        with open(self.settings_fn, "w", encoding=self.SETTING_FILE_ENCODING) as fobj:
-            self.settings.write(fobj)
+        self.settings.backup_and_write()
 
     def write_rerunner(self):
         """Write a script to regenerate the output."""
@@ -414,13 +400,13 @@ class WordProcessorToInDesignTaggedText:
         except KeyError:
             pass
 
-        section = self.get_setting_section(realm=realm, internal_name=internal_name)
+        section = self.settings.get_section(realm=realm, internal_name=internal_name)
         if not kwargs.get("name"):
             kwargs["name"] = internal_name
         kwargs.update(
             {
                 name: section[ini_name]
-                for name, ini_name in ini_fields(Style, writeable=True)
+                for name, ini_name in self.settings.fields(Style, writeable=True)
                 if ini_name in section
             }
         )
@@ -455,30 +441,6 @@ class WordProcessorToInDesignTaggedText:
             realm = style.realm
             wpid = style.wpid
         return f"{realm}:{wpid}"
-
-    @classmethod
-    def fix_section_name(
-        cls,
-        section_name: str | None = None,
-        realm: str | None = None,
-        internal_name: str | None = None,
-        style: OptionalStyle = None,
-    ) -> str:
-        """The name of the ini section for a given style.
-
-        This uses `internal_name`, rather than `wpid` or `name`,
-        because `wpid` can get ugly ("a2") and `name` should be
-        modifyable.
-        """
-        if section_name is not None:
-            return section_name
-
-        if style:
-            realm = style.realm
-            internal_name = style.internal_name
-        if realm:
-            realm = realm.capitalize()
-        return f"{realm}:{internal_name}"
 
     def write_idtt(self) -> None:
         """The main conversion loop: parse document, write tagged text"""
@@ -924,7 +886,7 @@ class WordProcessorToInDesignTaggedText:
 
     def activate_style(self, style: Style) -> None:
         """Define the style if needed."""
-        section_name = self.fix_section_name(
+        section_name = self.settings.fix_section_name(
             realm=style.realm, internal_name=style.internal_name
         )
         if section_name in self.style_sections_used:
@@ -940,68 +902,13 @@ class WordProcessorToInDesignTaggedText:
             self.activate_style(style.parent_style)
 
         logging.debug("Activating %s", style)
-        self.update_setting_section(section_name, style)
+        self.settings.update_section(section_name, style)
         self.style_sections_used.add(section_name)
 
         if style.next_style is not None and style.next_style.used:
             self.activate_style(style.next_style)
         elif style.next_wpid:
             logging.debug("[%s] leads to missing %r", section_name, style.next_wpid)
-
-    def get_setting_section(
-        self,
-        section_name: str | None = None,
-        realm: str | None = None,
-        internal_name: str | None = None,
-        style: OptionalStyle = None,
-    ) -> ConfigSection:
-        """Return a section from the ini file.
-
-        If no such section exists, return a new dict, but don't add it
-        to the configuration.
-        """
-        actual_name = self.fix_section_name(
-            section_name=section_name,
-            realm=realm,
-            internal_name=internal_name,
-            style=style,
-        )
-
-        if self.settings.has_section(actual_name):
-            return self.settings[actual_name]
-        return {}
-
-    def ensure_setting_section(
-        self,
-        section_name: str | None = None,
-        realm: str | None = None,
-        internal_name: str | None = None,
-        style: OptionalStyle = None,
-    ) -> ConfigSection:
-        """Return a section from the ini file, adding one if needed."""
-        actual_name = self.fix_section_name(
-            section_name=section_name,
-            realm=realm,
-            internal_name=internal_name,
-            style=style,
-        )
-        if not self.settings.has_section(actual_name):
-            self.settings[actual_name] = {}
-        return self.settings[actual_name]
-
-    def update_setting_section(self, section_name: str, style: Style) -> None:
-        """Update key:value pairs in an ini section.
-
-        Sets `self.settings_touched` if anything was changed.
-        """
-        section = self.ensure_setting_section(section_name)
-        for name, ini_name in ini_fields(Style):
-            value = getattr(style, name)
-            self.settings_touched |= section.get(ini_name) != value
-            if value:
-                section[ini_name] = str(value or "")
-            else:
-                section.pop(ini_name, None)
 
     @classmethod
     def quote_fn(cls, path: Path | str) -> str:
