@@ -1,4 +1,4 @@
-- <w:position w:val="-4"/>
+- use alt-text as picture name (alt-text-to-path ini)
 - Images: link to cache? Not a good idea
 - Images: Clear older?
 - DOCX: find default RTL
