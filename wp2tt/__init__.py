@@ -761,7 +761,6 @@ class WordProcessorToInDesignTaggedText:
         """Write an image placeholder"""
         prev = self.switch_character_style(style)
         if path.is_relative_to(self.output_dir):
-            logging.debug("%s is relative to %s", path, self.output_dir)
             self.writer.write_text(str(path.relative_to(self.output_dir)))
         else:
             self.writer.write_text(str(path))
