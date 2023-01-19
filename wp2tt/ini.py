@@ -53,10 +53,14 @@ class SettingsFile(configparser.ConfigParser):
 
     def find_image(self, key) -> Path | None:
         """Look for an image"""
-        try:
-            return self.base / self.images[key]
-        except (KeyError, TypeError):
+        if self.images is None:
             return None
+
+        if key in self.images and (value := self.images[key]):
+            return self.base / value
+
+        self.images[key] = ""  # Let them know
+        return None
 
     def fields(self, klass, writeable=False) -> Iterable[tuple[str, str]]:
         """Yields a pair (name, ini_name) for all attributes."""
