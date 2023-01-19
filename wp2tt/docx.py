@@ -28,19 +28,21 @@ from wp2tt.zip import ZipDocument
 class WordXml:
     """Basic helper class for the Word XML format."""
 
-    _W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
-    _W14 = "http://schemas.microsoft.com/office/word/2010/wordml"
     _A = "http://schemas.openxmlformats.org/drawingml/2006/main"
     _M = "http://schemas.openxmlformats.org/officeDocument/2006/math"
     _R = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
     _REL = "http://schemas.openxmlformats.org/package/2006/relationships"
+    _W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+    _W14 = "http://schemas.microsoft.com/office/word/2010/wordml"
+    _WP = "http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"
     _NS = {
-        "w": _W,
-        "w14": _W14,
         "a": _A,
+        "m": _M,
         "r": _R,
         "rel": _REL,
-        "m": _M,
+        "w": _W,
+        "w14": _W14,
+        "wp": _WP,
     }
 
     @classmethod
@@ -261,8 +263,8 @@ class DocxParagraph(DocxNode, IDocumentParagraph):
             if node.tag == self._mtag("oMath"):
                 yield DocxFormula(node)
             else:
-                for blip in self.xpath(node, "w:drawing//a:blip[@r:embed]"):
-                    yield DocxImage(self.doc, blip)
+                for drawing in self.xpath(node, "w:drawing[//a:blip[@r:embed]]"):
+                    yield DocxImage(self.doc, drawing)
                     break
                 else:
                     yield DocxSpan(self.doc, node)
@@ -346,20 +348,28 @@ class DocxSpan(DocxNode, IDocumentSpan):
 
 class DocxImage(DocxNode, IDocumentImage):
     """An image inside a .docx."""
-    blip: PurePosixPath
+    descr: str | None = None
+    target: PurePosixPath
 
-    def __init__(self, doc: DocxInput, blip: etree._Entity):
-        super().__init__(doc, blip)
-        rid = blip.get(self._rtag("embed"))
+    def __init__(self, doc: DocxInput, drawing: etree._Entity):
+        super().__init__(doc, drawing)
+        for prop in self._node_xpath("./wp:inline/wp:docPr[@descr]"):
+            self.descr = prop.get("descr")
+
         rels = self.doc.relationships
-        for rel in self.doc.xpath(rels, f'//rel:Relationship[@Id="{rid}"]'):
-            self.blip = PurePosixPath("word") / rel.get("Target")
+        for blip in self._node_xpath(".//a:blip[@r:embed]"):
+            rid = blip.get(self._rtag("embed"))
+            for rel in self.doc.xpath(rels, f'//rel:Relationship[@Id="{rid}"]'):
+                self.target = PurePosixPath("word") / rel.get("Target")
+
+    def alt_text(self) -> str | None:
+        return self.descr
 
     def suffix(self) -> str:
-        return self.blip.suffix
+        return self.target.suffix
 
     def save(self, path: Path):
-        with self.doc.zip.open(str(self.blip)) as ifo, open(path, "wb") as ofo:
+        with self.doc.zip.open(str(self.target)) as ifo, open(path, "wb") as ofo:
             ofo.write(ifo.read())
 
 

@@ -151,7 +151,7 @@ class WordProcessorToInDesignTaggedText:
             self.output_fn = self.args.input.with_suffix(".txt")
 
         self.output_stem = self.output_fn.stem
-        self.output_dir = self.output_fn.parent
+        self.output_dir = self.output_fn.parent.resolve()
         self.settings_fn = self.output_fn.with_suffix(".ini")
         self.rerunner_fn = Path(f"{self.output_fn}.rerun")
         self.stop_marker = self.args.stop_at
@@ -717,12 +717,25 @@ class WordProcessorToInDesignTaggedText:
         self.image_dir.mkdir(parents=True, exist_ok=True)
         return self.image_dir / f"{self.output_stem}-{infix}-{count:03d}{suffix}"
 
-    def convert_image(self, span: IDocumentImage):
+    def convert_image(self, img: IDocumentImage):
         """Save an image, keep a placeholder in the output"""
-        suffix = span.suffix()
+        path = self.find_image(img) or self.extract_image(img)
+        self.write_image_link(path, self.image_style)
+
+    def find_image(self, img: IDocumentImage) -> Path | None:
+        """For an image with alt-text, try to look that up"""
+        key = img.alt_text()
+        if not key:
+            return None
+
+        return self.settings.find_image(key)
+
+    def extract_image(self, img: IDocumentImage) -> Path:
+        """Save image to file, optionally converting it"""
+        suffix = img.suffix()
         path = self.next_image_fn("image", suffix)
         logging.debug("Writing %s", path)
-        span.save(path)
+        img.save(path)
 
         if suffix == ".emf" and not self.args.no_emf2svg:
             svg = path.with_suffix(".svg")
@@ -742,13 +755,16 @@ class WordProcessorToInDesignTaggedText:
                 self.svg2png(svg, path)
                 path = svg
                 self.cache.put(path, cached)
-
-        self.write_image_link(path, self.image_style)
+        return path
 
     def write_image_link(self, path: Path, style: Style):
         """Write an image placeholder"""
         prev = self.switch_character_style(style)
-        self.writer.write_text(str(path.relative_to(self.output_dir)))
+        if path.is_relative_to(self.output_dir):
+            logging.debug("%s is relative to %s", path, self.output_dir)
+            self.writer.write_text(str(path.relative_to(self.output_dir)))
+        else:
+            self.writer.write_text(str(path))
         self.switch_character_style(prev)
 
     def convert_formula(self, formula: IDocumentFormula):

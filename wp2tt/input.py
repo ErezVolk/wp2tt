@@ -93,6 +93,10 @@ class IDocumentSpan(ABC):
 class IDocumentImage(ABC):
     """An image inside a document."""
 
+    def alt_text(self) -> str | None:
+        """Alternative text, if it exists"""
+        return None
+
     @abstractmethod
     def suffix(self) -> str:
         """Extension (e.g., ".jpeg")."""

@@ -21,20 +21,42 @@ ConfigSection = (configparser.SectionProxy | dict[str, str])
 class SettingsFile(configparser.ConfigParser):
     """Settings .ini file"""
     ENCODING = "UTF-8"
+    IMAGE_SECTION = "Images"
+    BASE_KEY = "__base__"
+
     path: Path
     touched: bool = False
+    images: configparser.SectionProxy | None = None
+    base: Path
 
     def __init__(self, path: Path, fresh_start: bool = False):
         """Read ini file"""
         super().__init__()
         self.path = path
-        if not fresh_start and self.exists():
-            logging.info("Reading %s", self.path)
-            self.read(path, encoding=self.ENCODING)
+        self.base = self.path.parent.resolve()
+
+        if fresh_start or not self.exists():
+            return
+
+        logging.info("Reading %s", self.path)
+        self.read(path, encoding=self.ENCODING)
+        try:
+            self.images = self[self.IMAGE_SECTION]
+            self.base = self.base / self.images[self.BASE_KEY]
+            logging.debug("Image base: %s", self.base)
+        except KeyError:
+            pass
 
     def exists(self) -> bool:
         """Does the .ini file currently exist"""
         return self.path.is_file()
+
+    def find_image(self, key) -> Path | None:
+        """Look for an image"""
+        try:
+            return self.base / self.images[key]
+        except (KeyError, TypeError):
+            return None
 
     def fields(self, klass, writeable=False) -> Iterable[tuple[str, str]]:
         """Yields a pair (name, ini_name) for all attributes."""
