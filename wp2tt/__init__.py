@@ -174,12 +174,6 @@ class WordProcessorToInDesignTaggedText:
             format="%(asctime)s %(message)s",
             level=logging.DEBUG if self.args.debug else logging.INFO,
         )
-        if self.args.debug:
-            from os import environ
-            logging.debug("ENVIRONMENT:")
-            mlen = max(len(k) for k in environ)
-            for k, v in sorted(environ.items()):
-                logging.debug(f"  {k.ljust(mlen)}  {repr(v)}")
 
     def read_settings(self):
         """Read and parse the ini file."""
