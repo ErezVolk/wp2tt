@@ -1,3 +1,4 @@
+- <w:position w:val="-4"/>
 - Images: link to cache? Not a good idea
 - Images: Clear older?
 - DOCX: find default RTL

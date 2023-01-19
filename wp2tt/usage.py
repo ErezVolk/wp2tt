@@ -142,10 +142,17 @@ class Wp2ttParser(ArgumentParser):
             type=Path,
             help="Cache directory for converted files like SVG",
         )
-        self.add_argument(
+        group = self.add_mutually_exclusive_group()
+        group.add_argument(
             "--remove-old-images",
             action="store_true",
             help="Remove all old img-* folders",
+        )
+        group.add_argument(
+            "--remove-old-images-if-indesign",
+            "-R",
+            action="store_true",
+            help="Remove all old img-* folders iff running inside InDesign",
         )
 
     def write_rerunner(self, rerunner: Path, args: Namespace):
@@ -172,6 +179,7 @@ class Wp2ttParser(ArgumentParser):
             self._add_flag(cli, args, "no_emf2svg")
             self._add_flag(cli, args, "no_svg2png")
             self._add_flag(cli, args, "remove_old_images")
+            self._add_flag(cli, args, "remove_old_images_if_indesign")
             self._add_flag(cli, args, "vav")
             if args.formula_font_size:
                 cli.append("--formula-font-size")

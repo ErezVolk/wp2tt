@@ -6,13 +6,13 @@ import contextlib
 from datetime import datetime
 import itertools
 import logging
+import os
 from pathlib import Path
 import re
 import shlex
 import shutil
 import subprocess
 
-from os import PathLike
 from typing import Iterator
 from typing import Mapping
 
@@ -174,6 +174,12 @@ class WordProcessorToInDesignTaggedText:
             format="%(asctime)s %(message)s",
             level=logging.DEBUG if self.args.debug else logging.INFO,
         )
+        if self.args.debug:
+            from os import environ
+            logging.debug("ENVIRONMENT:")
+            mlen = max(len(k) for k in environ)
+            for k, v in sorted(environ.items()):
+                logging.debug(f"  {k.ljust(mlen)}  {repr(v)}")
 
     def read_settings(self):
         """Read and parse the ini file."""
@@ -494,7 +500,11 @@ class WordProcessorToInDesignTaggedText:
         self.output_dir.mkdir(parents=True, exist_ok=True)
         now = datetime.now()
         self.image_dir = self.output_dir / now.strftime("img-%Y%m%d-%H%M")
-        if self.args.remove_old_images:
+        if self.args.remove_old_images_if_indesign:
+            remove_old = os.environ.get("__CFBundleIdentifier") == "com.adobe.InDesign"
+        else:
+            remove_old = self.args.remove_old_images
+        if remove_old:
             for path in self.output_dir.glob("img-????????-????"):
                 if path.is_dir():
                     logging.debug("Removing %s", path)
@@ -820,7 +830,7 @@ class WordProcessorToInDesignTaggedText:
         with open(path_like.with_suffix(".png"), "wb") as fobj:
             fobj.write(cairosvg.svg2png(svg))
 
-    def read_file(self, path: str | PathLike) -> bytes:
+    def read_file(self, path: str | os.PathLike) -> bytes:
         """Read contents of a file"""
         with open(path, "rb") as fobj:
             return fobj.read()
