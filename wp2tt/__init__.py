@@ -312,6 +312,12 @@ class WordProcessorToInDesignTaggedText:
             style.parent_style = self.style_or_none(style.realm, style.parent_wpid)
             style.next_style = self.style_or_none(style.realm, style.next_wpid)
 
+    def define_styles(self) -> None:
+        """Write (partial) style definition section"""
+        for style in self.styles.values():
+            if style.used:
+                self.writer.define_style(style)
+
     def style_or_none(self, realm: str, wpid: str) -> OptionalStyle:
         """Given a realm/wpid pair, return our internal Style object"""
         if not wpid:
@@ -448,6 +454,7 @@ class WordProcessorToInDesignTaggedText:
         self.set_state(State())
         self.create_output()
         with InDesignTaggedTextOutput(self.doc.properties) as self.writer:
+            self.define_styles()
             self.convert_document()
             self.write_output()
 
