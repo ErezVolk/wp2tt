@@ -59,6 +59,13 @@ class SettingsFile(configparser.ConfigParser):
         if key in self.images and (value := self.images[key]):
             return self.base / value
 
+        # Maybe the key *is* the file name?!
+        maybe = self.base / key
+        if maybe.is_file:
+            logging.debug("Guessing that {key} is {maybe}")
+            self.images[key] = key
+            return maybe
+
         self.images[key] = ""  # Let them know
         return None
 
