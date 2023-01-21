@@ -298,13 +298,18 @@ class WordProcessorToInDesignTaggedText:
 
     def scan_style_mentions(self) -> None:
         """Mark which styles are actually used."""
+        realms = set()
         for realm, wpid in self.doc.styles_in_use():
+            realms.add(realm)
             style_key = self.style_key(realm=realm, wpid=wpid)
             if style_key not in self.styles:
                 logging.debug("Used but not defined? %r", style_key)
             elif not self.styles[style_key].used:
                 logging.debug("Style used: %r", style_key)
                 self.styles[style_key].used = True
+        if "table" in realms:
+            logging.debug("Here be tables")
+            self.table_paragraph_style.used = True
 
     def link_styles(self) -> None:
         """A sort of alchemy-relationship thing."""
