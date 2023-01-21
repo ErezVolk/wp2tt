@@ -1,6 +1,4 @@
-- use alt-text as picture name (alt-text-to-path ini)
-- Images: link to cache? Not a good idea
-- Images: Clear older?
+- Tagged Text: Write ALL styles at the beginning
 - DOCX: find default RTL
 - DOCX: <w:bookmarkStart w:name="X"/> / <w:instrText>PAGEREF ..
 - ODT: footnotes
