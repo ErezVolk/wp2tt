@@ -190,7 +190,7 @@ class Wp2ttParser(ArgumentParser):
                 cli.append("--formula-font-size")
                 cli.append(str(args.formula_font_size))
             if args.max_table_cols:
-                cli.append("--max_table_cols")
+                cli.append("--max-table-cols")
                 cli.append(str(args.max_table_cols))
             if args.append:
                 cli.append("--append")
