@@ -36,7 +36,7 @@ class IDocumentParagraph(ABC):
     """A Paragraph inside a document."""
 
     @abstractmethod
-    def style_wpid(self):
+    def style_wpid(self) -> str | None:
         """Returns the wpid for this paragraph's style."""
         raise NotImplementedError()
 
@@ -136,6 +136,11 @@ class IDocumentTable(ABC):
     @abstractmethod
     def shape(self) -> tuple[int, int]:
         """(number of rows, number of columns)"""
+
+    @property
+    def header_rows(self) -> int:
+        """Number of header rows"""
+        return 0
 
     @abstractmethod
     def rows(self) -> Iterable["IDocumentTableRow"]:

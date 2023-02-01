@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Utility classes"""
+import argparse
 from collections.abc import Sequence
 import contextlib
 import logging
@@ -12,23 +13,30 @@ from wp2tt.input import IDocumentParagraph
 from wp2tt.input import IDocumentTable
 from wp2tt.docx import DocxInput
 from wp2tt.markdown import MarkdownInput
+from wp2tt.ods import OdsInput
 from wp2tt.odt import XodtInput
 from wp2tt.styles import DocumentProperties
 
 
 class ProxyInput(IDocumentInput, contextlib.ExitStack):
     """Just a proxy IDocumentInput"""
+    args: argparse.Namespace | None
+
+    def __init__(self, args: argparse.Namespace | None = None):
+        super().__init__()
+        self.args = args
 
 
 class MultiInput(ProxyInput):
     """Input from multiple files."""
+    _args: argparse.Namespace | None
 
-    def __init__(self, paths: Sequence[Path]):
-        super().__init__()
+    def __init__(self, paths: Sequence[Path], args: argparse.Namespace | None = None):
+        super().__init__(args)
         self._paths = paths
         self._inputs: list[IDocumentInput] = []
         for path in paths:
-            one = ByExtensionInput(path)
+            one = ByExtensionInput(path, self.args)
             self._inputs.append(one)
             self.enter_context(one)
 
@@ -77,8 +85,8 @@ class ByExtensionInput(ProxyInput):
 
     _input: IDocumentInput
 
-    def __init__(self, path: Path):
-        super().__init__()
+    def __init__(self, path: Path, args: argparse.Namespace | None = None):
+        super().__init__(args)
         ext = path.suffix.lower()
         if ext == ".docx":
             self._input = DocxInput(path)
@@ -88,6 +96,8 @@ class ByExtensionInput(ProxyInput):
             self._input = XodtInput(path, zipped=False)
         elif ext == ".md":
             self._input = MarkdownInput(path)
+        elif ext == ".ods":
+            self._input = OdsInput(path, args)
         else:
             raise RuntimeError(f"Unknown file extension for {path}")
         self.enter_context(self._input)

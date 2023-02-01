@@ -225,8 +225,8 @@ class WordProcessorToInDesignTaggedText:
     def create_reader(self) -> ProxyInput:
         """Create the approriate document reader object"""
         if self.args.append:
-            return MultiInput([self.args.input] + self.args.append)
-        return ByExtensionInput(self.args.input)
+            return MultiInput([self.args.input] + self.args.append, self.args)
+        return ByExtensionInput(self.args.input, self.args)
 
     def scan_style_definitions(self) -> None:
         """Create a Style object for everything in the document."""
@@ -516,7 +516,13 @@ class WordProcessorToInDesignTaggedText:
         (rows, cols) = table.shape
         rtl = table.format() & ManualFormat.RTL == ManualFormat.RTL
         style = self.style("table", table.style_wpid())
-        self.writer.enter_table(rows=rows, cols=cols, rtl=rtl, style=style)
+        self.writer.enter_table(
+            rows=rows,
+            cols=cols,
+            header_rows=table.header_rows,
+            rtl=rtl,
+            style=style,
+        )
         for row in table.rows():
             self.writer.enter_table_row()
             for cell in row.cells():

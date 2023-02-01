@@ -19,3 +19,4 @@ dist
 test.*
 ~*.idlk
 sandbox
+*.ods

@@ -131,6 +131,11 @@ class Wp2ttParser(ArgumentParser):
             type=int,
             help="Font size in points for converted formulas",
         )
+        self.add_argument(
+            "--max-table-cols",
+            type=int,
+            help="Maximum columns for tables",
+        )
         group = self.add_mutually_exclusive_group()
         group.add_argument(
             "--no-cache",
@@ -184,6 +189,9 @@ class Wp2ttParser(ArgumentParser):
             if args.formula_font_size:
                 cli.append("--formula-font-size")
                 cli.append(str(args.formula_font_size))
+            if args.max_table_cols:
+                cli.append("--max_table_cols")
+                cli.append(str(args.max_table_cols))
             if args.append:
                 cli.append("--append")
                 cli.extend([self._quote(path) for path in args.append])

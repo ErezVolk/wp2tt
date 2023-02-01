@@ -27,7 +27,14 @@ class IOutput(ABC):
         """Finalize paragraph."""
         raise NotImplementedError()
 
-    def enter_table(self, rows: int, cols: int, rtl: bool = False, style: OptionalStyle = None):
+    def enter_table(
+        self,
+        rows: int,
+        cols: int,
+        header_rows: int = 0,
+        rtl: bool = False,
+        style: OptionalStyle = None,
+    ):
         """Start a table with a specified style."""
         raise NotImplementedError()
 

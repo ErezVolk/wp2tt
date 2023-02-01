@@ -35,7 +35,9 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
         self._buffer = io.StringIO()
         self._styles: list[Style] = []
         self._headers_written = False
-        self._shades: Mapping[str, Iterator[int]] = collections.defaultdict(itertools.count)
+        self._shades: Mapping[str, Iterator[int]] = collections.defaultdict(
+            itertools.count
+        )
         if properties is None:
             self._properties = DocumentProperties()
         else:
@@ -127,11 +129,18 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
         self._write(">")
         self._write(">")
 
-    def enter_table(self, rows: int, cols: int, rtl: bool = False, style: OptionalStyle = None):
+    def enter_table(
+        self,
+        rows: int,
+        cols: int,
+        header_rows: int = 0,
+        rtl: bool = False,
+        style: OptionalStyle = None,
+    ):
         """Start a table"""
         self._set_style("Table", style)
         direction = "RTL" if rtl else "LTR"
-        self._write(f"<TableStart:{rows},{cols}:0:0:{direction}>")
+        self._write(f"<TableStart:{rows},{cols}:{header_rows}:0:{direction}>")
         self._in_table = True
 
     def leave_table(self) -> None:

@@ -25,6 +25,8 @@ setup(
         "cairosvg",
         "lxml",
         "mistune",
+        "pandas",
+        "pandas-ods-reader",
         "ziamath",
     ],
 )
