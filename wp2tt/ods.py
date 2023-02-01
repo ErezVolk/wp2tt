@@ -1,6 +1,7 @@
 """Simple ODS reader (via pandas)"""
 import argparse
 import contextlib
+import logging
 from pathlib import Path
 import re
 from typing import Iterable
@@ -45,9 +46,17 @@ class OdsInput(contextlib.ExitStack, IDocumentInput):
             return
         cols = self._frame.columns
         if args.max_table_cols:
-            self._frame = self._frame[cols[:args.max_table_cols]]
+            cols = cols[:args.max_table_cols]
         elif args.table_cols:
-            self._frame = self._frame[[cols[idx - 1] for idx in args.table_cols]]
+            logging.debug(
+                "Table column indexes: %s",
+                " ".join(repr(col) for col in args.table_cols)
+            )
+            cols = [cols[idx - 1] for idx in args.table_cols]
+        else:
+            return
+        logging.debug("Using columns: %s", ", ".join(cols))
+        self._frame = self._frame[cols]
 
     @property
     def properties(self) -> DocumentProperties:
