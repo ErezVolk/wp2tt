@@ -28,6 +28,10 @@ class Wpids:
     def rtl(cls, style):
         return f"{style} (RTL)"
 
+    @classmethod
+    def number(cls, style):
+        return f"{style} (Number)"
+
 
 class OdsInput(contextlib.ExitStack, IDocumentInput):
     """Simple ODS reader (via pandas)"""
@@ -37,8 +41,13 @@ class OdsInput(contextlib.ExitStack, IDocumentInput):
     def __init__(self, path: Path, args: argparse.Namespace | None = None):
         super().__init__()
         self._frame = read_ods(path)
-        if args and args.max_table_cols:
-            self._frame = self._frame[self._frame.columns[:args.max_table_cols]]
+        if not args:
+            return
+        cols = self._frame.columns
+        if args.max_table_cols:
+            self._frame = self._frame[cols[:args.max_table_cols]]
+        elif args.table_cols:
+            self._frame = self._frame[[cols[idx - 1] for idx in args.table_cols]]
 
     @property
     def properties(self) -> DocumentProperties:
@@ -60,6 +69,8 @@ class OdsInput(contextlib.ExitStack, IDocumentInput):
             ("paragraph", Wpids.BODY_STYLE),
             ("paragraph", Wpids.rtl(Wpids.HEADER_STYLE)),
             ("paragraph", Wpids.rtl(Wpids.BODY_STYLE)),
+            ("paragraph", Wpids.number(Wpids.HEADER_STYLE)),
+            ("paragraph", Wpids.number(Wpids.BODY_STYLE)),
         ]
 
     def paragraphs(self) -> Iterable["DataFrameTable"]:
@@ -100,20 +111,22 @@ class DataFrameRow(IDocumentTableRow):
     def cells(self) -> Iterable[IDocumentTableCell]:
         """Iterates the cells in the row"""
         for item in self._items:
-            try:
+            if item is None:
+                item = ""
+            elif pd.api.types.is_number(item):
                 if item.is_integer():
                     item = int(item)
-            except AttributeError:
-                pass
             yield SimpleCell(str(item), self._wpid)
 
 
 class SimpleCell(IDocumentTableCell):
     """A cell that only holds a single piece of text"""
     def __init__(self, contents, wpid):
-        self._contents = contents
+        self._contents = contents.strip()
         if re.search(r"[\u0591-\u05F4\u0600-\u06FF]", contents):
             self._wpid = Wpids.rtl(wpid)
+        elif re.fullmatch(r"\d*\.?\d+", contents):
+            self._wpid = Wpids.number(wpid)
         else:
             self._wpid = wpid
 

@@ -1,9 +1,11 @@
 """ArgumentParser for this program."""
 from argparse import Action
 from argparse import ArgumentParser
+from argparse import ArgumentTypeError
 from argparse import Namespace
 import logging
 from pathlib import Path
+import re
 import shlex
 import sys
 
@@ -131,7 +133,13 @@ class Wp2ttParser(ArgumentParser):
             type=int,
             help="Font size in points for converted formulas",
         )
-        self.add_argument(
+        group = self.add_mutually_exclusive_group()
+        group.add_argument(
+            "--table-cols",
+            type=self.check_cols,
+            help="Table columns to use (comma-separated 1-based indexes)",
+        )
+        group.add_argument(
             "--max-table-cols",
             type=int,
             help="Maximum columns for tables",
@@ -159,6 +167,12 @@ class Wp2ttParser(ArgumentParser):
             action="store_true",
             help="Remove all old img-* folders iff running inside InDesign",
         )
+
+    def check_cols(self, value: str) -> list[int]:
+        """Validate --table-cols argument"""
+        if not re.fullmatch(r"(\d+,)*\d+", value):
+            raise ArgumentTypeError("Invalid --table-cols")
+        return [int(col) for col in value.split(",")]
 
     def write_rerunner(self, rerunner: Path, args: Namespace):
         """Write script to rerun the program"""
@@ -192,6 +206,9 @@ class Wp2ttParser(ArgumentParser):
             if args.max_table_cols:
                 cli.append("--max-table-cols")
                 cli.append(str(args.max_table_cols))
+            elif args.table_cols:
+                cli.append("--table-cols")
+                cli.append(",".join(str(col) for col in args.table_cols))
             if args.append:
                 cli.append("--append")
                 cli.extend([self._quote(path) for path in args.append])
