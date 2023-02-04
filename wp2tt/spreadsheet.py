@@ -1,4 +1,5 @@
-"""Simple ODS reader (via pandas)"""
+"""Simple spreadsheet reader (via pandas)"""
+from abc import abstractmethod
 import argparse
 import contextlib
 import logging
@@ -34,14 +35,14 @@ class Wpids:
         return f"{style} (Number)"
 
 
-class OdsInput(contextlib.ExitStack, IDocumentInput):
+class _SpreadsheetInput(contextlib.ExitStack, IDocumentInput):
     """Simple ODS reader (via pandas)"""
     _frame: pd.DataFrame
     _props: DocumentProperties = DocumentProperties()
 
     def __init__(self, path: Path, args: argparse.Namespace | None = None):
         super().__init__()
-        self._frame = read_ods(path)
+        self._frame = self._read_spreadsheet(path)
         if not args:
             return
         cols = self._frame.columns
@@ -57,6 +58,10 @@ class OdsInput(contextlib.ExitStack, IDocumentInput):
             return
         logging.debug("Using columns: %s", ", ".join(cols))
         self._frame = self._frame[cols]
+
+    @abstractmethod
+    def _read_spreadsheet(self, path: Path) -> pd.DataFrame:
+        """Read the file, according to the subclass"""
 
     @property
     def properties(self) -> DocumentProperties:
@@ -85,6 +90,19 @@ class OdsInput(contextlib.ExitStack, IDocumentInput):
     def paragraphs(self) -> Iterable["DataFrameTable"]:
         """Just the one table, for now."""
         yield DataFrameTable(self._frame)
+
+
+class OdsInput(_SpreadsheetInput):
+    """ODS reader"""
+
+    def _read_spreadsheet(self, path: Path) -> pd.DataFrame:
+        return read_ods(path)
+
+
+class CsvInput(_SpreadsheetInput):
+    """CSV reader"""
+    def _read_spreadsheet(self, path: Path) -> pd.DataFrame:
+        return pd.read_csv(path)
 
 
 class DataFrameTable(IDocumentTable):

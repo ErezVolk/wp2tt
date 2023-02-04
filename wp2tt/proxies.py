@@ -13,7 +13,8 @@ from wp2tt.input import IDocumentParagraph
 from wp2tt.input import IDocumentTable
 from wp2tt.docx import DocxInput
 from wp2tt.markdown import MarkdownInput
-from wp2tt.ods import OdsInput
+from wp2tt.spreadsheet import CsvInput
+from wp2tt.spreadsheet import OdsInput
 from wp2tt.odt import XodtInput
 from wp2tt.styles import DocumentProperties
 
@@ -96,8 +97,10 @@ class ByExtensionInput(ProxyInput):
             self._input = XodtInput(path, zipped=False)
         elif ext == ".md":
             self._input = MarkdownInput(path)
-        elif ext == ".ods":
+        elif ext in ".ods":
             self._input = OdsInput(path, args)
+        elif ext in ".csv":
+            self._input = CsvInput(path, args)
         else:
             raise RuntimeError(f"Unknown file extension for {path}")
         self.enter_context(self._input)
