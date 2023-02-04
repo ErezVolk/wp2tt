@@ -103,6 +103,11 @@ class Wp2ttParser(ArgumentParser):
             help="Do not (over)write the rerruner script",
         )
         self.add_argument(
+            "--no-input-rerunner",
+            action="store_true",
+            help="Do not run any input rerunners",
+        )
+        self.add_argument(
             "--direction",
             choices=["RTL", "LTR"],
             default="RTL",
@@ -196,6 +201,8 @@ class Wp2ttParser(ArgumentParser):
             self._add_flag(cli, args, "maqaf")
             self._add_flag(cli, args, "no_cache")
             self._add_flag(cli, args, "no_emf2svg")
+            self._add_flag(cli, args, "no_input_rerunner")
+            self._add_flag(cli, args, "no_rerunner")
             self._add_flag(cli, args, "no_svg2png")
             self._add_flag(cli, args, "remove_old_images")
             self._add_flag(cli, args, "remove_old_images_if_indesign")

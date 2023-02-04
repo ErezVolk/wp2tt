@@ -224,9 +224,28 @@ class WordProcessorToInDesignTaggedText:
 
     def create_reader(self) -> ProxyInput:
         """Create the approriate document reader object"""
-        if self.args.append:
-            return MultiInput([self.args.input] + self.args.append, self.args)
-        return ByExtensionInput(self.args.input, self.args)
+        inputs = [self.args.input] + (self.args.append or [])
+        if not self.args.no_input_rerunner:
+            self.consider_input_rerunners(inputs)
+        if len(inputs) > 1:
+            return MultiInput(inputs, self.args)
+        return ByExtensionInput(inputs[0], self.args)
+
+    def consider_input_rerunners(self, inputs: list[Path]):
+        """Look for input rerunners and run them"""
+        for path in inputs:
+            rerun = path.with_name(f"{path.name}.rerun")
+            if not rerun.is_file():
+                continue
+            logging.info("%s exists, trying to run it...", rerun)
+            try:
+                subprocess.run([str(rerun.resolve())], check=True)
+            except PermissionError:
+                logging.warning("No permission to run %s", rerun)
+            except subprocess.CalledProcessError as exc:
+                logging.error("%s exited with code %s", rerun, exc.returncode)
+            except OSError as exc:
+                logging.error("Error running %s: %s", rerun, exc)
 
     def scan_style_definitions(self) -> None:
         """Create a Style object for everything in the document."""
