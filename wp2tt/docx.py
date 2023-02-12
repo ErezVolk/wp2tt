@@ -396,8 +396,9 @@ class DocxTable(DocxNode, IDocumentTable):
             DocxTableRow(doc, row)
             for row in self.xpath(node, "./w:tr")
         ]
-        self.nrows = len(self.orows)
-        self.ncols = max(
+        self.n_header_rows = sum(row.is_header() for row in self.orows)
+        self.n_rows = len(self.orows)
+        self.n_cols = max(
             sum(cell.shape[1] for cell in row.cells())
             for row in self.orows
         )
@@ -415,7 +416,12 @@ class DocxTable(DocxNode, IDocumentTable):
     @property
     def shape(self) -> tuple[int, int]:
         """(number of rows, number of columns)"""
-        return (self.nrows, self.ncols)
+        return (self.n_rows, self.n_cols)
+
+    @property
+    def header_rows(self) -> int:
+        """Number of header rows"""
+        return self.n_header_rows
 
     def rows(self) -> Iterable["DocxTableRow"]:
         """Iterates the rows of the table"""
@@ -433,6 +439,12 @@ class DocxTableRow(DocxNode, IDocumentTableRow):
             DocxTableCell(doc, cell)
             for cell in self.xpath(node, "./w:tc")
         ]
+
+    def is_header(self) -> bool:
+        """True iff this row is a header row"""
+        for _ in self._node_xpath("./w:trPr/w:tblHeader"):
+            return True
+        return False
 
     def cells(self) -> Iterable["DocxTableCell"]:
         for cell in self.ocells:
