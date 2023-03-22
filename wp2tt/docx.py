@@ -83,6 +83,9 @@ class WordXml:
 
 class DocxInput(contextlib.ExitStack, WordXml, IDocumentInput):
     """A .docx reader."""
+    _wpid_prefix: str | None = None
+    _name_prefix: str | None = None
+
     def __init__(self, path: PathLike):
         super().__init__()
         self._read_docx(path)
@@ -115,9 +118,6 @@ class DocxInput(contextlib.ExitStack, WordXml, IDocumentInput):
         if nth > 1:
             self._wpid_prefix = f"d{nth}_"
             self._name_prefix = f"(D{nth}) "
-        else:
-            self._wpid_prefix = None
-            self._name_prefix = None
 
     def export_wpid(self, wpid: str | None) -> str | None:
         """Make wpid unique in multi-input scenario."""

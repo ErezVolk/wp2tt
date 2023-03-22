@@ -29,6 +29,7 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
     _curr_char_style: OptionalStyle = None
     _in_table: bool = False
     _extra_cells: int = 0
+    _newly_newlined: bool = False
 
     def __init__(self, properties: DocumentProperties | None = None):
         super().__init__()
@@ -206,6 +207,8 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
 
     def leave_footnote(self) -> None:
         """Close footnote, go ack to main text."""
+        if self._newly_newlined:
+            self._unwrite()
         self._write("<FootnoteEnd:>")
 
     def write_text(self, text: str) -> None:
@@ -223,6 +226,10 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
     def _write(self, string: str) -> None:
         if string:
             self._buffer.write(string)
+            self._newly_newlined = string[-1] == "\n"
+
+    def _unwrite(self) -> None:
+        self._buffer.seek(self._buffer.tell() - 1)
 
     @property
     def contents(self) -> str:
