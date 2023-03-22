@@ -13,6 +13,11 @@ from wp2tt.styles import DocumentProperties
 class IDocumentInput(ABC):
     """A document."""
 
+    def set_nth(self, nth: int):
+        """When supported, make all IDs globally unique"""
+        if nth > 1:
+            print(f"{type(self).__name__}.set_nth(): Not implemented")
+
     @property
     @abstractmethod
     def properties(self) -> DocumentProperties:
@@ -23,7 +28,7 @@ class IDocumentInput(ABC):
         """Yield a Style object kwargs for every style defined in the document."""
         raise NotImplementedError()
 
-    def styles_in_use(self) -> Iterable[tuple[str, str]]:
+    def styles_in_use(self) -> Iterable[tuple[str, str | None]]:
         """Yield a pair (realm, wpid) for every style used in the document."""
         raise NotImplementedError()
 

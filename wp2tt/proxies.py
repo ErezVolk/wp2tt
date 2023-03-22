@@ -36,8 +36,9 @@ class MultiInput(ProxyInput):
         super().__init__(args)
         self._paths = paths
         self._inputs: list[IDocumentInput] = []
-        for path in paths:
+        for nth, path in enumerate(paths, 1):
             one = ByExtensionInput(path, self.args)
+            one.set_nth(nth)
             self._inputs.append(one)
             self.enter_context(one)
 
@@ -104,6 +105,9 @@ class ByExtensionInput(ProxyInput):
         else:
             raise RuntimeError(f"Unknown file extension for {path}")
         self.enter_context(self._input)
+
+    def set_nth(self, nth):
+        self._input.set_nth(nth)
 
     @property
     def properties(self):

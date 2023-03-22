@@ -111,6 +111,26 @@ class DocxInput(contextlib.ExitStack, WordXml, IDocumentInput):
     def properties(self) -> DocumentProperties:
         return self._properties
 
+    def set_nth(self, nth: int):
+        if nth > 1:
+            self._wpid_prefix = f"d{nth}_"
+            self._name_prefix = f"(D{nth}) "
+        else:
+            self._wpid_prefix = None
+            self._name_prefix = None
+
+    def export_wpid(self, wpid: str | None) -> str | None:
+        """Make wpid unique in multi-input scenario."""
+        if wpid is None or self._wpid_prefix is None:
+            return wpid
+        return f"{self._wpid_prefix}{wpid}"
+
+    def export_name(self, name: str | None) -> str | None:
+        """Make style name unique in multi-input scenario."""
+        if name is None or self._name_prefix is None:
+            return name
+        return f"{self._name_prefix}{name}"
+
     def styles_defined(self) -> Iterable[dict[str, Any]]:
         """Yield a Style object kwargs for every style defined in the document."""
         styles = self.zip.load_xml("word/styles.xml")
@@ -120,10 +140,10 @@ class DocxInput(contextlib.ExitStack, WordXml, IDocumentInput):
             fmt &= ~(ManualFormat.LTR | ManualFormat.RTL)
             yield {
                 "realm": stag.get(self._wtag("type")),
-                "internal_name": self._wval(stag, "w:name"),
-                "wpid": stag.get(self._wtag("styleId")),
-                "parent_wpid": self._wval(stag, "w:basedOn"),
-                "next_wpid": self._wval(stag, "w:next"),
+                "internal_name": self.export_name(self._wval(stag, "w:name")),
+                "wpid": self.export_wpid(stag.get(self._wtag("styleId"))),
+                "parent_wpid": self.export_wpid(self._wval(stag, "w:basedOn")),
+                "next_wpid": self.export_wpid(self._wval(stag, "w:next")),
                 "custom": stag.get(self._wtag("customStyle")),
                 "fmt": fmt,
             }
@@ -140,13 +160,13 @@ class DocxInput(contextlib.ExitStack, WordXml, IDocumentInput):
         for tag, realm in _TAG_TO_REALM.items()
     }
 
-    def styles_in_use(self) -> Iterable[tuple[str, str]]:
+    def styles_in_use(self) -> Iterable[tuple[str, str | None]]:
         """Yield a pair (realm, wpid) for every style used in the document."""
         for node in (self.document, self.footnotes, self.comments):
             if node is None:
                 continue
             for snode in self.xpath(node, self.TAG_XPATH):
-                wpid = snode.get(self._wtag("val"))
+                wpid = self.export_wpid(snode.get(self._wtag("val")))
                 yield (self.WTAG_TO_REALM[snode.tag], wpid)
 
     def paragraphs(self) -> Iterable["DocxParagraph | DocxTable"]:
@@ -250,7 +270,7 @@ class DocxParagraph(DocxNode, IDocumentParagraph):
         return False
 
     def style_wpid(self) -> str | None:
-        return self._node_wval("./w:pPr/w:pStyle")
+        return self.doc.export_wpid(self._node_wval("./w:pPr/w:pStyle"))
 
     def text(self) -> Iterable[str]:
         """Yields strings of plain text."""
@@ -300,7 +320,7 @@ class DocxSpan(DocxNode, IDocumentSpan):
         return repr(" ".join(t for t in self.text() if t is not None))
 
     def style_wpid(self) -> str | None:
-        return self._node_wval("w:rPr/w:rStyle")
+        return self.doc.export_wpid(self._node_wval("w:rPr/w:rStyle"))
 
     def footnotes(self) -> Iterable["DocxFootnote"]:
         for fnr in self._node_xpath("w:footnoteReference"):
@@ -405,7 +425,7 @@ class DocxTable(DocxNode, IDocumentTable):
 
     def style_wpid(self) -> str | None:
         """Returns the wpid for this table's style."""
-        return self._node_wval("w:tblPr/w:tblStyle")
+        return self.doc.export_wpid(self._node_wval("w:tblPr/w:tblStyle"))
 
     def format(self) -> ManualFormat:
         """Table formatting (RTL is all we care about"""
