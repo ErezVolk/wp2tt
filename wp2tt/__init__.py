@@ -835,8 +835,13 @@ class WordProcessorToInDesignTaggedText:
         if isinstance(svg, Path):
             with open(svg, "rb") as fobj:
                 svg = fobj.read()
-        with open(path_like.with_suffix(".png"), "wb") as fobj:
-            fobj.write(cairosvg.svg2png(svg))
+        path = path_like.with_suffix(".png")
+        with open(path, "wb") as fobj:
+            png = cairosvg.svg2png(svg)
+            if isinstance(png, bytes):
+                fobj.write(png)
+            else:
+                logging.warning("Cannot convert %s", path)
 
     def read_file(self, path: str | os.PathLike) -> bytes:
         """Read contents of a file"""

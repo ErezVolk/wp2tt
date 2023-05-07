@@ -50,14 +50,11 @@ class _SpreadsheetInput(contextlib.ExitStack, IDocumentInput):
         self._frame = self._read_spreadsheet(path)
         if not args:
             return
-        cols = self._frame.columns
+        cols = [str(col) for col in self._frame.columns]
         if args.max_table_cols:
             cols = cols[:args.max_table_cols]
         elif args.table_cols:
-            logging.debug(
-                "Table column indexes: %s",
-                " ".join(repr(col) for col in args.table_cols)
-            )
+            logging.debug("Table column indexes: %s", " ".join(args.table_cols))
             cols = [cols[idx - 1] for idx in args.table_cols]
         else:
             return
@@ -81,14 +78,22 @@ class _SpreadsheetInput(contextlib.ExitStack, IDocumentInput):
 
     def _para_styles(self, name: str, parent: str | None = None) -> Iterable[dict[str, str]]:
         """Helper for `self.styles_defined()`"""
-        yield {"realm": "paragraph", "wpid": name, "internal_name": name, "parent_wpid": parent}
-        yield {"realm": "paragraph", "wpid": Wpids.rtl(name), "internal_name": Wpids.rtl(name), "parent_wpid": name}
-        yield {"realm": "paragraph", "wpid": Wpids.number(name), "internal_name": Wpids.number(name), "parent_wpid": name}
+        child = {"realm": "paragraph", "wpid": name, "internal_name": name}
+        if parent is not None:
+            child["parent_wpid"] = parent
+        yield child
+        for func in [Wpids.rtl, Wpids.number]:
+            alt_name = func(name)
+            yield dict(child) | {
+                "wpid": alt_name,
+                "internal_name": alt_name,
+                "parent_wpid": name,
+            }
 
     def styles_in_use(self) -> Iterable[tuple[str, str]]:
         """Basic styles"""
         for style_dict in self.styles_defined():
-            yield {style_dict["realm"], style_dict["wpid"]}
+            yield (style_dict["realm"], style_dict["wpid"])
 
     def paragraphs(self) -> Iterable["DataFrameTable"]:
         """Just the one table, for now."""
@@ -105,15 +110,16 @@ class OdsInput(_SpreadsheetInput):
 class CsvInput(_SpreadsheetInput):
     """CSV reader"""
     def _read_spreadsheet(self, path: Path) -> pd.DataFrame:
-        frame = pd.read_csv(path)
+        frame = pd.read_csv(path).fillna("")
         self._column_wpids = [Wpids.column(col) for col in frame.columns]
         return frame
 
     def styles_defined(self) -> Iterable[dict[str, str]]:
         """CSV files get per-columns styles"""
         yield from super().styles_defined()
-        for wpid in self._column_wpids:
-            yield from self._para_styles(wpid, parent=Wpids.BODY_STYLE)
+        if self._column_wpids is not None:
+            for wpid in self._column_wpids:
+                yield from self._para_styles(wpid, parent=Wpids.BODY_STYLE)
 
 
 class DataFrameTable(IDocumentTable):
