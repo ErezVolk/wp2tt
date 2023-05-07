@@ -34,11 +34,16 @@ class Wpids:
     def number(cls, style):
         return f"{style} (Number)"
 
+    @classmethod
+    def column(cls, name):
+        return f"Spreadsheet Column ({name})"
+
 
 class _SpreadsheetInput(contextlib.ExitStack, IDocumentInput):
     """Simple ODS reader (via pandas)"""
     _frame: pd.DataFrame
     _props: DocumentProperties = DocumentProperties()
+    _column_wpids: list[str] | None = None
 
     def __init__(self, path: Path, args: argparse.Namespace | None = None):
         super().__init__()
@@ -69,27 +74,25 @@ class _SpreadsheetInput(contextlib.ExitStack, IDocumentInput):
         return self._props
 
     def styles_defined(self) -> Iterable[dict[str, str]]:
-        """Not supported yet"""
-        return [
-            {"realm": realm, "wpid": wpid, "internal_name": wpid}
-            for realm, wpid in self.styles_in_use()
-        ]
+        """Styles defined"""
+        yield {"realm": "table", "wpid": Wpids.TABLE_STYLE, "internal_name": Wpids.TABLE_STYLE}
+        for name in [Wpids.HEADER_STYLE, Wpids.BODY_STYLE]:
+            yield from self._para_styles(name)
+
+    def _para_styles(self, name: str, parent: str | None = None) -> Iterable[dict[str, str]]:
+        """Helper for `self.styles_defined()`"""
+        yield {"realm": "paragraph", "wpid": name, "internal_name": name, "parent_wpid": parent}
+        yield {"realm": "paragraph", "wpid": Wpids.rtl(name), "internal_name": Wpids.rtl(name), "parent_wpid": name}
+        yield {"realm": "paragraph", "wpid": Wpids.number(name), "internal_name": Wpids.number(name), "parent_wpid": name}
 
     def styles_in_use(self) -> Iterable[tuple[str, str]]:
-        """Not supported yet"""
-        return [
-            ("table", Wpids.TABLE_STYLE),
-            ("paragraph", Wpids.HEADER_STYLE),
-            ("paragraph", Wpids.BODY_STYLE),
-            ("paragraph", Wpids.rtl(Wpids.HEADER_STYLE)),
-            ("paragraph", Wpids.rtl(Wpids.BODY_STYLE)),
-            ("paragraph", Wpids.number(Wpids.HEADER_STYLE)),
-            ("paragraph", Wpids.number(Wpids.BODY_STYLE)),
-        ]
+        """Basic styles"""
+        for style_dict in self.styles_defined():
+            yield {style_dict["realm"], style_dict["wpid"]}
 
     def paragraphs(self) -> Iterable["DataFrameTable"]:
         """Just the one table, for now."""
-        yield DataFrameTable(self._frame)
+        yield DataFrameTable(self._frame, self._column_wpids)
 
 
 class OdsInput(_SpreadsheetInput):
@@ -102,13 +105,22 @@ class OdsInput(_SpreadsheetInput):
 class CsvInput(_SpreadsheetInput):
     """CSV reader"""
     def _read_spreadsheet(self, path: Path) -> pd.DataFrame:
-        return pd.read_csv(path)
+        frame = pd.read_csv(path)
+        self._column_wpids = [Wpids.column(col) for col in frame.columns]
+        return frame
+
+    def styles_defined(self) -> Iterable[dict[str, str]]:
+        """CSV files get per-columns styles"""
+        yield from super().styles_defined()
+        for wpid in self._column_wpids:
+            yield from self._para_styles(wpid, parent=Wpids.BODY_STYLE)
 
 
 class DataFrameTable(IDocumentTable):
     """A DataFrame as a document table"""
-    def __init__(self, frame: pd.DataFrame):
+    def __init__(self, frame: pd.DataFrame, column_wpids: list[str] | None):
         self._frame = frame
+        self._column_wpids = column_wpids
 
     def style_wpid(self) -> str | None:
         return Wpids.TABLE_STYLE
@@ -126,24 +138,29 @@ class DataFrameTable(IDocumentTable):
         """Iterates the rows of the table"""
         yield DataFrameRow(self._frame.columns, Wpids.HEADER_STYLE)
         for _, row in self._frame.iterrows():
-            yield DataFrameRow(row)
+            yield DataFrameRow(row, self._column_wpids)
 
 
 class DataFrameRow(IDocumentTableRow):
     """A row in a table inside a document"""
-    def __init__(self, items, wpid=None):
-        self._wpid = wpid or Wpids.BODY_STYLE
+    def __init__(self, items, wpids: list[str] | str | None = None):
         self._items = items
+        if wpids is None:
+            self._wpids = [Wpids.BODY_STYLE] * len(self._items)
+        elif isinstance(wpids, str):
+            self._wpids = [wpids] * len(self._items)
+        else:
+            self._wpids = wpids
 
     def cells(self) -> Iterable[IDocumentTableCell]:
         """Iterates the cells in the row"""
-        for item in self._items:
+        for item, wpid in zip(self._items, self._wpids):
             if item is None:
                 item = ""
             elif pd.api.types.is_number(item):
                 if not isinstance(item, int) and item.is_integer():
                     item = int(item)
-            yield SimpleCell(str(item), self._wpid)
+            yield SimpleCell(str(item), wpid)
 
 
 class SimpleCell(IDocumentTableCell):
