@@ -141,7 +141,7 @@ class DataFrameRow(IDocumentTableRow):
             if item is None:
                 item = ""
             elif pd.api.types.is_number(item):
-                if item.is_integer():
+                if not isinstance(item, int) and item.is_integer():
                     item = int(item)
             yield SimpleCell(str(item), self._wpid)
 
