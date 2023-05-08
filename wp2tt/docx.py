@@ -254,6 +254,8 @@ class DocxParagraph(DocxNode, IDocumentParagraph):
         tlen = 0
         for tnode in para.xpath(self.T_XPATH, namespaces=self._NS):
             text = tnode.text
+            if not text:  # May also be None
+                continue
             texts.append(text)
             tlen += len(text)
             if tlen >= self.SNIPPET_LEN:
@@ -275,7 +277,8 @@ class DocxParagraph(DocxNode, IDocumentParagraph):
     def text(self) -> Iterable[str]:
         """Yields strings of plain text."""
         for node in self._node_xpath(self.T_XPATH):
-            yield node.text
+            if node.text:
+                yield node.text
 
     def chunks(self) -> Iterable["DocxSpan | DocxImage | DocxFormula"]:
         """Yield DocxSpan per text span."""
@@ -362,7 +365,7 @@ class DocxSpan(DocxNode, IDocumentSpan):
         for node in self._node_xpath("w:tab | w:t"):
             if node.tag == self._wtag("tab"):
                 yield "\t"
-            else:
+            elif node.text:
                 yield node.text
 
 
