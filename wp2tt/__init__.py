@@ -890,6 +890,15 @@ class WordProcessorToInDesignTaggedText:
 
     def convert_comment(self, cmt):
         """Tagged Text doesn't support notes, so we convert them to footnotes."""
+        if self.args.comment_prefix:
+            text = "".join(
+                text
+                for paragraph in cmt.paragraphs()
+                for span in paragraph.spans()
+                for text in span.text()
+            )
+            if not text.startswith(self.args.comment_prefix):
+                return
         return self.convert_footnote(cmt, ref_style=self.comment_ref_style)
 
     class FootnoteContext(contextlib.AbstractContextManager):

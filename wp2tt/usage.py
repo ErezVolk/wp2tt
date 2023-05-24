@@ -98,6 +98,11 @@ class Wp2ttParser(ArgumentParser):
             help="Convert comments to balloons",
         )
         self.add_argument(
+            "--comment-prefix",
+            metavar="PREFIX",
+            help="When --convert-comments, only convert comments that start with PREFIX",
+        )
+        self.add_argument(
             "--no-rerunner",
             action="store_true",
             help="Do not (over)write the rerruner script",
@@ -195,6 +200,7 @@ class Wp2ttParser(ArgumentParser):
             self._add_str(cli, args, "base_character_style", self.DEFAULT_BASE)
             self._add_str(cli, args, "base_paragraph_style", self.DEFAULT_BASE)
             self._add_path(cli, args, "cache")
+            self._add_flag(cli, args, "convert_comments")
             self._add_flag(cli, args, "debug")
             self._add_flag(cli, args, "manual")
             self._add_flag(cli, args, "manual_light")
@@ -207,6 +213,9 @@ class Wp2ttParser(ArgumentParser):
             self._add_flag(cli, args, "remove_old_images")
             self._add_flag(cli, args, "remove_old_images_if_indesign")
             self._add_flag(cli, args, "vav")
+            if args.comment_prefix:
+                cli.append("--comment-prefix")
+                cli.append(shlex.quote(args.comment_prefix))
             if args.formula_font_size:
                 cli.append("--formula-font-size")
                 cli.append(str(args.formula_font_size))
