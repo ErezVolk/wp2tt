@@ -78,6 +78,7 @@ class WordProcessorToInDesignTaggedText:
     SPECIAL_GROUP = Wp2ttParser.SPECIAL_GROUP
     FOOTNOTE_REF_STYLE = SPECIAL_GROUP + "/(Footnote Reference in Text)"
     COMMENT_REF_STYLE = SPECIAL_GROUP + "/(Comment Reference)"
+    COMMENT_STYLE = SPECIAL_GROUP + "/(Comment)"
     IMAGE_STYLE = SPECIAL_GROUP + "/(Image)"
     FORMULA_STYLE = SPECIAL_GROUP + "/(Formula)"
     TABLE_PARAGRAPH_STYLE = SPECIAL_GROUP + "/(Table Container)"
@@ -103,6 +104,7 @@ class WordProcessorToInDesignTaggedText:
     base_names: dict[str, str]
     base_styles: dict[str, Style]
     cache: Cache
+    comment_style: Style
     comment_ref_style: Style
     config: Mapping[str, str]
     doc: IDocumentInput
@@ -283,6 +285,13 @@ class WordProcessorToInDesignTaggedText:
             internal_name=self.FOOTNOTE_REF_STYLE,
             wpid=self.FOOTNOTE_REF_STYLE,
             idtt="<cColor:Magenta><cColorTint:100><cPosition:Superscript>",
+            automatic=True,
+        )
+        self.comment_style = self.found_style_definition(
+            realm="paragraph",
+            internal_name=self.COMMENT_STYLE,
+            wpid=self.COMMENT_STYLE,
+            parent_wpid=self.args.base_paragraph_style,
             automatic=True,
         )
         self.comment_ref_style = self.found_style_definition(
@@ -554,13 +563,13 @@ class WordProcessorToInDesignTaggedText:
 
         self.writer.leave_paragraph()
 
-    def convert_paragraph(self, para: IDocumentParagraph) -> None:
+    def convert_paragraph(self, para: IDocumentParagraph, default_style: OptionalStyle = None) -> None:
         """Convert entire paragraph"""
         self.state.is_empty = True
 
         if self.stop_marker:
             self.check_for_stop_paragraph(para)
-        style = self.apply_rules_to(self.get_paragraph_style(para))
+        style = self.apply_rules_to(self.get_paragraph_style(para)) or default_style
 
         self.writer.enter_paragraph(style)
         for chunk in para.chunks():
@@ -882,11 +891,11 @@ class WordProcessorToInDesignTaggedText:
         if text:
             self.writer.write_text(text)
 
-    def convert_footnote(self, footnote, ref_style=None):
+    def convert_footnote(self, footnote, ref_style=None, default_style=None):
         """Convert one footnote to tagged text."""
         with self.FootnoteContext(self, ref_style):
             for par in footnote.paragraphs():
-                self.convert_paragraph(par)
+                self.convert_paragraph(par, default_style=default_style)
 
     def convert_comment(self, cmt):
         """Tagged Text doesn't support notes, so we convert them to footnotes."""
@@ -899,7 +908,11 @@ class WordProcessorToInDesignTaggedText:
             )
             if not text.startswith(self.args.comment_prefix):
                 return
-        return self.convert_footnote(cmt, ref_style=self.comment_ref_style)
+        return self.convert_footnote(
+            cmt,
+            ref_style=self.comment_ref_style,
+            default_style=self.comment_style,
+        )
 
     class FootnoteContext(contextlib.AbstractContextManager):
         """Context manager for style inside footnotes"""
