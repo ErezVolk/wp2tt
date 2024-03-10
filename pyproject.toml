@@ -4,6 +4,7 @@ extension-pkg-allow-list = [
 ]
 
 [tool.pylint.messages_control]
+max-line-length = 88
 disable = [
   "too-few-public-methods",
   "too-many-instance-attributes",
@@ -18,4 +19,26 @@ module = [
 ignore_missing_imports = true
 
 [tool.pyright]
-pythonVersion = "3.10"
+pythonVersion = "3.11"
+
+[tool.ruff]
+line-length = 88
+indent-width = 4
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+   "ANN101",
+   "ANN102",
+   "D105",
+   "D107",
+   "EM101",
+   "EM102",
+   "S101",
+   "S311",
+   "S324",
+   "SIM102",
+   "T201",
+   "TRY003" ,
+]
