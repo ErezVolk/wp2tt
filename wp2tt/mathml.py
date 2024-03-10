@@ -9,7 +9,10 @@ ziamath.config.svg2 = False  # type: ignore  # Otherwise InDesign chokes
 
 class MathConverter:
     """Convert Office Math Markup Language -> MathML -> SVG"""
-    MS_XSLT = Path("/Applications/Microsoft Word.app/Contents/Resources/omml2mathml.xsl")
+    MS_XSLT = Path(
+        "/Applications/Microsoft Word.app/Contents"
+        "/Resources/omml2mathml.xsl"
+    )
     transform: etree.XSLT | None = None
 
     @classmethod

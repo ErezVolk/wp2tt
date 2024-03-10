@@ -10,6 +10,7 @@ from typing import Iterable
 import mistune
 from lxml import etree
 
+from wp2tt.input import IDocumentComment
 from wp2tt.input import IDocumentFootnote
 from wp2tt.input import IDocumentInput
 from wp2tt.input import IDocumentParagraph
@@ -201,8 +202,7 @@ class MarkdownParagraph(IDocumentParagraph):
     def text(self):
         """Yields strings of plain text."""
         for span in self.spans():
-            for text in span.text():
-                yield text
+            yield from span.text()
 
     def chunks(self):
         """Yield a MarkdownSpan per text span."""
@@ -221,11 +221,11 @@ class MarkdownSpanBase(IDocumentSpan):
     def style_wpid(self):
         return None
 
-    def footnotes(self):
-        pass
+    def footnotes(self) -> Iterable["IDocumentFootnote"]:
+        yield from ()
 
-    def comments(self):
-        pass
+    def comments(self) -> Iterable["IDocumentComment"]:
+        yield from ()
 
 
 class MarkdownHeadSpan(MarkdownSpanBase):

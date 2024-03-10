@@ -22,20 +22,24 @@ from wp2tt.styles import DocumentProperties
 
 
 class Wpids:
+    """Known paragraph IDs"""
     TABLE_STYLE = "Spreadsheet"
     HEADER_STYLE = "Spreadsheet Header"
     BODY_STYLE = "Spreadsheet Body"
 
     @classmethod
     def rtl(cls, style):
+        """Nice name for RTL version of a style"""
         return f"{style} (RTL)"
 
     @classmethod
     def number(cls, style):
+        """Nice name for Number version of a style"""
         return f"{style} (Number)"
 
     @classmethod
     def column(cls, name):
+        """Nice name for column style"""
         return f"Spreadsheet Column ({name})"
 
 
@@ -72,11 +76,19 @@ class _SpreadsheetInput(contextlib.ExitStack, IDocumentInput):
 
     def styles_defined(self) -> Iterable[dict[str, str]]:
         """Styles defined"""
-        yield {"realm": "table", "wpid": Wpids.TABLE_STYLE, "internal_name": Wpids.TABLE_STYLE}
+        yield {
+            "realm": "table",
+            "wpid": Wpids.TABLE_STYLE,
+            "internal_name": Wpids.TABLE_STYLE,
+        }
         for name in [Wpids.HEADER_STYLE, Wpids.BODY_STYLE]:
             yield from self._para_styles(name)
 
-    def _para_styles(self, name: str, parent: str | None = None) -> Iterable[dict[str, str]]:
+    def _para_styles(
+        self,
+        name: str,
+        parent: str | None = None,
+    ) -> Iterable[dict[str, str]]:
         """Helper for `self.styles_defined()`"""
         child = {"realm": "paragraph", "wpid": name, "internal_name": name}
         if parent is not None:

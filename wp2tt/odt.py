@@ -8,6 +8,7 @@ from typing import Iterable
 
 from lxml import etree
 
+from wp2tt.input import IDocumentComment
 from wp2tt.input import IDocumentFootnote
 from wp2tt.input import IDocumentInput
 from wp2tt.input import IDocumentParagraph
@@ -190,8 +191,8 @@ class OdtSpanSpan(OdtSpanBase):
         for fnr in self._node_xpath('text:note[@text:node-class="footnote"]'):
             yield OdtFootnote(self.doc, fnr)
 
-    def comments(self):
-        pass
+    def comments(self) -> Iterable["IDocumentComment"]:
+        yield from ()
 
     def text(self):
         if self.node.text:

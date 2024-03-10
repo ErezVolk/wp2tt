@@ -1,7 +1,6 @@
 """MS Word .docx parser"""
 import contextlib
 from pathlib import PurePosixPath
-from pathlib import Path
 
 from os import PathLike
 from typing import Any
@@ -391,7 +390,7 @@ class DocxImage(DocxNode, IDocumentImage):
     def suffix(self) -> str:
         return self.target.suffix
 
-    def save(self, path: Path):
+    def save(self, path: PathLike) -> None:
         with self.doc.zip.open(str(self.target)) as ifo, open(path, "wb") as ofo:
             ofo.write(ifo.read())
 
@@ -406,7 +405,8 @@ class DocxFormula(IDocumentFormula):
         return etree.tostring(self.node, pretty_print=True)
 
     def mathml(self) -> str:
-        encoded = etree.tostring(MathConverter.omml_to_mathml(self.node), pretty_print=True)
+        mathml = MathConverter.omml_to_mathml(self.node)
+        encoded = etree.tostring(mathml, pretty_print=True)
         return encoded.decode()
 
 
@@ -448,8 +448,7 @@ class DocxTable(DocxNode, IDocumentTable):
 
     def rows(self) -> Iterable["DocxTableRow"]:
         """Iterates the rows of the table"""
-        for row in self.orows:
-            yield row
+        yield from self.orows
 
 
 class DocxTableRow(DocxNode, IDocumentTableRow):
@@ -470,8 +469,7 @@ class DocxTableRow(DocxNode, IDocumentTableRow):
         return False
 
     def cells(self) -> Iterable["DocxTableCell"]:
-        for cell in self.ocells:
-            yield cell
+        yield from self.ocells
 
 
 class DocxTableCell(DocxNode, IDocumentTableCell):
