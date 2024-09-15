@@ -1,10 +1,11 @@
-"""MS Word .docx parser"""
-import contextlib
-from pathlib import PurePosixPath
+"""MS Word .docx parser."""
 
+import contextlib
+import typing as t
+
+from pathlib import Path
+from pathlib import PurePosixPath
 from os import PathLike
-from typing import Any
-from typing import Iterable
 
 from lxml import etree
 
@@ -34,7 +35,7 @@ class WordXml:
     _W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
     _W14 = "http://schemas.microsoft.com/office/word/2010/wordml"
     _WP = "http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"
-    _NS = {
+    _NS: t.Mapping[str, str] = {
         "a": _A,
         "m": _M,
         "r": _R,
@@ -46,9 +47,9 @@ class WordXml:
 
     @classmethod
     def xpath(
-        cls, nodes: list[etree._Entity] | etree._Entity, expr: str
-    ) -> Iterable[etree._Entity]:
-        """Wrapper for etree.xpath, with namespaces and multiple nodes"""
+        cls, nodes: list[etree._Entity] | etree._Entity, expr: str,
+    ) -> t.Iterable[etree._Entity]:
+        """Wrap etree.xpath, with namespaces and multiple nodes."""
         if not isinstance(nodes, list):
             nodes = [nodes]
         for node in nodes:
@@ -71,7 +72,9 @@ class WordXml:
         return f"{{{cls._R}}}{tag}"
 
     @classmethod
-    def _wval(cls, nodes, prop) -> str | None:
+    def _wval(
+        cls, nodes: list[etree._Entity] | etree._Entity, prop: str,
+    ) -> str | None:
         if not isinstance(nodes, list):
             nodes = [nodes]
         for node in nodes:
@@ -82,27 +85,28 @@ class WordXml:
 
 class DocxInput(contextlib.ExitStack, WordXml, IDocumentInput):
     """A .docx reader."""
+
     _wpid_prefix: str | None = None
     _name_prefix: str | None = None
 
-    def __init__(self, path: PathLike):
+    def __init__(self, path: PathLike) -> None:
         super().__init__()
         self._read_docx(path)
         self._initialize_properties()
 
-    def _read_docx(self, path: PathLike):
+    def _read_docx(self, path: PathLike) -> None:
         self.zip = self.enter_context(ZipDocument(path))
         self.document = self.zip.load_xml("word/document.xml")
         self.footnotes = self.zip.load_xml("word/footnotes.xml")
         self.comments = self.zip.load_xml("word/comments.xml")
         self.relationships = self.zip.load_xml("word/_rels/document.xml.rels")
 
-    def _initialize_properties(self):
+    def _initialize_properties(self) -> None:
         self._properties = DocumentProperties(
             has_rtl=self._has_node("w:rtl"),
         )
 
-    def _has_node(self, wtag: str):
+    def _has_node(self, wtag: str) -> bool:
         for root in (self.document, self.footnotes, self.comments):
             if root is not None:
                 for _ in self.xpath(root, wtag):
@@ -111,9 +115,11 @@ class DocxInput(contextlib.ExitStack, WordXml, IDocumentInput):
 
     @property
     def properties(self) -> DocumentProperties:
+        """Access this document's properties."""
         return self._properties
 
-    def set_nth(self, nth: int):
+    def set_nth(self, nth: int) -> None:
+        """Set prefix for non-clash in multi-file docs or something."""
         if nth > 1:
             self._wpid_prefix = f"d{nth}_"
             self._name_prefix = f"(D{nth}) "
@@ -130,7 +136,7 @@ class DocxInput(contextlib.ExitStack, WordXml, IDocumentInput):
             return name
         return f"{self._name_prefix}{name}"
 
-    def styles_defined(self) -> Iterable[dict[str, Any]]:
+    def styles_defined(self) -> t.Iterable[dict[str, t.Any]]:
         """Yield a Style object kwargs for every style defined in the document."""
         styles = self.zip.load_xml("word/styles.xml")
         for stag in self.xpath(styles, "//w:style[@w:type][w:name[@w:val]]"):
@@ -147,19 +153,18 @@ class DocxInput(contextlib.ExitStack, WordXml, IDocumentInput):
                 "fmt": fmt,
             }
 
-    _TAG_TO_REALM = {
+    _TAG_TO_REALM: t.Mapping[str, str] = {
         "pStyle": "paragraph",
         "rStyle": "character",
         "tblStyle": "table",
     }
     _TAG_EXPRS = " or ".join(f"self::w:{tag}" for tag in _TAG_TO_REALM)
     TAG_XPATH = f"//*[{_TAG_EXPRS}]"
-    WTAG_TO_REALM = {
-        WordXml._wtag(tag): realm
-        for tag, realm in _TAG_TO_REALM.items()
+    WTAG_TO_REALM: t.Mapping[str, str] = {
+        WordXml._wtag(tag): realm for tag, realm in _TAG_TO_REALM.items()
     }
 
-    def styles_in_use(self) -> Iterable[tuple[str, str | None]]:
+    def styles_in_use(self) -> t.Iterable[tuple[str, str | None]]:
         """Yield a pair (realm, wpid) for every style used in the document."""
         for node in (self.document, self.footnotes, self.comments):
             if node is None:
@@ -168,9 +173,9 @@ class DocxInput(contextlib.ExitStack, WordXml, IDocumentInput):
                 wpid = self.export_wpid(snode.get(self._wtag("val")))
                 yield (self.WTAG_TO_REALM[snode.tag], wpid)
 
-    def paragraphs(self) -> Iterable["DocxParagraph | DocxTable"]:
-        """Yields a DocxParagraph object for each body paragraph."""
-        # "//w:body/w:p[not(preceding-sibling::w:p/w:pPr/w:rPr/w:del)]"
+    def paragraphs(self) -> t.Iterable["DocxParagraph | DocxTable"]:
+        """Yield a DocxParagraph object for each body paragraph."""
+        # ex. "//w:body/w:p[not(preceding-sibling::w:p/w:pPr/w:rPr/w:del)]"
         for node in self.xpath(self.document, "//w:body/*[self::w:p or self::w:tbl]"):
             if node.tag == self._wtag("tbl"):
                 yield DocxTable(self, node)
@@ -185,19 +190,19 @@ class DocxNode(WordXml):
     used for parargaph breaks deleted with track changes.
     """
 
-    def __init__(self, doc: DocxInput, node: etree._Entity):
+    def __init__(self, doc: DocxInput, node: etree._Entity) -> None:
         self.doc = doc
         self.head_node = node
         self.nodes = [node]
 
     def add_node(self, node: etree._Entity) -> None:
-        """Extend the list of nodes"""
+        """Extend the list of nodes."""
         self.nodes.append(node)
 
     def _node_wtag(self, tag: str) -> str | None:
         return self.head_node.get(self._wtag(tag))
 
-    def _node_xpath(self, expr: str) -> Iterable[etree._Entity]:
+    def _node_xpath(self, expr: str) -> t.Iterable[etree._Entity]:
         for node in self.nodes:
             yield from node.xpath(expr, namespaces=self._NS)
 
@@ -207,7 +212,7 @@ class DocxNode(WordXml):
     def _node_wtype(self, prop: str) -> str | None:
         return self._node_wattr(prop, "type")
 
-    def _node_wtypes(self, prop: str) -> Iterable[str]:
+    def _node_wtypes(self, prop: str) -> t.Iterable[str]:
         yield from self._node_wattrs(prop, "type")
 
     def _node_wattr(self, prop: str, attr: str) -> str | None:
@@ -215,7 +220,7 @@ class DocxNode(WordXml):
             return value
         return None
 
-    def _node_wattrs(self, prop: str, attr: str) -> Iterable[str]:
+    def _node_wattrs(self, prop: str, attr: str) -> t.Iterable[str]:
         tag = self._wtag(attr)
         for node in self.nodes:
             for pnode in self.xpath(node, prop):
@@ -231,20 +236,20 @@ class DocxParagraph(DocxNode, IDocumentParagraph):
     T_XPATH = "w:r/w:t | w:ins/w:r/w:t"
     SNIPPET_LEN = 10
 
-    def __init__(self, doc: DocxInput, para: etree._Entity):
+    def __init__(self, doc: DocxInput, para: etree._Entity) -> None:
         super().__init__(doc, para)
         while self.is_nonfinal(para):
             self.add_node(para := para.getnext())
             para.set("__wp2tt_skip__", "yes")
         self._para_ids = [self._get_para_id(node) for node in self.nodes]
 
-    def __repr__(self):
-        """String description of the paragraph object"""
+    def __repr__(self) -> str:
+        """Describe the paragraph object."""
         pids = "/".join(self._para_ids)
         return f"<w:p {pids}>"
 
     def _get_para_id(self, para: etree._Entity) -> str:
-        """Hopefully unique paragraph ID"""
+        """Create a hopefully unique paragraph ID."""
         w14id = para.get(self._w14tag("paraId"))
         if w14id:
             return f'w14:paraId="{w14id}"'
@@ -265,21 +270,22 @@ class DocxParagraph(DocxNode, IDocumentParagraph):
         return f'"{text[:self.SNIPPET_LEN-3]}"...'
 
     def is_nonfinal(self, para: etree._Entity) -> bool:
-        """True iff a <w:p> para has deleted, tracked newline"""
+        """Check if a <w:p> para has deleted, tracked newline."""
         for _ in self.xpath(para, "./w:pPr/w:rPr/w:del"):
             return True
         return False
 
     def style_wpid(self) -> str | None:
+        """Get MS Word's internal ID for this style."""
         return self.doc.export_wpid(self._node_wval("./w:pPr/w:pStyle"))
 
-    def text(self) -> Iterable[str]:
-        """Yields strings of plain text."""
+    def text(self) -> t.Iterable[str]:
+        """Yield strings of plain text."""
         for node in self._node_xpath(self.T_XPATH):
             if node.text:
                 yield node.text
 
-    def chunks(self) -> Iterable["DocxSpan | DocxImage | DocxFormula"]:
+    def chunks(self) -> t.Iterable["DocxSpan | DocxImage | DocxFormula"]:
         """Yield DocxSpan per text span."""
         for node in self._node_xpath(self.R_XPATH):
             if node.tag == self._mtag("oMath"):
@@ -292,12 +298,12 @@ class DocxParagraph(DocxNode, IDocumentParagraph):
                     yield DocxSpan(self.doc, node)
 
     def format(self) -> ManualFormat:
-        """Returns manual formatting on this paragraph."""
+        """Return manual formatting on this paragraph."""
         return self.node_format(self.nodes)
 
     @classmethod
     def node_format(cls, nodes: list[etree._Entity]) -> ManualFormat:
-        """Returns manual formatting on a paragraph/style."""
+        """Return manual formatting on a paragraph/style."""
         fmt = ManualFormat.NORMAL
         justification = cls._wval(nodes, "w:pPr/w:jc")
         if justification == "center":
@@ -307,7 +313,7 @@ class DocxParagraph(DocxNode, IDocumentParagraph):
         return fmt
 
     def is_page_break(self) -> bool:
-        """True iff the paragraph is a page break."""
+        """Check if the paragraph is a page break."""
         for break_type in self._node_wtypes("w:r/w:br | w:ins/w:r/w:br"):
             if break_type == "page":
                 return True
@@ -317,28 +323,31 @@ class DocxParagraph(DocxNode, IDocumentParagraph):
 class DocxSpan(DocxNode, IDocumentSpan):
     """A span of characters inside a .docx."""
 
-    def __repr__(self):
-        """String description of the paragraph object"""
+    def __repr__(self) -> str:
+        """Describe the paragraph object."""
         return repr(" ".join(t for t in self.text() if t is not None))
 
     def style_wpid(self) -> str | None:
+        """Get this Span's style."""
         return self.doc.export_wpid(self._node_wval("w:rPr/w:rStyle"))
 
-    def footnotes(self) -> Iterable["DocxFootnote"]:
+    def footnotes(self) -> t.Iterable["DocxFootnote"]:
+        """Yield foornotes in this span."""
         for fnr in self._node_xpath("w:footnoteReference"):
             yield DocxFootnote(self.doc, fnr)
 
-    def comments(self) -> Iterable["DocxComment"]:
+    def comments(self) -> t.Iterable["DocxComment"]:
+        """Yield foornotes in this span."""
         for cmr in self._node_xpath("w:commentReference"):
             yield DocxComment(self.doc, cmr)
 
     def format(self) -> ManualFormat:
-        """Manual formatting for this span"""
+        """Get manual formatting for this span."""
         return self.node_format(self.nodes)
 
     @classmethod
     def node_format(cls, nodes: list[etree._Entity]) -> ManualFormat:
-        """Manual formatting for a span/style"""
+        """Get manual formatting for a span/style."""
         fmt = ManualFormat.LTR
         for _ in cls.xpath(nodes, "w:rPr/w:b | w:rPr/w:bCs"):
             fmt = fmt | ManualFormat.BOLD
@@ -360,7 +369,8 @@ class DocxSpan(DocxNode, IDocumentSpan):
             fmt = fmt & ~ManualFormat.LTR | ManualFormat.RTL
         return fmt
 
-    def text(self) -> Iterable[str]:
+    def text(self) -> t.Iterable[str]:
+        """Yield chunks of text."""
         for node in self._node_xpath("w:tab | w:t"):
             if node.tag == self._wtag("tab"):
                 yield "\t"
@@ -370,10 +380,11 @@ class DocxSpan(DocxNode, IDocumentSpan):
 
 class DocxImage(DocxNode, IDocumentImage):
     """An image inside a .docx."""
+
     descr: str | None = None
     target: PurePosixPath
 
-    def __init__(self, doc: DocxInput, drawing: etree._Entity):
+    def __init__(self, doc: DocxInput, drawing: etree._Entity) -> None:
         super().__init__(doc, drawing)
         for prop in self._node_xpath("./wp:inline/wp:docPr[@descr]"):
             self.descr = prop.get("descr")
@@ -385,97 +396,95 @@ class DocxImage(DocxNode, IDocumentImage):
                 self.target = PurePosixPath("word") / rel.get("Target")
 
     def alt_text(self) -> str | None:
+        """Get alt-text for image."""
         return self.descr
 
     def suffix(self) -> str:
+        """Get image suffix (file extension)."""
         return self.target.suffix
 
     def save(self, path: PathLike) -> None:
-        with self.doc.zip.open(str(self.target)) as ifo, open(path, "wb") as ofo:
+        """Extract image."""
+        with self.doc.zip.open(str(self.target)) as ifo, Path(path).open("wb") as ofo:
             ofo.write(ifo.read())
 
 
 class DocxFormula(IDocumentFormula):
     """A formula inside a .docx."""
 
-    def __init__(self, node: etree._Entity):
+    def __init__(self, node: etree._Entity) -> None:
         self.node = node
 
     def raw(self) -> bytes:
+        """Get formula's Word XML."""
         return etree.tostring(self.node, pretty_print=True)
 
     def mathml(self) -> str:
+        """Convert formula to MathML."""
         mathml = MathConverter.omml_to_mathml(self.node)
         encoded = etree.tostring(mathml, pretty_print=True)
         return encoded.decode()
 
 
 class DocxTable(DocxNode, IDocumentTable):
-    """A table inside a .docx"""
-    def __init__(self, doc: DocxInput, node: etree._Entity):
-        """Constructor"""
+    """A table inside a .docx."""
+
+    def __init__(self, doc: DocxInput, node: etree._Entity) -> None:
         super().__init__(doc, node)
-        self.orows = [
-            DocxTableRow(doc, row)
-            for row in self.xpath(node, "./w:tr")
-        ]
+        self.orows = [DocxTableRow(doc, row) for row in self.xpath(node, "./w:tr")]
         self.n_header_rows = sum(row.is_header() for row in self.orows)
         self.n_rows = len(self.orows)
         self.n_cols = max(
-            sum(cell.shape[1] for cell in row.cells())
-            for row in self.orows
+            sum(cell.shape[1] for cell in row.cells()) for row in self.orows
         )
 
     def style_wpid(self) -> str | None:
-        """Returns the wpid for this table's style."""
+        """Return the wpid for this table's style."""
         return self.doc.export_wpid(self._node_wval("w:tblPr/w:tblStyle"))
 
     def format(self) -> ManualFormat:
-        """Table formatting (RTL is all we care about"""
+        """Get table formatting (RTL is all we care about)."""
         for _ in self._node_xpath("./w:tblPr/w:bidiVisual"):
             return ManualFormat.RTL
         return ManualFormat.LTR
 
     @property
     def shape(self) -> tuple[int, int]:
-        """(number of rows, number of columns)"""
+        """Return (number of rows, number of columns)."""
         return (self.n_rows, self.n_cols)
 
     @property
     def header_rows(self) -> int:
-        """Number of header rows"""
+        """Return number of header rows."""
         return self.n_header_rows
 
-    def rows(self) -> Iterable["DocxTableRow"]:
-        """Iterates the rows of the table"""
+    def rows(self) -> t.Iterable["DocxTableRow"]:
+        """Iterate the rows of the table."""
         yield from self.orows
 
 
 class DocxTableRow(DocxNode, IDocumentTableRow):
-    """A table row"""
+    """A table row."""
 
-    def __init__(self, doc: DocxInput, node: etree._Entity):
-        """Constructor"""
+    def __init__(self, doc: DocxInput, node: etree._Entity) -> None:
         super().__init__(doc, node)
-        self.ocells = [
-            DocxTableCell(doc, cell)
-            for cell in self.xpath(node, "./w:tc")
-        ]
+        self.ocells = [DocxTableCell(doc, cell) for cell in self.xpath(node, "./w:tc")]
 
     def is_header(self) -> bool:
-        """True iff this row is a header row"""
+        """Check if this row is a header row."""
         for _ in self._node_xpath("./w:trPr/w:tblHeader"):
             return True
         return False
 
-    def cells(self) -> Iterable["DocxTableCell"]:
+    def cells(self) -> t.Iterable["DocxTableCell"]:
+        """Yield all cells in the row."""
         yield from self.ocells
 
 
 class DocxTableCell(DocxNode, IDocumentTableCell):
-    """A table cell"""
-    def __init__(self, doc: DocxInput, node: etree._Entity):
-        """Constructor"""
+    """A table cell."""
+
+    def __init__(self, doc: DocxInput, node: etree._Entity) -> None:
         super().__init__(doc, node)
         try:
             self.span = int(self._wval(node, "./w:tcPr/w:gridSpan") or "1")
@@ -484,30 +493,31 @@ class DocxTableCell(DocxNode, IDocumentTableCell):
 
     @property
     def shape(self) -> tuple[int, int]:
+        """Return (number of rows, number of columns)."""
         return (1, self.span)
 
     def contents(self) -> DocxParagraph:
-        """Get the contents of this cell"""
+        """Get the contents of this cell."""
         for pnode in self.xpath(self.nodes, "./w:p"):
             return DocxParagraph(self.doc, pnode)
         raise RuntimeError("Table cell without a paragraph")
 
 
 class DocxFootnote(DocxNode, IDocumentFootnote):
-    """IDocumentFootnote for .docx"""
+    """IDocumentFootnote for .docx file."""
 
-    def paragraphs(self) -> Iterable[DocxParagraph]:
-        """Yields DocxParagraph for each paragraph in a footnote"""
+    def paragraphs(self) -> t.Iterable[DocxParagraph]:
+        """Yield DocxParagraph for each paragraph in a footnote."""
         fnid = self._node_wtag("id")
         for para in self.xpath(self.doc.footnotes, f'w:footnote[@w:id="{fnid}"]/w:p'):
             yield DocxParagraph(self.doc, para)
 
 
 class DocxComment(DocxNode, IDocumentComment):
-    """IDocumentComment for .docx"""
+    """IDocumentComment for .docx file."""
 
-    def paragraphs(self) -> Iterable[DocxParagraph]:
-        """Yields DocxParagraph for each paragraph in a comment"""
+    def paragraphs(self) -> t.Iterable[DocxParagraph]:
+        """Yield DocxParagraph for each paragraph in a comment."""
         cmid = self._node_wtag("id")
         for para in self.xpath(self.doc.comments, f'w:comment[@w:id="{cmid}"]/w:p'):
             yield DocxParagraph(self.doc, para)
