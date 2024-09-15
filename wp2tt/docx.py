@@ -140,9 +140,9 @@ class DocxInput(contextlib.ExitStack, WordXml, IDocumentInput):
         """Yield a Style object kwargs for every style defined in the document."""
         styles = self.zip.load_xml("word/styles.xml")
         for stag in self.xpath(styles, "//w:style[@w:type][w:name[@w:val]]"):
-            fmt = DocxParagraph.node_format(stag)
-            fmt |= DocxSpan.node_format(stag)
+            fmt = DocxSpan.node_format(stag)
             fmt &= ~(ManualFormat.LTR | ManualFormat.RTL)
+            fmt |= DocxParagraph.node_format(stag)
             yield {
                 "realm": stag.get(self._wtag("type")),
                 "internal_name": self.export_name(self._wval(stag, "w:name")),
@@ -304,12 +304,14 @@ class DocxParagraph(DocxNode, IDocumentParagraph):
     @classmethod
     def node_format(cls, nodes: list[etree._Entity]) -> ManualFormat:
         """Return manual formatting on a paragraph/style."""
-        fmt = ManualFormat.NORMAL
+        fmt = ManualFormat.LTR
         justification = cls._wval(nodes, "w:pPr/w:jc")
         if justification == "center":
             fmt = fmt | ManualFormat.CENTERED
         elif justification == "both":
             fmt = fmt | ManualFormat.JUSTIFIED
+        for _ in cls.xpath(nodes, "w:pPr/w:bidi"):
+            fmt = (fmt & ~ManualFormat.LTR) | ManualFormat.RTL
         return fmt
 
     def is_page_break(self) -> bool:

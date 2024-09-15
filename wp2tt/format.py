@@ -1,9 +1,9 @@
-"""Manual Formatting"""
+"""Manual Formatting."""
 import enum
 
 
 class ManualFormat(enum.Flag):
-    """Manual Formatting"""
+    """Manual Formatting."""
 
     NORMAL = 0
 

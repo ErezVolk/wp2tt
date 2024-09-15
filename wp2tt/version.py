@@ -1,3 +1,2 @@
-#!/usr/bin/env python3
-"""Just your friendly neighborhood version number"""
-WP2TT_VERSION = "1.7.2"
+"""Just your friendly neighborhood version number."""
+WP2TT_VERSION = "1.8.0"
