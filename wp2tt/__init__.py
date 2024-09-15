@@ -1,7 +1,9 @@
+#!/usr/bin/env python3
 """A utility to convert word processor files (.docx, .odt) to InDesign's Tagged Text."""
 import argparse
 import collections
 import contextlib
+import dataclasses as dcl
 from datetime import datetime
 import itertools
 import logging
@@ -11,11 +13,8 @@ import re
 import shlex
 import shutil
 import subprocess
+import typing as t
 
-from typing import Iterator
-from typing import Mapping
-
-import attr
 import cairosvg
 
 from wp2tt.cache import Cache
@@ -55,24 +54,24 @@ class BadReferenceInRuleError(Exception):
     """We raise this for bad ruels."""
 
 
-@attr.s(slots=True, frozen=True)
+@dcl.dataclass(frozen=True)
 class ManualFormatCustomStyle:
     """Manual formatting, possibly applied to a custom style."""
 
-    fmt: ManualFormat = attr.ib()
-    unadorned: str | None = attr.ib()
+    fmt: ManualFormat
+    unadorned: str | None
 
 
-@attr.s(slots=True)
+@dcl.dataclass
 class State:
     """Context of styles."""
 
-    curr_char_style: OptionalStyle = attr.ib(default=None)
-    prev_para_style: OptionalStyle = attr.ib(default=None)
-    is_empty: bool = attr.ib(default=True)
-    is_post_empty: bool = attr.ib(default=False)
-    is_post_break: bool = attr.ib(default=False)
-    para_char_fmt: ManualFormat = attr.ib(default=ManualFormat.NORMAL)
+    curr_char_style: OptionalStyle = None
+    prev_para_style: OptionalStyle = None
+    is_empty: bool = True
+    is_post_empty: bool = False
+    is_post_break: bool = False
+    para_char_fmt: ManualFormat = ManualFormat.NORMAL
 
 
 class WordProcessorToInDesignTaggedText:
@@ -89,10 +88,10 @@ class WordProcessorToInDesignTaggedText:
     FORMULA_STYLE = SPECIAL_GROUP + "/(Formula)"
     TABLE_PARAGRAPH_STYLE = SPECIAL_GROUP + "/(Table Container)"
 
-    IGNORED_STYLES: Mapping[str, list[str]] = {
+    IGNORED_STYLES: t.Mapping[str, list[str]] = {
         "character": ["annotation reference"],
     }
-    STYLE_OVERRIDE: Mapping = {
+    STYLE_OVERRIDE: t.Mapping = {
         "character": {
             COMMENT_REF_STYLE: {
                 "idtt": "<pShadingColor:Cyain><pShadingOn:1><pShadingTint:100>",
@@ -112,7 +111,7 @@ class WordProcessorToInDesignTaggedText:
     cache: Cache
     comment_style: Style
     comment_ref_style: Style
-    config: Mapping[str, str]
+    config: t.Mapping[str, str]
     doc: IDocumentInput
     footnote_ref_style: Style
     format_mask: ManualFormat
@@ -262,7 +261,7 @@ class WordProcessorToInDesignTaggedText:
         """Create a Style object for everything in the document."""
         self.styles = {}
         self.create_special_styles()
-        counts: Mapping[str, Iterator[int]] = collections.defaultdict(
+        counts: t.Mapping[str, t.Iterator[int]] = collections.defaultdict(
             lambda: itertools.count(start=1),
         )
         for style_kwargs in self.doc.styles_defined():

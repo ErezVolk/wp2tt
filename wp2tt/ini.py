@@ -1,12 +1,10 @@
-"""Ini file helper"""
+"""Ini file helper."""
 import configparser
+import dataclasses as dcl
 import logging
 from pathlib import Path
 import shutil
-
-from typing import Iterable
-
-import attr
+import typing as t
 
 from wp2tt.styles import ATTR_KEY
 from wp2tt.styles import ATTR_VALUE_READONLY
@@ -19,7 +17,8 @@ ConfigSection = (configparser.SectionProxy | dict[str, str])
 
 
 class SettingsFile(configparser.ConfigParser):
-    """Settings .ini file"""
+    """Settings .ini file."""
+
     ENCODING = "UTF-8"
     IMAGE_SECTION = "Images"
     BASE_KEY = "__base__"
@@ -29,8 +28,8 @@ class SettingsFile(configparser.ConfigParser):
     images: configparser.SectionProxy | None = None
     base: Path
 
-    def __init__(self, path: Path, fresh_start: bool = False):
-        """Read ini file"""
+    def __init__(self, path: Path, *, fresh_start: bool = False) -> None:
+        """Read ini file."""
         super().__init__()
         self.path = path
         self.base = self.path.parent.resolve()
@@ -48,11 +47,11 @@ class SettingsFile(configparser.ConfigParser):
             pass
 
     def exists(self) -> bool:
-        """Does the .ini file currently exist"""
+        """Check if the .ini file currently exists."""
         return self.path.is_file()
 
-    def find_image(self, key) -> Path | None:
-        """Look for an image"""
+    def find_image(self, key: str) -> Path | None:
+        """Look for an image."""
         if self.images is None:
             return None
 
@@ -69,9 +68,11 @@ class SettingsFile(configparser.ConfigParser):
         self.images[key] = ""  # Let them know
         return None
 
-    def fields(self, klass, writeable=False) -> Iterable[tuple[str, str]]:
-        """Yields a pair (name, ini_name) for all attributes."""
-        for field in attr.fields(klass):
+    def fields(
+        self, klass: type, *, writeable: bool = False,
+    ) -> t.Iterable[tuple[str, str]]:
+        """Yield a pair (name, ini_name) for all attributes."""
+        for field in dcl.fields(klass):
             special = field.metadata.get(ATTR_KEY)
             if special == ATTR_VALUE_HIDDEN:
                 continue
@@ -82,14 +83,14 @@ class SettingsFile(configparser.ConfigParser):
                 ini_name += " (readonly)"
             yield (name, ini_name)
 
-    def backup_and_write(self):
-        """Write to disk, backing up first if modified"""
+    def backup_and_write(self) -> None:
+        """Write to disk, backing up first if modified."""
         if self.touched and self.exists():
             logging.debug("Backing up %s", self.path)
             shutil.copy(self.path, self.path.with_suffix(".bak"))
 
         logging.info("Writing %s", self.path)
-        with open(self.path, "w", encoding=self.ENCODING) as fobj:
+        with self.path.open("w", encoding=self.ENCODING) as fobj:
             self.write(fobj)
 
     def get_section(
@@ -155,7 +156,7 @@ class SettingsFile(configparser.ConfigParser):
         internal_name: str | None = None,
         style: OptionalStyle = None,
     ) -> str:
-        """The name of the ini section for a given style.
+        """Build name of the ini section for a given style.
 
         This uses `internal_name`, rather than `wpid` or `name`,
         because `wpid` can get ugly ("a2") and `name` should be

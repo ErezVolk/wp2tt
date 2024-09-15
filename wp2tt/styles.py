@@ -1,8 +1,7 @@
-#!/usr/bin/env python3
-"""wp2tt Style objects"""
+"""wp2tt Style objects."""
+import dataclasses as dcl
 from typing import Union
 
-import attr
 from wp2tt.format import ManualFormat
 
 ATTR_KEY = "special"
@@ -15,59 +14,65 @@ ATTR_NO_INI = {ATTR_KEY: ATTR_VALUE_HIDDEN}
 OptionalStyle = Union["Style", None]
 
 
-@attr.s(slots=True)
+@dcl.dataclass
 class Style:
     """A character/paragraph style, normally found in the input file."""
 
-    realm: str = attr.ib(metadata=ATTR_NO_INI)
-    wpid: str = attr.ib(metadata=ATTR_READONLY)  # Used for xrefs in docx; localized
-    internal_name: str = attr.ib(metadata=ATTR_NO_INI)  # Used in the section names
-    name: str = attr.ib()  # What the user (and InDesign) see
-    parent_wpid: str = attr.ib(default=None, metadata=ATTR_READONLY)
-    next_wpid: str = attr.ib(default=None, metadata=ATTR_READONLY)
-    automatic: bool = attr.ib(default=None, metadata=ATTR_READONLY)
-    custom: bool = attr.ib(default=False, metadata=ATTR_READONLY)
-    fmt: ManualFormat = attr.ib(default=ManualFormat.NORMAL, metadata=ATTR_READONLY)
-    idtt: str = attr.ib(default="")
-    variable: str = attr.ib(default=None)
+    realm: str = dcl.field(metadata=ATTR_NO_INI)
+    wpid: str = dcl.field(metadata=ATTR_READONLY)  # Used for xrefs in docx; localized
+    internal_name: str = dcl.field(metadata=ATTR_NO_INI)  # Used in the section names
+    name: str = dcl.field()  # What the user (and InDesign) see
+    parent_wpid: str | None = dcl.field(default=None, metadata=ATTR_READONLY)
+    next_wpid: str | None = dcl.field(default=None, metadata=ATTR_READONLY)
+    automatic: bool = dcl.field(default=False, metadata=ATTR_READONLY)
+    custom: bool = dcl.field(default=False, metadata=ATTR_READONLY)
+    fmt: ManualFormat = dcl.field(default=ManualFormat.NORMAL, metadata=ATTR_READONLY)
+    idtt: str = ""
+    variable: str | None = None
 
-    used: bool = attr.ib(default=False, metadata=ATTR_NO_INI, eq=False)
-    count: int = attr.ib(default=0, metadata=ATTR_NO_INI, eq=False)
+    used: bool = dcl.field(default=False, metadata=ATTR_NO_INI, compare=False)
+    count: int = dcl.field(default=0, metadata=ATTR_NO_INI, compare=False)
 
-    parent_style: OptionalStyle = attr.ib(default=None, metadata=ATTR_NO_INI, eq=False)
-    next_style: OptionalStyle = attr.ib(default=None, metadata=ATTR_NO_INI, eq=False)
+    parent_style: OptionalStyle = dcl.field(
+        default=None, metadata=ATTR_NO_INI, compare=False,
+    )
+    next_style: OptionalStyle = dcl.field(
+        default=None, metadata=ATTR_NO_INI, compare=False,
+    )
 
-    def __str__(self):
+    def __str__(self) -> str:
         if self.custom:
-            return f"<{self.realm} {repr(self.name)}"
-        return f"<{self.realm} {repr(self.name)} (built-in)>"
+            return f"<{self.realm} {self.name!r}"
+        return f"<{self.realm} {self.name!r} (built-in)>"
 
 
-@attr.s(slots=True)
+@dcl.dataclass
 class Rule:
     """A derivation rule for Styles."""
 
-    mnemonic: str = attr.ib(metadata=ATTR_NO_INI)
-    description: str = attr.ib(metadata=ATTR_NO_INI)
-    turn_this: str = attr.ib(default=None)
-    into_this: str = attr.ib(default=None)
-    when_following: str = attr.ib(default=None)
-    when_first_in_doc: str = attr.ib(default=None)
+    mnemonic: str = dcl.field(metadata=ATTR_NO_INI)
+    description: str = dcl.field(metadata=ATTR_NO_INI)
+    turn_this: str | None = None
+    into_this: str | None = None
+    when_following: str | None = None
+    when_first_in_doc: str | None = None
 
-    turn_this_style: OptionalStyle = attr.ib(default=None, metadata=ATTR_NO_INI)
-    into_this_style: OptionalStyle = attr.ib(default=None, metadata=ATTR_NO_INI)
-    when_following_styles: list[Style] = attr.ib(default=None, metadata=ATTR_NO_INI)
+    turn_this_style: OptionalStyle = dcl.field(default=None, metadata=ATTR_NO_INI)
+    into_this_style: OptionalStyle = dcl.field(default=None, metadata=ATTR_NO_INI)
+    when_following_styles: list[Style] | None = dcl.field(
+        default=None, metadata=ATTR_NO_INI,
+    )
 
-    valid: bool = attr.ib(default=True, metadata=ATTR_NO_INI)
-    applied: int = attr.ib(default=0, metadata=ATTR_NO_INI)
+    valid: bool = dcl.field(default=True, metadata=ATTR_NO_INI)
+    applied: int = dcl.field(default=0, metadata=ATTR_NO_INI)
 
-    def __str__(self):
-        return f"<{self.mnemonic} {repr(self.description)}>"
+    def __str__(self) -> str:
+        return f"<{self.mnemonic} {self.description!r}>"
 
 
-@attr.s(slots=True)
+@dcl.dataclass
 class DocumentProperties:
     """Things we can tell about a document."""
 
-    has_rtl: bool = attr.ib(default=True)
-    pure_ascii: bool = attr.ib(default=False)
+    has_rtl: bool = True
+    pure_ascii: bool = False
