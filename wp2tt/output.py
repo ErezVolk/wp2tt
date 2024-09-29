@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Simple output classes"""
 import re
 
@@ -32,8 +31,9 @@ class IOutput(ABC):
         rows: int,
         cols: int,
         header_rows: int = 0,
-        rtl: bool = False,
         style: OptionalStyle = None,
+        *,
+        rtl: bool = False,
     ):
         """Start a table with a specified style."""
         raise NotImplementedError()

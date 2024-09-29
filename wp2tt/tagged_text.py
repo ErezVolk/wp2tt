@@ -1,14 +1,11 @@
-#!/usr/bin/env python3
-"""Tagged text creation"""
+"""Tagged text creation."""
 import collections
 import contextlib
 import io
 import itertools
 import logging
 import re
-
-from typing import Iterator
-from typing import Mapping
+import typing as t
 
 from wp2tt.output import IOutput
 from wp2tt.styles import DocumentProperties
@@ -17,10 +14,10 @@ from wp2tt.styles import OptionalStyle
 
 
 class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
-    """Writes to a tagged text file"""
+    """Writes to a tagged text file."""
 
     BASIC_TABLE_STYLE = r"\[Basic Table\]"
-    REALM_TO_MNEM = {
+    REALM_TO_MNEM: t.Mapping[str, str] = {
         "character": "Char",
         "paragraph": "Para",
         "table": "Table",
@@ -31,37 +28,38 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
     _extra_cells: int = 0
     _newly_newlined: bool = False
 
-    def __init__(self, properties: DocumentProperties | None = None):
+    def __init__(self, properties: DocumentProperties | None = None) -> None:
         super().__init__()
         self._buffer = io.StringIO()
-        self._styles: list[Style] = []
+        self._styles: dict[Style, bool] = {}
+        self._styles_defined: list[Style] = []
+        self._styles_written: set[str] = set()
         self._headers_written = False
-        self._shades: Mapping[str, Iterator[int]] = collections.defaultdict(
-            itertools.count
+        self._shades: t.Mapping[str, t.Iterator[int]] = collections.defaultdict(
+            itertools.count,
         )
         if properties is None:
             self._properties = DocumentProperties()
         else:
             self._properties = properties
 
-    def _writeln(self, line="") -> None:
+    def _writeln(self, line: str = "") -> None:
         self._write(line)
         self._write("\n")
 
     def define_style(self, style: Style) -> None:
         """Add a style definition."""
-        if style in self._styles:
+        if style in self._styles_defined:
             return
 
         if style.parent_style is not None:
-            if style.parent_style.used:
-                self.define_style(style.parent_style)
+            self.define_style(style.parent_style)
 
-        self._styles.append(style)
+        self._styles_defined.append(style)
 
         if style.next_style is not None:
-            if style.next_style.used:
-                self.define_style(style.next_style)
+            self.define_style(style.next_style)
+
         if self._headers_written:
             self._write_style_definition(style)
 
@@ -80,12 +78,15 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
         self._write(r"<Yellow:COLOR:CMYK:Process:0,0,1,0>")
         self._write(r">")
         self._writeln()
-        for style in self._styles:
+        for style in self._styles_defined:
             self._write_style_definition(style)
             self._writeln()
         self._headers_written = True
 
     def _write_style_definition(self, style: Style) -> None:
+        if (mnem := str(style)) in self._styles_written:
+            return
+
         logging.debug("InDesign: %s", style)
         idtt: list[str] = []
         if style.idtt:
@@ -121,7 +122,10 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
             self._write(">")
         self._write(">")
 
+        self._styles_written.add(mnem)
+
     def define_text_variable(self, name: str, value: str) -> None:
+        """Define a Text variable; gotta remember what this does one day."""
         self._write("<DefineTextVariable:")
         self._write_escaped(name)
         self._write("=<TextVarType:CustomText>")
@@ -135,21 +139,22 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
         rows: int,
         cols: int,
         header_rows: int = 0,
-        rtl: bool = False,
         style: OptionalStyle = None,
-    ):
-        """Start a table"""
+        *,
+        rtl: bool = False,
+    ) -> None:
+        """Start a table."""
         self._set_style("Table", style)
         direction = "RTL" if rtl else "LTR"
         self._write(f"<TableStart:{rows},{cols}:{header_rows}:0:{direction}>")
         self._in_table = True
 
     def leave_table(self) -> None:
-        """Finish a table"""
+        """Finish a table."""
         self._write("<TableEnd:>")
         self._in_table = False
 
-    def enter_table_row(self):
+    def enter_table_row(self) -> None:
         """Start a table row."""
         self._write("<RowStart:>")
 
@@ -157,7 +162,7 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
         """Finalize table row."""
         self._write("<RowEnd:>")
 
-    def enter_table_cell(self, rows: int = 1, cols: int = 1):
+    def enter_table_cell(self, rows: int = 1, cols: int = 1) -> None:
         """Start a table cell."""
         self._write(f"<CellStart:{rows},{cols}>")
         self._extra_cells = cols - 1
@@ -233,5 +238,5 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
 
     @property
     def contents(self) -> str:
-        """The actual tagged text"""
+        """The actual tagged text."""
         return self._buffer.getvalue()
