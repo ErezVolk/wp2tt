@@ -1,6 +1,7 @@
 """Tagged text creation."""
 import collections
 import contextlib
+import enum
 import io
 import itertools
 import logging
@@ -11,6 +12,14 @@ from wp2tt.output import IOutput
 from wp2tt.styles import DocumentProperties
 from wp2tt.styles import Style
 from wp2tt.styles import OptionalStyle
+
+
+class StyleState(enum.IntEnum):
+    """How far along we are with a style."""
+
+    SEEN = 0
+    DEFINED = 1
+    WRITTEN = 2
 
 
 class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
@@ -31,9 +40,7 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
     def __init__(self, properties: DocumentProperties | None = None) -> None:
         super().__init__()
         self._buffer = io.StringIO()
-        self._styles: dict[Style, bool] = {}
-        self._styles_defined: list[Style] = []
-        self._styles_written: set[str] = set()
+        self._styles: dict[Style, StyleState] = {}
         self._headers_written = False
         self._shades: t.Mapping[str, t.Iterator[int]] = collections.defaultdict(
             itertools.count,
@@ -49,16 +56,18 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
 
     def define_style(self, style: Style) -> None:
         """Add a style definition."""
-        if style in self._styles_defined:
+        if style in self._styles:
             return
+
+        self._styles[style] = StyleState.SEEN
 
         if style.parent_style is not None:
             self.define_style(style.parent_style)
 
-        self._styles_defined.append(style)
-
         if style.next_style is not None:
             self.define_style(style.next_style)
+
+        self._styles[style] = StyleState.DEFINED
 
         if self._headers_written:
             self._write_style_definition(style)
@@ -78,13 +87,13 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
         self._write(r"<Yellow:COLOR:CMYK:Process:0,0,1,0>")
         self._write(r">")
         self._writeln()
-        for style in self._styles_defined:
+        for style in self._styles:
             self._write_style_definition(style)
             self._writeln()
         self._headers_written = True
 
     def _write_style_definition(self, style: Style) -> None:
-        if (mnem := str(style)) in self._styles_written:
+        if self._styles.get(style, StyleState.SEEN) >= StyleState.WRITTEN:
             return
 
         logging.debug("InDesign: %s", style)
@@ -122,7 +131,7 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
             self._write(">")
         self._write(">")
 
-        self._styles_written.add(mnem)
+        self._styles[style] = StyleState.WRITTEN
 
     def define_text_variable(self, name: str, value: str) -> None:
         """Define a Text variable; gotta remember what this does one day."""
@@ -180,13 +189,13 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
         if self._curr_char_style:
             self._set_style("Char", self._curr_char_style)
 
-    def _set_style(self, mnem: str, style: OptionalStyle) -> None:
-        if style:
+    def _set_style(self, id_real: str, style: OptionalStyle) -> None:
+        if style is not None:
             self.define_style(style)
         self._write("<")
-        self._write(mnem)
+        self._write(id_real)
         self._write("Style:")
-        if style:
+        if style is not None:
             self._write(self._idname(style))
         self._write(">")
 

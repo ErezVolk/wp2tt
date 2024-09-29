@@ -45,6 +45,9 @@ class Style:
             return f"<{self.realm} {self.name!r}"
         return f"<{self.realm} {self.name!r} (built-in)>"
 
+    def __hash__(self) -> int:
+        return hash(f"{self.realm}:{self.name}")
+
 
 @dcl.dataclass
 class Rule:
