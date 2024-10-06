@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""A utility to convert word processor files (.docx, .odt) to InDesign's Tagged Text."""
+"""Convert word processor files (.docx, .odt) to InDesign's Tagged Text."""
 import argparse
 import collections
 import contextlib
@@ -94,7 +94,7 @@ class WordProcessorToInDesignTaggedText:
     STYLE_OVERRIDE: t.Mapping = {
         "character": {
             COMMENT_REF_STYLE: {
-                "idtt": "<pShadingColor:Cyain><pShadingOn:1><pShadingTint:100>",
+                "idtt": "<pShadingColor:Cyan><pShadingOn:1><pShadingTint:100>",
             },
         },
         "paragraph": {
@@ -350,7 +350,9 @@ class WordProcessorToInDesignTaggedText:
     def link_styles(self) -> None:
         """Do a sort of alchemy-relationship thing."""
         for style in self.styles.values():
-            style.parent_style = self.style_or_none(style.realm, style.parent_wpid)
+            style.parent_style = self.style_or_none(
+                style.realm, style.parent_wpid,
+            )
             style.next_style = self.style_or_none(style.realm, style.next_wpid)
 
     def define_styles(self) -> None:
@@ -359,7 +361,7 @@ class WordProcessorToInDesignTaggedText:
             if style.used:
                 self.writer.define_style(style)
 
-    def style_or_none(self, realm: str, wpid: str) -> OptionalStyle:
+    def style_or_none(self, realm: str, wpid: str | None) -> OptionalStyle:
         """Given a realm/wpid pair, return our internal Style object."""
         if not wpid:
             return None
@@ -392,7 +394,7 @@ class WordProcessorToInDesignTaggedText:
 
     def find_style_by_ini_ref(
         self,
-        ini_ref: str,
+        ini_ref: str | None,
         *,
         required: bool = False,
         inherit_from: Style | None = None,
@@ -784,7 +786,8 @@ class WordProcessorToInDesignTaggedText:
         """Generate next image filename."""
         count = next(self.image_count)
         self.image_dir.mkdir(parents=True, exist_ok=True)
-        return self.image_dir / f"{self.output_stem}-{infix}-{count:03d}{suffix}"
+        name = f"{self.output_stem}-{infix}-{count:03d}{suffix}"
+        return self.image_dir / name
 
     def convert_image(self, img: IDocumentImage) -> None:
         """Save an image, keep a placeholder in the output."""
@@ -926,7 +929,7 @@ class WordProcessorToInDesignTaggedText:
                 self.convert_paragraph(par, default_style=default_style)
 
     def convert_comment(self, cmt: IDocumentComment) -> None:
-        """Tagged Text doesn't support notes, so we convert them to footnotes."""
+        """Tagged Text doesn't support notes, so convert them to footnotes."""
         if self.args.comment_prefix:
             text = "".join(
                 text
@@ -1006,7 +1009,9 @@ class WordProcessorToInDesignTaggedText:
         if style.parent_style is not None:
             if not style.parent_style.used:
                 logging.debug(
-                    "[%s] leads to missing %r", section_name, style.parent_wpid,
+                    "[%s] leads to missing %r",
+                    section_name,
+                    style.parent_wpid,
                 )
                 style.parent_style = self.base_styles[style.realm]
                 style.parent_wpid = style.parent_style.wpid
