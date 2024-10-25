@@ -20,6 +20,7 @@ import cairosvg
 from wp2tt.cache import Cache
 from wp2tt.format import ManualFormat
 from wp2tt.ini import SettingsFile
+from wp2tt.input import IDocumentBookmark
 from wp2tt.input import IDocumentComment
 from wp2tt.input import IDocumentFootnote
 from wp2tt.input import IDocumentFormula
@@ -535,6 +536,7 @@ class WordProcessorToInDesignTaggedText:
                 logging.debug("In other words, no %r", self.stop_marker)
         except StopMarkerFoundError as marker:
             logging.info(marker)
+        self.writer.finalize()
 
     def write_output(self) -> None:
         """Write the actual output file(s)."""
@@ -744,10 +746,7 @@ class WordProcessorToInDesignTaggedText:
         self.state = state
         return prev
 
-    def convert_chunk(
-            self,
-            chunk: IDocumentSpan | IDocumentImage | IDocumentFormula,
-    ) -> None:
+    def convert_chunk(self, chunk: IDocumentParagraph.Chunk) -> None:
         """Convert all text and styles in a Span."""
         if isinstance(chunk, IDocumentSpan):
             self.convert_span(chunk)
@@ -755,6 +754,10 @@ class WordProcessorToInDesignTaggedText:
             self.convert_image(chunk)
         elif isinstance(chunk, IDocumentFormula):
             self.convert_formula(chunk)
+        elif isinstance(chunk, IDocumentBookmark):
+            self.convert_bookmark(chunk)
+        else:
+            logging.error("Unknown chunk type %s", type(chunk))
 
     def convert_span(self, span: IDocumentSpan) -> None:
         """Convert all text and styles in a Span."""
@@ -837,6 +840,10 @@ class WordProcessorToInDesignTaggedText:
         else:
             self.writer.write_text(str(path))
         self.switch_character_style(prev)
+
+    def convert_bookmark(self, bookmark: IDocumentBookmark) -> None:
+        """Convert a bookmark."""
+        self.writer.write_bookmark(bookmark.name)
 
     def convert_formula(self, formula: IDocumentFormula) -> None:
         """Convert a formula."""

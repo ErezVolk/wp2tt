@@ -9,6 +9,7 @@ disable = [
   "too-few-public-methods",
   "too-many-instance-attributes",
   "too-many-public-methods",
+  "too-many-arguments",
 ]
 
 [[tool.mypy.overrides]]
