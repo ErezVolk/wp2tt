@@ -38,6 +38,10 @@ class IDocumentInput(ABC):
 class IDocumentParagraph(ABC):
     """A Paragraph inside a document."""
 
+    Chunk: t.TypeAlias = (
+        "IDocumentSpan | IDocumentImage | IDocumentFormula | IDocumentBookmark"
+    )
+
     @abstractmethod
     def style_wpid(self) -> str | None:
         """Return the wpid for this paragraph's style."""
@@ -57,7 +61,7 @@ class IDocumentParagraph(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def chunks(self) -> t.Iterable["IDocumentSpan | IDocumentImage | IDocumentFormula"]:
+    def chunks(self) -> t.Iterable[Chunk]:
         """Yield all elements in the paragraph."""
         raise NotImplementedError
 
@@ -172,6 +176,15 @@ class IDocumentTableCell(ABC):
     @abstractmethod
     def contents(self) -> IDocumentParagraph:
         """Get the contents of this cell."""
+
+
+class IDocumentBookmark(ABC):
+    """A bookmark in a document."""
+
+    @property
+    @abstractmethod
+    def name(self) -> str:
+        """The name of this bookmark."""
 
 
 class IDocumentFootnote(ABC):

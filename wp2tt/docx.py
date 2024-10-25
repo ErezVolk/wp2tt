@@ -7,7 +7,7 @@ from pathlib import Path
 from pathlib import PurePosixPath
 from os import PathLike
 
-from lxml import etree
+from lxml import etree  # type: ignore[reportMissingImports]
 
 from wp2tt.input import IDocumentComment
 from wp2tt.input import IDocumentFootnote
@@ -60,7 +60,8 @@ class WordXml:
         return f"{{{cls._M}}}{tag}"
 
     @classmethod
-    def _wtag(cls, tag: str) -> str:
+    def wtag(cls, tag: str) -> str:
+        """Create representation of <w:XXX> tags."""
         return f"{{{cls._W}}}{tag}"
 
     @classmethod
@@ -79,7 +80,7 @@ class WordXml:
             nodes = [nodes]
         for node in nodes:
             for pnode in cls.xpath(node, prop):
-                return pnode.get(cls._wtag("val"))
+                return pnode.get(cls.wtag("val"))
         return None
 
 
@@ -144,12 +145,12 @@ class DocxInput(contextlib.ExitStack, WordXml, IDocumentInput):
             fmt &= ~(ManualFormat.LTR | ManualFormat.RTL)
             fmt |= DocxParagraph.node_format(stag)
             yield {
-                "realm": stag.get(self._wtag("type")),
+                "realm": stag.get(self.wtag("type")),
                 "internal_name": self.export_name(self._wval(stag, "w:name")),
-                "wpid": self.export_wpid(stag.get(self._wtag("styleId"))),
+                "wpid": self.export_wpid(stag.get(self.wtag("styleId"))),
                 "parent_wpid": self.export_wpid(self._wval(stag, "w:basedOn")),
                 "next_wpid": self.export_wpid(self._wval(stag, "w:next")),
-                "custom": stag.get(self._wtag("customStyle")),
+                "custom": stag.get(self.wtag("customStyle")),
                 "fmt": fmt,
             }
 
@@ -161,7 +162,7 @@ class DocxInput(contextlib.ExitStack, WordXml, IDocumentInput):
     _TAG_EXPRS = " or ".join(f"self::w:{tag}" for tag in _TAG_TO_REALM)
     TAG_XPATH = f"//*[{_TAG_EXPRS}]"
     WTAG_TO_REALM: t.Mapping[str, str] = {
-        WordXml._wtag(tag): realm for tag, realm in _TAG_TO_REALM.items()
+        WordXml.wtag(tag): realm for tag, realm in _TAG_TO_REALM.items()
     }
 
     def styles_in_use(self) -> t.Iterable[tuple[str, str | None]]:
@@ -170,14 +171,14 @@ class DocxInput(contextlib.ExitStack, WordXml, IDocumentInput):
             if node is None:
                 continue
             for snode in self.xpath(node, self.TAG_XPATH):
-                wpid = self.export_wpid(snode.get(self._wtag("val")))
+                wpid = self.export_wpid(snode.get(self.wtag("val")))
                 yield (self.WTAG_TO_REALM[snode.tag], wpid)
 
     def paragraphs(self) -> t.Iterable["DocxParagraph | DocxTable"]:
         """Yield a DocxParagraph object for each body paragraph."""
         # ex. "//w:body/w:p[not(preceding-sibling::w:p/w:pPr/w:rPr/w:del)]"
         for node in self.xpath(self.document, "//w:body/*[self::w:p or self::w:tbl]"):
-            if node.tag == self._wtag("tbl"):
+            if node.tag == self.wtag("tbl"):
                 yield DocxTable(self, node)
             elif not node.get("__wp2tt_skip__"):
                 yield DocxParagraph(self, node)
@@ -200,7 +201,7 @@ class DocxNode(WordXml):
         self.nodes.append(node)
 
     def _node_wtag(self, tag: str) -> str | None:
-        return self.head_node.get(self._wtag(tag))
+        return self.head_node.get(self.wtag(tag))
 
     def _node_xpath(self, expr: str) -> t.Iterable[etree._Entity]:
         for node in self.nodes:
@@ -221,7 +222,7 @@ class DocxNode(WordXml):
         return None
 
     def _node_wattrs(self, prop: str, attr: str) -> t.Iterable[str]:
-        tag = self._wtag(attr)
+        tag = self.wtag(attr)
         for node in self.nodes:
             for pnode in self.xpath(node, prop):
                 value = pnode.get(tag)
@@ -356,13 +357,13 @@ class DocxSpan(DocxNode, IDocumentSpan):
         for _ in cls.xpath(nodes, "w:rPr/w:i | w:rPr/w:iCs"):
             fmt = fmt | ManualFormat.ITALIC
         for vnode in cls.xpath(nodes, "w:rPr/w:vertAlign"):
-            vval = vnode.get(cls._wtag("val"))
+            vval = vnode.get(cls.wtag("val"))
             if vval == "subscript":
                 fmt |= ManualFormat.SUBSCRIPT
             elif vval == "superscript":
                 fmt |= ManualFormat.SUPERSCRIPT
         for vnode in cls.xpath(nodes, "w:rPr/w:position"):
-            vval = float(vnode.get(cls._wtag("val")))
+            vval = float(vnode.get(cls.wtag("val")))
             if vval < 0:
                 fmt |= ManualFormat.LOWERED
             elif vval > 0:
@@ -374,7 +375,7 @@ class DocxSpan(DocxNode, IDocumentSpan):
     def text(self) -> t.Iterable[str]:
         """Yield chunks of text."""
         for node in self._node_xpath("w:tab | w:t"):
-            if node.tag == self._wtag("tab"):
+            if node.tag == self.wtag("tab"):
                 yield "\t"
             elif node.text:
                 yield node.text
