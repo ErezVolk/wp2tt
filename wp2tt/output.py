@@ -82,18 +82,11 @@ class IOutput(ABC):
     @abstractmethod
     def leave_footnote(self) -> None:
         """Close footnote, go ack to main text."""
+        raise NotImplementedError
 
     @abstractmethod
     def write_text(self, text: str) -> None:
         """Add some plain text."""
-
-    @abstractmethod
-    def write_bookmark(self, name: str) -> None:
-        """Write a bookmark."""
-
-    @abstractmethod
-    def finalize(self) -> None:
-        """Write any footers and stuff."""
 
 
 class WhitespaceStripper(IOutput):
@@ -142,10 +135,6 @@ class WhitespaceStripper(IOutput):
             self.begun = bool(text)
 
         return self.writer.write_text(text)
-
-    def write_bookmark(self, name: str) -> None:
-        """Write a bookmark."""
-        return self.writer.write_bookmark(name)
 
     def enter_table(
         self,

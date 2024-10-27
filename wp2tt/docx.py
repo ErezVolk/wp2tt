@@ -9,7 +9,6 @@ from os import PathLike
 
 from lxml import etree  # type: ignore[reportMissingImports]
 
-from wp2tt.input import IDocumentBookmark
 from wp2tt.input import IDocumentComment
 from wp2tt.input import IDocumentFootnote
 from wp2tt.input import IDocumentFormula
@@ -234,7 +233,7 @@ class DocxNode(WordXml):
 class DocxParagraph(DocxNode, IDocumentParagraph):
     """A Paragraph inside a .docx."""
 
-    CHUNK_XPATH = "w:r | w:ins/w:r | m:oMath | w:bookmarkStart"
+    R_XPATH = "w:r | w:ins/w:r | m:oMath"
     T_XPATH = "w:r/w:t | w:ins/w:r/w:t"
     SNIPPET_LEN = 10
 
@@ -287,13 +286,11 @@ class DocxParagraph(DocxNode, IDocumentParagraph):
             if node.text:
                 yield node.text
 
-    def chunks(self) -> t.Iterable["DocxSpan | DocxImage | DocxFormula | DocxBookmark"]:
+    def chunks(self) -> t.Iterable["DocxSpan | DocxImage | DocxFormula"]:
         """Yield DocxSpan per text span."""
-        for node in self._node_xpath(self.CHUNK_XPATH):
+        for node in self._node_xpath(self.R_XPATH):
             if node.tag == self._mtag("oMath"):
                 yield DocxFormula(node)
-            elif node.tag == self.wtag("bookmarkStart"):
-                yield DocxBookmark(node)
             else:
                 for drawing in self.xpath(node, "w:drawing[//a:blip[@r:embed]]"):
                     yield DocxImage(self.doc, drawing)
@@ -413,20 +410,6 @@ class DocxImage(DocxNode, IDocumentImage):
         """Extract image."""
         with self.doc.zip.open(str(self.target)) as ifo, Path(path).open("wb") as ofo:
             ofo.write(ifo.read())
-
-
-class DocxBookmark(WordXml, IDocumentBookmark):
-    """A (beginning of a) bookmark in a .docx."""
-
-    _name: str
-
-    def __init__(self, node: etree._Entity) -> None:
-        self._name = node.get(self.wtag("name")) or "N/A"
-
-    @property
-    def name(self) -> str:
-        """The name of this bookmark."""
-        return self._name
 
 
 class DocxFormula(IDocumentFormula):

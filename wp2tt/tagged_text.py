@@ -1,7 +1,6 @@
 """Tagged text creation."""
 import collections
 import contextlib
-import dataclasses as dcl
 import enum
 import io
 import itertools
@@ -23,14 +22,6 @@ class StyleState(enum.IntEnum):
     WRITTEN = 2
 
 
-@dcl.dataclass
-class Bookmark:
-    """Information for a bookmark."""
-
-    key: int
-    index: int
-
-
 class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
     """Writes to a tagged text file."""
 
@@ -44,13 +35,11 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
     _curr_char_style: OptionalStyle = None
     _in_table: bool = False
     _extra_cells: int = 0
-    _index: int = 1
     _newly_newlined: bool = False
 
     def __init__(self, properties: DocumentProperties | None = None) -> None:
         super().__init__()
         self._buffer = io.StringIO()
-        self._bookmarks: dict[str, Bookmark] = {}
         self._styles: dict[Style, StyleState] = {}
         self._headers_written = False
         self._shades: t.Mapping[str, t.Iterator[int]] = collections.defaultdict(
@@ -220,7 +209,6 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
             self._set_style("Char", None)
         if not self._in_table:
             self._writeln()
-            self._index += 1  # A hack
 
     def set_character_style(self, style: OptionalStyle = None) -> None:
         """Start a span using a specific character style."""
@@ -241,23 +229,6 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
         """Add some plain text."""
         if text:
             self._write_escaped(text)
-            self._index += len(text)
-
-    def write_bookmark(self, name: str) -> None:
-        """Write (actually, save aside) a bookmark's location."""
-        self._bookmarks[name] = Bookmark(
-            index=self._index,
-            key=len(self._bookmarks) + 2,  # No idea why they start at 2
-        )
-
-    def finalize(self) -> None:
-        """Write any footers and stuff."""
-        for name, bookmark in self._bookmarks.items():
-            self._write("<HyperlinkDestDefn:=")
-            self._write(f"<HyperlinkDestName:{name}>")
-            self._write(f"<HyperlinkDestKey:{bookmark.key}>")
-            self._write(f"<HyperlinkDestIndex:{bookmark.index}>")
-            self._write("<IsParagraphDest:0><Hidden:0>>")
 
     def _write_escaped(self, text: str) -> None:
         return self._write(self._escape(text))
