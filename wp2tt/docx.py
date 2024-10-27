@@ -57,15 +57,6 @@ class WordXml:
             yield from node.xpath(expr, namespaces=cls._NS)
 
     @classmethod
-    def xone(
-        cls, nodes: list[etree._Entity] | etree._Entity, expr: str,
-    ) -> etree._Entity | None:
-        """Return first node matching `expr`."""
-        for node in cls.xpath(nodes, expr):
-            return node
-        return None
-
-    @classmethod
     def _mtag(cls, tag: str) -> str:
         return f"{{{cls._M}}}{tag}"
 
@@ -120,7 +111,7 @@ class DocxInput(contextlib.ExitStack, WordXml, IDocumentInput):
     def _has_node(self, wtag: str) -> bool:
         for root in (self.document, self.footnotes, self.comments):
             if root is not None:
-                if self.xone(root, wtag):
+                for _ in self.xpath(root, wtag):
                     return True
         return False
 
@@ -282,7 +273,9 @@ class DocxParagraph(DocxNode, IDocumentParagraph):
 
     def is_nonfinal(self, para: etree._Entity) -> bool:
         """Check if a <w:p> para has deleted, tracked newline."""
-        return self.xone(para, "./w:pPr/w:rPr/w:del") is not None
+        for _ in self.xpath(para, "./w:pPr/w:rPr/w:del"):
+            return True
+        return False
 
     def style_wpid(self) -> str | None:
         """Get MS Word's internal ID for this style."""
@@ -301,10 +294,12 @@ class DocxParagraph(DocxNode, IDocumentParagraph):
                 yield DocxFormula(node)
             elif node.tag == self.wtag("bookmarkStart"):
                 yield DocxBookmark(node)
-            elif drawing := self.xone(node, "w:drawing[//a:blip[@r:embed]]"):
-                yield DocxImage(self.doc, drawing)
             else:
-                yield DocxSpan(self.doc, node)
+                for drawing in self.xpath(node, "w:drawing[//a:blip[@r:embed]]"):
+                    yield DocxImage(self.doc, drawing)
+                    break
+                else:
+                    yield DocxSpan(self.doc, node)
 
     def format(self) -> ManualFormat:
         """Return manual formatting on this paragraph."""
@@ -319,7 +314,7 @@ class DocxParagraph(DocxNode, IDocumentParagraph):
             fmt = fmt | ManualFormat.CENTERED
         elif justification == "both":
             fmt = fmt | ManualFormat.JUSTIFIED
-        if cls.xone(nodes, "w:pPr/w:bidi"):
+        for _ in cls.xpath(nodes, "w:pPr/w:bidi"):
             fmt = (fmt & ~ManualFormat.LTR) | ManualFormat.RTL
         return fmt
 
@@ -360,9 +355,9 @@ class DocxSpan(DocxNode, IDocumentSpan):
     def node_format(cls, nodes: list[etree._Entity]) -> ManualFormat:
         """Get manual formatting for a span/style."""
         fmt = ManualFormat.LTR
-        if cls.xone(nodes, "w:rPr/w:b | w:rPr/w:bCs"):
+        for _ in cls.xpath(nodes, "w:rPr/w:b | w:rPr/w:bCs"):
             fmt = fmt | ManualFormat.BOLD
-        if cls.xone(nodes, "w:rPr/w:i | w:rPr/w:iCs"):
+        for _ in cls.xpath(nodes, "w:rPr/w:i | w:rPr/w:iCs"):
             fmt = fmt | ManualFormat.ITALIC
         for vnode in cls.xpath(nodes, "w:rPr/w:vertAlign"):
             vval = vnode.get(cls.wtag("val"))
@@ -376,7 +371,7 @@ class DocxSpan(DocxNode, IDocumentSpan):
                 fmt |= ManualFormat.LOWERED
             elif vval > 0:
                 fmt |= ManualFormat.RAISED
-        if cls.xone(nodes, "w:rPr/w:rtl"):
+        for _ in cls.xpath(nodes, "w:rPr/w:rtl"):
             fmt = fmt & ~ManualFormat.LTR | ManualFormat.RTL
         return fmt
 
