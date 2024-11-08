@@ -7,7 +7,6 @@ from pathlib import Path
 import re
 from typing import Iterable
 
-from pandas_ods_reader import read_ods
 import pandas as pd
 
 from wp2tt.input import IDocumentComment
@@ -116,7 +115,7 @@ class OdsInput(_SpreadsheetInput):
     """ODS reader"""
 
     def _read_spreadsheet(self, path: Path) -> pd.DataFrame:
-        return read_ods(path)
+        return pd.read_excel(path)
 
 
 class CsvInput(_SpreadsheetInput):

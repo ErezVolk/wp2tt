@@ -1,3 +1,28 @@
+[project]
+name = "wp2tt"
+authors = [{name="Erez Volk", email="erez.volk@gmail.com"}]
+description = "Convert word processor files to InDesign Tagged Text"
+readme = "README.md"
+requires-python = ">=3.11"
+classifiers = []
+dependencies = [
+  "cairosvg",
+  "lxml",
+  "mistune",
+  "pandas",
+  "ziamath",
+]
+dynamic = ["version"]
+
+[project.scripts]
+wp2tt = "wp2tt:main"
+
+[tool.setuptools]
+packages = ["wp2tt"]
+
+[tool.setuptools.dynamic]
+version = {attr = "wp2tt.version.WP2TT_VERSION"}
+
 [tool.pylint.MASTER]
 extension-pkg-allow-list = [
     "lxml",
