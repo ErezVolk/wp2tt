@@ -1,10 +1,12 @@
-"""Utility classes."""
+#!/usr/bin/env python3
+"""Utility classes"""
 import argparse
+from collections.abc import Sequence
 import contextlib
 import logging
-import typing as t
-from collections.abc import Sequence
 from pathlib import Path
+
+from typing import Iterable
 
 from wp2tt.input import IDocumentInput
 from wp2tt.input import IDocumentParagraph
@@ -18,41 +20,34 @@ from wp2tt.styles import DocumentProperties
 
 
 class ProxyInput(IDocumentInput, contextlib.ExitStack):
-    """Just a proxy IDocumentInput."""
-
+    """Just a proxy IDocumentInput"""
     args: argparse.Namespace | None
 
-    def __init__(self, args: argparse.Namespace | None = None) -> None:
+    def __init__(self, args: argparse.Namespace | None = None):
         super().__init__()
         self.args = args
 
 
 class MultiInput(ProxyInput):
     """Input from multiple files."""
-
     _args: argparse.Namespace | None
 
-    def __init__(
-        self,
-        paths: Sequence[Path],
-        args: argparse.Namespace | None = None,
-    ) -> None:
+    def __init__(self, paths: Sequence[Path], args: argparse.Namespace | None = None):
         super().__init__(args)
         self._paths = paths
         self._inputs: list[IDocumentInput] = []
         for nth, path in enumerate(paths, 1):
             one = ByExtensionInput(path, self.args)
-            if args and args.per_file_styles:
-                one.set_nth(nth)
+            one.set_nth(nth)
             self._inputs.append(one)
             self.enter_context(one)
 
     @property
-    def properties(self) -> DocumentProperties:
+    def properties(self):
         """A DocumentProperties object."""
         return DocumentProperties()  # Worst case scenario
 
-    def styles_defined(self) -> t.Iterable[dict[str, str]]:
+    def styles_defined(self):
         """Yield a Style object kwargs for every style defined in the document."""
         known = set()
         for doc in self._inputs:
@@ -61,10 +56,10 @@ class MultiInput(ProxyInput):
                     yield style
                     known.add(str(style))
 
-    def styles_in_use(self) -> t.Iterable[tuple[str, str | None]]:
+    def styles_in_use(self):
         """Yield a pair (realm, wpid) for every style used in the document."""
         total = 0
-        for path, doc in zip(self._paths, self._inputs, strict=True):
+        for path, doc in zip(self._paths, self._inputs):
             in_file = 0
             for style in doc.styles_in_use():
                 yield style
@@ -73,10 +68,10 @@ class MultiInput(ProxyInput):
             logging.debug("%u style(s) in %r", in_file, path)
         logging.debug("%u style(s) in %u docs", total, len(self._paths))
 
-    def paragraphs(self) -> t.Iterable[IDocumentParagraph | IDocumentTable]:
-        """Yield an IDocumentParagraph object for each body paragraph."""
+    def paragraphs(self) -> Iterable[IDocumentParagraph | IDocumentTable]:
+        """Yields an IDocumentParagraph object for each body paragraph."""
         total = 0
-        for path, doc in zip(self._paths, self._inputs, strict=True):
+        for path, doc in zip(self._paths, self._inputs):
             in_file = 0
             logging.debug("Paragraphs in %r", path)
             for para in doc.paragraphs():
@@ -92,7 +87,7 @@ class ByExtensionInput(ProxyInput):
 
     _input: IDocumentInput
 
-    def __init__(self, path: Path, args: argparse.Namespace | None = None) -> None:
+    def __init__(self, path: Path, args: argparse.Namespace | None = None):
         super().__init__(args)
         ext = path.suffix.lower()
         if ext == ".docx":
@@ -111,23 +106,22 @@ class ByExtensionInput(ProxyInput):
             raise RuntimeError(f"Unknown file extension for {path}")
         self.enter_context(self._input)
 
-    def set_nth(self, nth: int) -> None:
-        """Make sure style names in this document are prefixed."""
+    def set_nth(self, nth):
         self._input.set_nth(nth)
 
     @property
-    def properties(self) -> DocumentProperties:
+    def properties(self):
         """A DocumentProperties object."""
         return self._input.properties
 
-    def styles_defined(self) -> t.Iterable[dict[str, str]]:
+    def styles_defined(self):
         """Yield a Style object kwargs for every style defined in the document."""
         yield from self._input.styles_defined()
 
-    def styles_in_use(self) -> t.Iterable[tuple[str, str | None]]:
+    def styles_in_use(self):
         """Yield a pair (realm, wpid) for every style used in the document."""
         yield from self._input.styles_in_use()
 
-    def paragraphs(self) -> t.Iterable["IDocumentParagraph | IDocumentTable"]:
-        """Yield an IDocumentParagraph object for each body paragraph."""
+    def paragraphs(self):
+        """Yields an IDocumentParagraph object for each body paragraph."""
         yield from self._input.paragraphs()
