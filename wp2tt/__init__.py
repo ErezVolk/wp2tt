@@ -67,6 +67,7 @@ class State:
     """Context of styles."""
 
     curr_char_style: OptionalStyle = None
+    active_char_style: OptionalStyle = None
     prev_para_style: OptionalStyle = None
     is_empty: bool = True
     is_post_empty: bool = False
@@ -744,10 +745,7 @@ class WordProcessorToInDesignTaggedText:
         self.state = state
         return prev
 
-    def convert_chunk(
-            self,
-            chunk: IDocumentSpan | IDocumentImage | IDocumentFormula,
-    ) -> None:
+    def convert_chunk(self, chunk: IDocumentParagraph.Chunk) -> None:
         """Convert all text and styles in a Span."""
         if isinstance(chunk, IDocumentSpan):
             self.convert_span(chunk)
@@ -755,6 +753,8 @@ class WordProcessorToInDesignTaggedText:
             self.convert_image(chunk)
         elif isinstance(chunk, IDocumentFormula):
             self.convert_formula(chunk)
+        else:
+            logging.warn("Unhandled chunk type %s", type(chunk))
 
     def convert_span(self, span: IDocumentSpan) -> None:
         """Convert all text and styles in a Span."""
@@ -816,14 +816,8 @@ class WordProcessorToInDesignTaggedText:
                 path = self.cache.get(cached, svg)
             else:
                 logging.debug("Converting %s -> %s", path.name, svg.name)
-                subprocess.run(
-                    [
-                        "emf2svg-conv",
-                        "-i", str(path),
-                        "-o", str(svg),
-                    ],
-                    check=True,
-                )
+                cmd = ["emf2svg-conv", "-i", str(path), "-o", str(svg)]
+                subprocess.run(cmd, check=True)
                 self.svg2png(svg, path)
                 path = svg
                 self.cache.put(path, cached)
@@ -833,9 +827,9 @@ class WordProcessorToInDesignTaggedText:
         """Write an image placeholder."""
         prev = self.switch_character_style(style)
         if path.is_relative_to(self.output_dir):
-            self.writer.write_text(str(path.relative_to(self.output_dir)))
+            self.do_write_text(str(path.relative_to(self.output_dir)))
         else:
-            self.writer.write_text(str(path))
+            self.do_write_text(str(path))
         self.switch_character_style(prev)
 
     def convert_formula(self, formula: IDocumentFormula) -> None:
@@ -885,8 +879,9 @@ class WordProcessorToInDesignTaggedText:
 
     def convert_span_text(self, span: IDocumentSpan) -> None:
         """Convert text in a Span object."""
+        switched = self.state.curr_char_style != self.state.active_char_style
         for text in span.text():
-            if self.state.is_empty and self.args.manual:
+            if text and not switched and self.state.is_empty and self.args.manual:
                 text = text.lstrip()
             self.write_text(text)
             if not text.isspace():
@@ -916,6 +911,7 @@ class WordProcessorToInDesignTaggedText:
         """Actually send text to `self.writer`."""
         if text:
             self.writer.write_text(text)
+            self.state.active_char_style = self.state.curr_char_style
 
     def convert_footnote(
         self,
