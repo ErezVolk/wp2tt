@@ -880,8 +880,9 @@ class WordProcessorToInDesignTaggedText:
     def convert_span_text(self, span: IDocumentSpan) -> None:
         """Convert text in a Span object."""
         switched = self.state.curr_char_style != self.state.active_char_style
-        for text in span.text():
-            if text and not switched and self.state.is_empty and self.args.manual:
+        for raw in span.text():
+            text = raw
+            if text and not switched and self.state.is_empty:
                 text = text.lstrip()
             self.write_text(text)
             if not text.isspace():

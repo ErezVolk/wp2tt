@@ -235,7 +235,7 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
 
     @classmethod
     def _escape(cls, text: str) -> str:
-        return re.sub(r"([<>])", r"\\\1", text)
+        return re.sub(r"([<>\\])", r"\\\1", text)
 
     def _write(self, string: str) -> None:
         if string:
