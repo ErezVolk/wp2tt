@@ -348,14 +348,19 @@ class DocxSpan(DocxNode, IDocumentSpan):
         """Get manual formatting for this span."""
         return self.node_format(self.nodes)
 
+    XPATH_TO_FMT: t.Mapping[str, ManualFormat] = {
+        "w:rPr/w:b | w:rPr/w:bCs": ManualFormat.BOLD,
+        "w:rPr/w:i | w:rPr/w:iCs": ManualFormat.ITALIC,
+        "w:rPr/w:highlight": ManualFormat.HIGHLIGHT,
+    }
+
     @classmethod
     def node_format(cls, nodes: list[etree._Entity]) -> ManualFormat:
         """Get manual formatting for a span/style."""
         fmt = ManualFormat.LTR
-        for _ in cls.xpath(nodes, "w:rPr/w:b | w:rPr/w:bCs"):
-            fmt = fmt | ManualFormat.BOLD
-        for _ in cls.xpath(nodes, "w:rPr/w:i | w:rPr/w:iCs"):
-            fmt = fmt | ManualFormat.ITALIC
+        for expr, flag in cls.XPATH_TO_FMT.items():
+            for _ in cls.xpath(nodes, expr):
+                fmt = fmt | flag
         for vnode in cls.xpath(nodes, "w:rPr/w:vertAlign"):
             vval = vnode.get(cls.wtag("val"))
             if vval == "subscript":

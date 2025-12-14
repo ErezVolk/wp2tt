@@ -21,3 +21,4 @@ class ManualFormat(enum.Flag):
     SUPERSCRIPT = enum.auto()
     RAISED = enum.auto()
     LOWERED = enum.auto()
+    HIGHLIGHT = enum.auto()
