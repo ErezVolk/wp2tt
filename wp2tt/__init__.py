@@ -769,8 +769,7 @@ class WordProcessorToInDesignTaggedText:
     def convert_chunk(self, chunk: IDocumentParagraph.Chunk) -> None:
         """Convert all text and styles in a Span."""
         if isinstance(chunk, IDocumentSpan):
-            if not chunk.is_empty():
-                self.convert_span(chunk)
+            self.convert_span(chunk)
         elif isinstance(chunk, IDocumentImage):
             self.convert_image(chunk)
         elif isinstance(chunk, IDocumentFormula):
