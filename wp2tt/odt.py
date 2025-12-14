@@ -1,10 +1,9 @@
 #!/usr/bin/env python
-""".odt file parsing"""
+""".odt file parsing."""
 import contextlib
 import logging
 from pathlib import Path
-
-from typing import Iterable
+import typing as t
 
 from lxml import etree
 
@@ -16,11 +15,13 @@ from wp2tt.input import IDocumentSpan
 from wp2tt.styles import DocumentProperties
 from wp2tt.zip import ZipDocument
 
+log = logging.getLogger(__name__)
+
 
 class OoXml:
     """Basic helper class for the OpenOffice XML format."""
 
-    _NS = {
+    _NS: t.Mapping[str, str] = {
         "office": "urn:oasis:names:tc:opendocument:xmlns:office:1.0",
         "style": "urn:oasis:names:tc:opendocument:xmlns:style:1.0",
         "text": "urn:oasis:names:tc:opendocument:xmlns:text:1.0",
@@ -31,7 +32,7 @@ class OoXml:
         "text": "character",
     }
 
-    def _xpath(self, node, expr) -> Iterable[etree._Entity]:
+    def _xpath(self, node, expr) -> t.Iterable[etree._Entity]:
         return node.xpath(expr, namespaces=self._NS)
 
     def _ootag(self, tag):
@@ -157,7 +158,7 @@ class OdtParagraph(OdtNode, IDocumentParagraph):
                 elif node.tag == self._ootag("text:p"):
                     yield OdtHeadSpan(self.doc, node)
                 else:
-                    logging.debug(
+                    log.debug(
                         "Not sure what to do with a <%s> %r", node.tag, node.text[:8]
                     )
                     yield OdtHeadSpan(self.doc, node)

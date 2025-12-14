@@ -13,6 +13,7 @@ from wp2tt.styles import OptionalStyle
 from wp2tt.styles import Style
 
 
+log = logging.getLogger(__name__)
 ConfigSection = (configparser.SectionProxy | dict[str, str])
 
 
@@ -37,12 +38,12 @@ class SettingsFile(configparser.ConfigParser):
         if fresh_start or not self.exists():
             return
 
-        logging.info("Reading %s", self.path)
+        log.info("Reading %s", self.path)
         self.read(path, encoding=self.ENCODING)
         try:
             self.images = self[self.IMAGE_SECTION]
             self.base = self.base / self.images[self.BASE_KEY]
-            logging.debug("Image base: %s", self.base)
+            log.debug("Image base: %s", self.base)
         except KeyError:
             pass
 
@@ -60,8 +61,8 @@ class SettingsFile(configparser.ConfigParser):
 
         # Maybe the key *is* the file name?!
         maybe = self.base / key
-        if maybe.is_file:
-            logging.debug("Guessing that {key} is {maybe}")
+        if maybe.is_file():
+            log.debug("Guessing that {key} is {maybe}")
             self.images[key] = key
             return maybe
 
@@ -86,10 +87,10 @@ class SettingsFile(configparser.ConfigParser):
     def backup_and_write(self) -> None:
         """Write to disk, backing up first if modified."""
         if self.touched and self.exists():
-            logging.debug("Backing up %s", self.path)
+            log.debug("Backing up %s", self.path)
             shutil.copy(self.path, self.path.with_suffix(".bak"))
 
-        logging.info("Writing %s", self.path)
+        log.info("Writing %s", self.path)
         with self.path.open("w", encoding=self.ENCODING) as fobj:
             self.write(fobj)
 

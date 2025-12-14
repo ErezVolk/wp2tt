@@ -13,6 +13,8 @@ from wp2tt.styles import DocumentProperties
 from wp2tt.styles import Style
 from wp2tt.styles import OptionalStyle
 
+log = logging.getLogger(__name__)
+
 
 class StyleState(enum.IntEnum):
     """How far along we are with a style."""
@@ -96,7 +98,7 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
         if self._styles.get(style, StyleState.SEEN) >= StyleState.WRITTEN:
             return
 
-        logging.debug("InDesign: %s", style)
+        log.debug("InDesign: %s", style)
         idtt: list[str] = []
         if style.idtt:
             idtt = [style.idtt]

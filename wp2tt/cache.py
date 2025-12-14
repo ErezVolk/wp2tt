@@ -3,20 +3,21 @@ import hashlib
 import logging
 from pathlib import Path
 import shutil
+import typing as t
 
-from typing import Callable
+log = logging.getLogger(__name__)
 
 
 class Cache:
     """Caching directory for converted images, formulas, etc."""
 
-    def __init__(self, path: Path | None = None):
+    def __init__(self, path: Path | None = None) -> None:
         self.path = path
 
-    GetContents = Callable[[], bytes]
+    GetContents = t.Callable[[], bytes]
 
     def name(self, get_contents: GetContents, suffix: str) -> Path | None:
-        """Return where a converted version should be cached, if configured"""
+        """Return where a converted version should be cached, if configured."""
         if self.path is None:
             return None
 
@@ -24,7 +25,7 @@ class Cache:
         return self.path / f"{md5}{suffix}"
 
     def get(self, cached: Path, target: Path) -> Path:
-        """Uncache file, return location"""
+        """Uncache file, return location."""
         if self.path is None:
             return target
 
@@ -37,18 +38,18 @@ class Cache:
         if len(chain) > 1:
             target = target.with_suffix(final.suffix)
 
-        logging.debug("Cached %s => %s", " -> ".join(descs), target.name)
+        log.debug("Cached %s => %s", " -> ".join(descs), target.name)
         shutil.copy(cached, target)
         return target
 
     def put(self, source: Path, cached: Path | None) -> Path | None:
-        """Cache file, return location"""
+        """Cache file, return location."""
         if self.path is None:
             assert cached is None
             return source
 
         assert cached is not None
-        logging.debug("Caching %s => %s", source.name, cached.name)
+        log.debug("Caching %s => %s", source.name, cached.name)
         cached.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy(source, cached)
         return cached

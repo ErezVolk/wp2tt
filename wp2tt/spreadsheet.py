@@ -1,11 +1,11 @@
-"""Simple spreadsheet reader (via pandas)"""
+"""Simple spreadsheet reader (via pandas)."""
 from abc import abstractmethod
 import argparse
 import contextlib
 import logging
 from pathlib import Path
 import re
-from typing import Iterable
+import typing as t
 
 import pandas as pd
 
@@ -19,9 +19,12 @@ from wp2tt.input import IDocumentTableCell
 from wp2tt.input import IDocumentTableRow
 from wp2tt.styles import DocumentProperties
 
+log = logging.getLogger(__name__)
+
 
 class Wpids:
-    """Known paragraph IDs"""
+    """Known paragraph IDs."""
+
     TABLE_STYLE = "Spreadsheet"
     HEADER_STYLE = "Spreadsheet Header"
     BODY_STYLE = "Spreadsheet Body"
@@ -57,11 +60,11 @@ class _SpreadsheetInput(contextlib.ExitStack, IDocumentInput):
         if args.max_table_cols:
             cols = cols[:args.max_table_cols]
         elif args.table_cols:
-            logging.debug("Table column indexes: %s", " ".join(args.table_cols))
+            log.debug("Table column indexes: %s", " ".join(args.table_cols))
             cols = [cols[idx - 1] for idx in args.table_cols]
         else:
             return
-        logging.debug("Using columns: %s", ", ".join(cols))
+        log.debug("Using columns: %s", ", ".join(cols))
         self._frame = self._frame[cols]
 
     @abstractmethod
@@ -73,7 +76,7 @@ class _SpreadsheetInput(contextlib.ExitStack, IDocumentInput):
         """A DocumentProperties object."""
         return self._props
 
-    def styles_defined(self) -> Iterable[dict[str, str]]:
+    def styles_defined(self) -> t.Iterable[dict[str, str]]:
         """Styles defined"""
         yield {
             "realm": "table",
@@ -87,7 +90,7 @@ class _SpreadsheetInput(contextlib.ExitStack, IDocumentInput):
         self,
         name: str,
         parent: str | None = None,
-    ) -> Iterable[dict[str, str]]:
+    ) -> t.Iterable[dict[str, str]]:
         """Helper for `self.styles_defined()`"""
         child = {"realm": "paragraph", "wpid": name, "internal_name": name}
         if parent is not None:
@@ -101,12 +104,12 @@ class _SpreadsheetInput(contextlib.ExitStack, IDocumentInput):
                 "parent_wpid": name,
             }
 
-    def styles_in_use(self) -> Iterable[tuple[str, str]]:
+    def styles_in_use(self) -> t.Iterable[tuple[str, str]]:
         """Basic styles"""
         for style_dict in self.styles_defined():
             yield (style_dict["realm"], style_dict["wpid"])
 
-    def paragraphs(self) -> Iterable["DataFrameTable"]:
+    def paragraphs(self) -> t.Iterable["DataFrameTable"]:
         """Just the one table, for now."""
         yield DataFrameTable(self._frame, self._column_wpids)
 
@@ -125,7 +128,7 @@ class CsvInput(_SpreadsheetInput):
         self._column_wpids = [Wpids.column(col) for col in frame.columns]
         return frame
 
-    def styles_defined(self) -> Iterable[dict[str, str]]:
+    def styles_defined(self) -> t.Iterable[dict[str, str]]:
         """CSV files get per-columns styles"""
         yield from super().styles_defined()
         if self._column_wpids is not None:
@@ -151,7 +154,7 @@ class DataFrameTable(IDocumentTable):
     def header_rows(self) -> int:
         return 1
 
-    def rows(self) -> Iterable[IDocumentTableRow]:
+    def rows(self) -> t.Iterable[IDocumentTableRow]:
         """Iterates the rows of the table"""
         yield DataFrameRow(self._frame.columns, Wpids.HEADER_STYLE)
         for _, row in self._frame.iterrows():
@@ -169,7 +172,7 @@ class DataFrameRow(IDocumentTableRow):
         else:
             self._wpids = wpids
 
-    def cells(self) -> Iterable[IDocumentTableCell]:
+    def cells(self) -> t.Iterable[IDocumentTableCell]:
         """Iterates the cells in the row"""
         for item, wpid in zip(self._items, self._wpids):
             if item is None:
@@ -205,10 +208,10 @@ class SimpleParagraph(IDocumentParagraph):
     def style_wpid(self):
         return self._wpid
 
-    def text(self) -> Iterable[str]:
+    def text(self) -> t.Iterable[str]:
         yield self._contents
 
-    def chunks(self) -> Iterable[IDocumentSpan]:
+    def chunks(self) -> t.Iterable[IDocumentSpan]:
         yield SimpleSpan(self._contents)
 
 
@@ -217,11 +220,11 @@ class SimpleSpan(IDocumentSpan):
     def __init__(self, contents):
         self._contents = contents
 
-    def text(self) -> Iterable[str]:
+    def text(self) -> t.Iterable[str]:
         yield self._contents
 
-    def footnotes(self) -> Iterable[IDocumentFootnote]:
+    def footnotes(self) -> t.Iterable[IDocumentFootnote]:
         yield from ()
 
-    def comments(self) -> Iterable[IDocumentComment]:
+    def comments(self) -> t.Iterable[IDocumentComment]:
         yield from ()

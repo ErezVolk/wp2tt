@@ -4,8 +4,7 @@
 import logging
 from pathlib import Path
 import contextlib
-
-from typing import Iterable
+import typing as t
 
 import mistune
 from lxml import etree
@@ -17,9 +16,11 @@ from wp2tt.input import IDocumentParagraph
 from wp2tt.input import IDocumentSpan
 from wp2tt.styles import DocumentProperties
 
+log = logging.getLogger(__name__)
+
 
 class MarkdownUnRenderer:
-    """Mistune callback to convert Markdown to XML"""
+    """Mistune callback to convert Markdown to XML."""
 
     NAMELESS_P_PRE = '<p wpid="normal">'
     NAMELESS_P_POST = "</p>"
@@ -71,7 +72,7 @@ class MarkdownUnRenderer:
 
     def block_html(self, html):
         """Mistune element"""
-        logging.warning("HTML is corrently ignored in Markdown")
+        log.warning("HTML is corrently ignored in Markdown")
         return ""
 
     def block_code(self, code, language=None):
@@ -159,7 +160,7 @@ class MarkdownInput(IDocumentInput, contextlib.ExitStack):
     def properties(self):
         return self._properties
 
-    def styles_defined(self) -> Iterable[dict[str, str]]:
+    def styles_defined(self) -> t.Iterable[dict[str, str]]:
         """Yield a Style object kwargs for every style defined in the document."""
         for realm, wpid in self.styles_in_use():
             yield {
@@ -168,7 +169,7 @@ class MarkdownInput(IDocumentInput, contextlib.ExitStack):
                 "wpid": wpid or "",
             }
 
-    def xpath(self, expr) -> Iterable[etree._Entity]:
+    def xpath(self, expr) -> t.Iterable[etree._Entity]:
         """Wrapper for `lxml.xpath()`"""
         yield from self._root.xpath(expr)
 
@@ -221,10 +222,10 @@ class MarkdownSpanBase(IDocumentSpan):
     def style_wpid(self):
         return None
 
-    def footnotes(self) -> Iterable["IDocumentFootnote"]:
+    def footnotes(self) -> t.Iterable["IDocumentFootnote"]:
         yield from ()
 
-    def comments(self) -> Iterable["IDocumentComment"]:
+    def comments(self) -> t.Iterable["IDocumentComment"]:
         yield from ()
 
 

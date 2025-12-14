@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
-"""Utility classes"""
+"""Utility classes."""
 import argparse
 from collections.abc import Sequence
 import contextlib
 import logging
 from pathlib import Path
-
-from typing import Iterable
+import typing as t
 
 from wp2tt.input import IDocumentInput
 from wp2tt.input import IDocumentParagraph
@@ -17,6 +16,8 @@ from wp2tt.spreadsheet import CsvInput
 from wp2tt.spreadsheet import OdsInput
 from wp2tt.odt import XodtInput
 from wp2tt.styles import DocumentProperties
+
+log = logging.getLogger(__name__)
 
 
 class ProxyInput(IDocumentInput, contextlib.ExitStack):
@@ -59,27 +60,27 @@ class MultiInput(ProxyInput):
     def styles_in_use(self):
         """Yield a pair (realm, wpid) for every style used in the document."""
         total = 0
-        for path, doc in zip(self._paths, self._inputs):
+        for path, doc in zip(self._paths, self._inputs, strict=True):
             in_file = 0
             for style in doc.styles_in_use():
                 yield style
                 in_file += 1
                 total += 1
-            logging.debug("%u style(s) in %r", in_file, path)
-        logging.debug("%u style(s) in %u docs", total, len(self._paths))
+            log.debug("%u style(s) in %r", in_file, path)
+        log.debug("%u style(s) in %u docs", total, len(self._paths))
 
-    def paragraphs(self) -> Iterable[IDocumentParagraph | IDocumentTable]:
-        """Yields an IDocumentParagraph object for each body paragraph."""
+    def paragraphs(self) -> t.Iterable[IDocumentParagraph | IDocumentTable]:
+        """Yield an IDocumentParagraph object for each body paragraph."""
         total = 0
-        for path, doc in zip(self._paths, self._inputs):
+        for path, doc in zip(self._paths, self._inputs, strict=True):
             in_file = 0
-            logging.debug("Paragraphs in %r", path)
+            log.debug("Paragraphs in %r", path)
             for para in doc.paragraphs():
                 yield para
                 in_file += 1
                 total += 1
-            logging.debug("%u paragraphs(s) in %r", in_file, path)
-        logging.debug("%u paragraphs(s) in %u docs", total, len(self._paths))
+            log.debug("%u paragraphs(s) in %r", in_file, path)
+        log.debug("%u paragraphs(s) in %u docs", total, len(self._paths))
 
 
 class ByExtensionInput(ProxyInput):
@@ -87,7 +88,7 @@ class ByExtensionInput(ProxyInput):
 
     _input: IDocumentInput
 
-    def __init__(self, path: Path, args: argparse.Namespace | None = None):
+    def __init__(self, path: Path, args: argparse.Namespace | None = None) -> None:
         super().__init__(args)
         ext = path.suffix.lower()
         if ext == ".docx":
@@ -123,5 +124,5 @@ class ByExtensionInput(ProxyInput):
         yield from self._input.styles_in_use()
 
     def paragraphs(self):
-        """Yields an IDocumentParagraph object for each body paragraph."""
+        """Yield an IDocumentParagraph object for each body paragraph."""
         yield from self._input.paragraphs()

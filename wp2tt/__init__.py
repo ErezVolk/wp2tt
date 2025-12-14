@@ -40,6 +40,8 @@ from wp2tt.styles import Style
 from wp2tt.tagged_text import InDesignTaggedTextOutput
 from wp2tt.usage import Wp2ttParser
 
+log = logging.getLogger(__name__)
+
 
 def main() -> None:
     """Entry point."""
@@ -213,7 +215,7 @@ class WordProcessorToInDesignTaggedText:
                     },
                 ),
             )
-            logging.debug(self.rules[-1])
+            log.debug(self.rules[-1])
 
     def write_settings(self) -> None:
         """When done, write the settings file for the next time."""
@@ -226,7 +228,7 @@ class WordProcessorToInDesignTaggedText:
 
     def read_input(self) -> None:
         """Unzip and parse the input files."""
-        logging.info("Reading %s", self.args.input)
+        log.info("Reading %s", self.args.input)
         self.doc = self.create_reader()
         self.scan_style_definitions()
         self.scan_style_mentions()
@@ -248,11 +250,11 @@ class WordProcessorToInDesignTaggedText:
             rerun = path.with_name(f"{path.name}.rerun")
             if not rerun.is_file():
                 continue
-            logging.info("%s exists, trying to run it...", rerun)
+            log.info("%s exists, trying to run it...", rerun)
             try:
                 subprocess.run([str(rerun.resolve())], check=True)
             except PermissionError:
-                logging.warning("No permission to run %s", rerun)
+                log.warning("No permission to run %s", rerun)
             except subprocess.CalledProcessError as exc:
                 logging.error("%s exited with code %s", rerun, exc.returncode)
             except OSError as exc:
@@ -340,12 +342,12 @@ class WordProcessorToInDesignTaggedText:
             realms.add(realm)
             style_key = self.style_key(realm=realm, wpid=wpid)
             if style_key not in self.styles:
-                logging.debug("Used but not defined? %r", style_key)
+                log.debug("Used but not defined? %r", style_key)
             elif not self.styles[style_key].used:
-                logging.debug("Style used: %r", style_key)
+                log.debug("Style used: %r", style_key)
                 self.styles[style_key].used = True
         if "table" in realms:
-            logging.debug("Here be tables")
+            log.debug("Here be tables")
             self.table_paragraph_style.used = True
 
     def link_styles(self) -> None:
@@ -390,7 +392,7 @@ class WordProcessorToInDesignTaggedText:
                         if style is not None
                     ]
             except BadReferenceInRuleError:
-                logging.warning("Ignoring rule with bad references: %s", rule)
+                log.warning("Ignoring rule with bad references: %s", rule)
                 rule.valid = False
 
     def find_style_by_ini_ref(
@@ -403,14 +405,14 @@ class WordProcessorToInDesignTaggedText:
         """Return a style, given type of string we use for ini file section names."""
         if not ini_ref:
             if required:
-                logging.debug("MISSING REQUIRED SOMETHING")
+                log.debug("MISSING REQUIRED SOMETHING")
                 raise BadReferenceInRuleError
             return None
         mobj = re.match(
             r"^\[(?P<realm>\w+):(?P<internal_name>.+)\]$", ini_ref, re.IGNORECASE,
         )
         if not mobj:
-            logging.debug("Malformed %r", ini_ref)
+            log.debug("Malformed %r", ini_ref)
             raise BadReferenceInRuleError
         realm = mobj.group("realm").lower()
         internal_name = mobj.group("internal_name")
@@ -422,7 +424,7 @@ class WordProcessorToInDesignTaggedText:
             )
         except StopIteration as exc:
             if not inherit_from:
-                logging.debug("ERROR: Unknown %r", ini_ref)
+                log.debug("ERROR: Unknown %r", ini_ref)
                 raise BadReferenceInRuleError from exc
         return self.add_style(
             realm=realm,
@@ -479,7 +481,7 @@ class WordProcessorToInDesignTaggedText:
         kwargs.setdefault("name", kwargs["internal_name"])
 
         style = Style(**kwargs)
-        logging.debug("Created %s", style)
+        log.debug("Created %s", style)
         self.styles[self.style_key(style=style)] = style
         return style
 
@@ -497,7 +499,7 @@ class WordProcessorToInDesignTaggedText:
 
     def write_idtt(self) -> None:
         """Run the main conversion loop: parse document, write tagged text."""
-        logging.info("Writing %s", self.output_fn)
+        log.info("Writing %s", self.output_fn)
         self.set_state(State())
         self.create_output()
         with InDesignTaggedTextOutput(self.doc.properties) as self.writer:
@@ -517,7 +519,7 @@ class WordProcessorToInDesignTaggedText:
         if remove_old:
             for path in self.output_dir.glob("img-????????-????"):
                 if path.is_dir():
-                    logging.debug("Removing %s", path)
+                    log.debug("Removing %s", path)
                     shutil.rmtree(path, ignore_errors=True)
 
     def convert_document(self) -> None:
@@ -532,10 +534,10 @@ class WordProcessorToInDesignTaggedText:
                 else:
                     self.convert_paragraph(node)
             if self.stop_marker:
-                logging.info("Note: Stop marker was never found")
-                logging.debug("In other words, no %r", self.stop_marker)
+                log.info("Note: Stop marker was never found")
+                log.debug("In other words, no %r", self.stop_marker)
         except StopMarkerFoundError as marker:
-            logging.info(marker)
+            log.info(marker)
 
     def write_output(self) -> None:
         """Write the actual output file(s)."""
@@ -603,7 +605,7 @@ class WordProcessorToInDesignTaggedText:
             self.state.is_empty = False
         elif self.state.is_post_break:
             if self.state.is_empty:
-                logging.debug("Paragraph %r is empty, next is still post-break", para)
+                log.debug("Paragraph %r is empty, next is still post-break", para)
             else:
                 self.state.is_post_break = False
 
@@ -676,7 +678,7 @@ class WordProcessorToInDesignTaggedText:
             fmtname = "_".join(f.name for f in ManualFormat if fmt & f and f.name)
         else:
             fmtname = fmt.name or "DEFAULT"
-            logging.debug("%r -> %r", fmt, fmtname)
+            log.debug("%r -> %r", fmt, fmtname)
 
         # In the manual case, we may not have the basic style
         parent = unadorned or self.style(realm=realm, wpid=self.base_names[realm])
@@ -763,7 +765,7 @@ class WordProcessorToInDesignTaggedText:
         for footnote in span.footnotes():
             self.convert_footnote(footnote)
             if self.state.is_post_break:
-                logging.debug("Has footnote, not empty")
+                log.debug("Has footnote, not empty")
             self.state.is_empty = False
         if self.args.convert_comments:
             for cmt in span.comments():
@@ -806,7 +808,7 @@ class WordProcessorToInDesignTaggedText:
         """Save image to file, optionally converting it."""
         suffix = img.suffix()
         path = self.next_image_fn("image", suffix)
-        logging.debug("Writing %s", path)
+        log.debug("Writing %s", path)
         img.save(path)
 
         if suffix == ".emf" and not self.args.no_emf2svg:
@@ -815,7 +817,7 @@ class WordProcessorToInDesignTaggedText:
             if cached is not None and cached.is_file():
                 path = self.cache.get(cached, svg)
             else:
-                logging.debug("Converting %s -> %s", path.name, svg.name)
+                log.debug("Converting %s -> %s", path.name, svg.name)
                 cmd = ["emf2svg-conv", "-i", str(path), "-o", str(svg)]
                 subprocess.run(cmd, check=True)
                 self.svg2png(svg, path)
@@ -840,7 +842,7 @@ class WordProcessorToInDesignTaggedText:
         if cached is not None and cached.is_file():
             path = self.cache.get(cached, path)
         else:
-            logging.debug("Converting -> %s", path.name)
+            log.debug("Converting -> %s", path.name)
             mathml = formula.mathml()
 
             svg = MathConverter.mathml_to_svg(mathml, size=self.args.formula_font_size)
@@ -870,7 +872,7 @@ class WordProcessorToInDesignTaggedText:
             if isinstance(png, bytes):
                 fobj.write(png)
             else:
-                logging.warning("Cannot convert %s", path)
+                log.warning("Cannot convert %s", path)
 
     def read_file(self, path: str | os.PathLike) -> bytes:
         """Read contents of a file."""
@@ -972,14 +974,14 @@ class WordProcessorToInDesignTaggedText:
         """Print a nice summary."""
         realms = {s.realm for s in self.styles.values()}
         for realm in realms:
-            logging.info(
+            log.info(
                 "Number of %s styles used: %u",
                 realm.capitalize(),
                 sum(1 for s in self.styles.values() if s.realm == realm and s.used),
             )
         for rule in self.rules:
             if rule.applied:
-                logging.info("%s application(s) of %s", rule.applied, rule)
+                log.info("%s application(s) of %s", rule.applied, rule)
 
     def style(self, realm: str, wpid: str | None) -> OptionalStyle:
         """Return a Style object."""
@@ -1005,7 +1007,7 @@ class WordProcessorToInDesignTaggedText:
 
         if style.parent_style is not None:
             if not style.parent_style.used:
-                logging.debug(
+                log.debug(
                     "[%s] leads to missing %r",
                     section_name,
                     style.parent_wpid,
@@ -1014,14 +1016,14 @@ class WordProcessorToInDesignTaggedText:
                 style.parent_wpid = style.parent_style.wpid
             self.activate_style(style.parent_style)
 
-        logging.debug("Activating %s", style)
+        log.debug("Activating %s", style)
         self.settings.update_section(section_name, style)
         self.style_sections_used.add(section_name)
 
         if style.next_style is not None and style.next_style.used:
             self.activate_style(style.next_style)
         elif style.next_wpid:
-            logging.debug("[%s] leads to missing %r", section_name, style.next_wpid)
+            log.debug("[%s] leads to missing %r", section_name, style.next_wpid)
 
     @classmethod
     def quote_fn(cls, path: Path | str) -> str:
