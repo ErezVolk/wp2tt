@@ -631,31 +631,28 @@ class WordProcessorToInDesignTaggedText:
 
         # The style object without any manual overrides
         unadorned = self.style("paragraph", para.style_wpid())
-        if not self.args.manual and not self.args.manual_light:
+        if not self.args.manual:
             return unadorned
 
         # Manual formatting
         fmt = para.format() & self.format_mask
-        if self.args.manual_light:
-            fmt = fmt & (ManualFormat.LTR | ManualFormat.RTL)
-        else:
-            if self.state.is_post_break:
-                fmt = fmt | ManualFormat.NEW_PAGE
-            elif self.state.is_post_empty:
-                fmt = fmt | ManualFormat.SPACED
+        if self.state.is_post_break:
+            fmt = fmt | ManualFormat.NEW_PAGE
+        elif self.state.is_post_empty:
+            fmt = fmt | ManualFormat.SPACED
 
-            for span in para.spans():
-                for text in span.text():
-                    if text[0].isspace():
-                        fmt = fmt | ManualFormat.INDENTED
-                    break  # Just the first
+        for span in para.spans():
+            for text in span.text():
+                if text[0].isspace():
+                    fmt = fmt | ManualFormat.INDENTED
                 break  # Just the first
+            break  # Just the first
 
-            # Check for paragraph with a character style
-            char_fmts = {self.get_span_format(span) for span in para.spans()}
-            if len(char_fmts) == 1:
-                self.state.para_char_fmt = char_fmts.pop()
-                fmt = fmt | self.state.para_char_fmt
+        # Check for paragraph with a character style
+        char_fmts = {self.get_span_format(span) for span in para.spans()}
+        if len(char_fmts) == 1:
+            self.state.para_char_fmt = char_fmts.pop()
+            fmt = fmt | self.state.para_char_fmt
 
         return self.get_manual_style("paragraph", unadorned, fmt)
 
