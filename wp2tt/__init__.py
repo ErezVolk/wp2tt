@@ -5,6 +5,8 @@ import collections
 import contextlib
 import dataclasses as dcl
 from datetime import datetime
+from datetime import timezone
+from datetime import timedelta
 import itertools
 import logging
 import os
@@ -108,6 +110,9 @@ class WordProcessorToInDesignTaggedText:
         },
     }
 
+    INDESIGN_ENV_VAR = "__CFBundleIdentifier"
+    INDESIGN_ENV_VAL = "com.adobe.InDesign"
+
     args: argparse.Namespace
     base_names: dict[str, str]
     base_styles: dict[str, Style]
@@ -165,7 +170,10 @@ class WordProcessorToInDesignTaggedText:
         self.settings_fn = self.output_fn.with_suffix(".ini")
         self.rerunner_fn = Path(f"{self.output_fn}.rerun")
         self.stop_marker = self.args.stop_at
-        self.format_mask = ~ManualFormat[self.args.direction]
+        if self.args.direction == "IGNORE":
+            self.format_mask = ManualFormat.NORMAL
+        else:
+            self.format_mask = ~ManualFormat[self.args.direction]
 
         if self.args.cache:
             self.cache = Cache(self.args.cache)
@@ -256,9 +264,9 @@ class WordProcessorToInDesignTaggedText:
             except PermissionError:
                 log.warning("No permission to run %s", rerun)
             except subprocess.CalledProcessError as exc:
-                logging.error("%s exited with code %s", rerun, exc.returncode)
+                log.error("%s exited with code %s", rerun, exc.returncode)
             except OSError as exc:
-                logging.error("Error running %s: %s", rerun, exc)
+                log.error("Error running %s: %s", rerun, exc)
 
     def scan_style_definitions(self) -> None:
         """Create a Style object for everything in the document."""
@@ -442,7 +450,7 @@ class WordProcessorToInDesignTaggedText:
         Generate a Tagged Text style definition.
         """
         if realm not in self.base_names:
-            logging.error("What about %s:%r [%r]?", realm, wpid, internal_name)
+            log.error("What about %s:%r [%r]?", realm, wpid, internal_name)
             self.base_names[realm] = self.args.base_character_style
 
         if parent_style := kwargs.get("parent_style"):
@@ -515,10 +523,10 @@ class WordProcessorToInDesignTaggedText:
     def create_output(self) -> None:
         """Create output directory, clean old image dirs."""
         self.output_dir.mkdir(parents=True, exist_ok=True)
-        now = datetime.now()
+        now = datetime.now(tz=timezone(timedelta(0)))
         self.image_dir = self.output_dir / now.strftime("img-%Y%m%d-%H%M")
         if self.args.remove_old_images_if_indesign:
-            remove_old = os.environ.get("__CFBundleIdentifier") == "com.adobe.InDesign"
+            remove_old = os.environ.get(self.INDESIGN_ENV_VAR) == self.INDESIGN_ENV_VAL
         else:
             remove_old = self.args.remove_old_images
         if remove_old:
@@ -564,7 +572,7 @@ class WordProcessorToInDesignTaggedText:
         self.writer.enter_paragraph(self.table_paragraph_style)
 
         (rows, cols) = table.shape
-        rtl = table.format() & ManualFormat.RTL == ManualFormat.RTL
+        rtl = (table.format() & ManualFormat.RTL) == ManualFormat.RTL
         style = self.style("table", table.style_wpid())
         self.writer.enter_table(
             rows=rows,
@@ -627,7 +635,7 @@ class WordProcessorToInDesignTaggedText:
             return unadorned
 
         # Manual formatting
-        fmt = para.format()
+        fmt = para.format() & self.format_mask
         if self.args.manual_light:
             fmt = fmt & (ManualFormat.LTR | ManualFormat.RTL)
         else:
@@ -764,13 +772,14 @@ class WordProcessorToInDesignTaggedText:
     def convert_chunk(self, chunk: IDocumentParagraph.Chunk) -> None:
         """Convert all text and styles in a Span."""
         if isinstance(chunk, IDocumentSpan):
-            self.convert_span(chunk)
+            if not chunk.is_empty():
+                self.convert_span(chunk)
         elif isinstance(chunk, IDocumentImage):
             self.convert_image(chunk)
         elif isinstance(chunk, IDocumentFormula):
             self.convert_formula(chunk)
         else:
-            logging.warn("Unhandled chunk type %s", type(chunk))
+            log.warning("Unhandled chunk type %s", type(chunk))
 
     def convert_span(self, span: IDocumentSpan) -> None:
         """Convert all text and styles in a Span."""

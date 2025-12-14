@@ -35,13 +35,31 @@ class IDocumentInput(ABC):
         raise NotImplementedError
 
 
-class IDocumentParagraph(ABC):
+class IDocumentTextSource(ABC):
+    """Something that may contain text."""
+
+    __is_empty: bool
+
+    @abstractmethod
+    def text(self) -> t.Iterable[str]:
+        """Yield strings of plain text."""
+        raise NotImplementedError
+
+    def is_empty(self) -> bool:
+        """Return True iff the paragraph has no text."""
+        try:
+            return self.__is_empty
+        except AttributeError:
+            self.__is_empty = all(text == "" for text in self.text())
+            return self.__is_empty
+
+
+class IDocumentParagraph(IDocumentTextSource):
     """A Paragraph inside a document."""
 
     Chunk: t.TypeAlias = (
         "IDocumentSpan | IDocumentImage | IDocumentFormula | IDocumentBookmark"
     )
-    __is_empty: bool
 
     @abstractmethod
     def style_wpid(self) -> str | None:
@@ -56,19 +74,6 @@ class IDocumentParagraph(ABC):
         """Return True iff the paragraph is a page break."""
         return False
 
-    def is_empty(self) -> bool:
-        """Return True iff the paragraph has no text."""
-        try:
-            return self.__is_empty
-        except AttributeError:
-            self.__is_empty = all(text.strip() == "" for text in self.text())
-            return self.__is_empty
-
-    @abstractmethod
-    def text(self) -> t.Iterable[str]:
-        """Yield strings of plain text."""
-        raise NotImplementedError
-
     @abstractmethod
     def chunks(self) -> t.Iterable[Chunk]:
         """Yield all elements in the paragraph."""
@@ -81,7 +86,7 @@ class IDocumentParagraph(ABC):
                 yield chunk
 
 
-class IDocumentSpan(ABC):
+class IDocumentSpan(IDocumentTextSource):
     """A span of characters inside a document."""
 
     def style_wpid(self) -> str | None:
@@ -99,11 +104,6 @@ class IDocumentSpan(ABC):
     def format(self) -> ManualFormat:
         """Return manual formatting on this span."""
         return ManualFormat.NORMAL
-
-    @abstractmethod
-    def text(self) -> t.Iterable[str]:
-        """Yield strings of plain text."""
-        raise NotImplementedError
 
 
 class IDocumentImage(ABC):

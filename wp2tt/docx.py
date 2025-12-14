@@ -142,8 +142,8 @@ class DocxInput(contextlib.ExitStack, WordXml, IDocumentInput):
         styles = self.zip.load_xml("word/styles.xml")
         for stag in self.xpath(styles, "//w:style[@w:type][w:name[@w:val]]"):
             fmt = DocxSpan.node_format(stag)
-            fmt &= ~(ManualFormat.LTR | ManualFormat.RTL)
             fmt |= DocxParagraph.node_format(stag)
+            fmt &= ~(ManualFormat.LTR | ManualFormat.RTL)
             yield {
                 "realm": stag.get(self.wtag("type")),
                 "internal_name": self.export_name(self._wval(stag, "w:name")),
@@ -300,6 +300,8 @@ class DocxParagraph(DocxNode, IDocumentParagraph):
 
     def format(self) -> ManualFormat:
         """Return manual formatting on this paragraph."""
+        if self.is_empty():
+            return ManualFormat.NORMAL
         return self.node_format(self.nodes)
 
     @classmethod
@@ -346,6 +348,8 @@ class DocxSpan(DocxNode, IDocumentSpan):
 
     def format(self) -> ManualFormat:
         """Get manual formatting for this span."""
+        if self.is_empty():
+            return ManualFormat.NORMAL
         return self.node_format(self.nodes)
 
     XPATH_TO_FMT: t.Mapping[str, ManualFormat] = {

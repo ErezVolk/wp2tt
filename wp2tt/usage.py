@@ -117,7 +117,7 @@ class Wp2ttParser(ArgumentParser):
         )
         self.add_argument(
             "--direction",
-            choices=["RTL", "LTR"],
+            choices=["RTL", "LTR", "IGNORE"],
             default="RTL",
             help="Default text direction",
         )
