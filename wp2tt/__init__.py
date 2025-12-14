@@ -486,7 +486,12 @@ class WordProcessorToInDesignTaggedText:
         return style
 
     @classmethod
-    def style_key(cls, style=None, realm=None, wpid=None) -> str:
+    def style_key(
+        cls,
+        style: Style | None = None,
+        realm: str | None = None,
+        wpid: str | None = None,
+    ) -> str:
         """Create the string which we use for `self.styles`.
 
         Note that this is based on the wpid, because
@@ -590,7 +595,7 @@ class WordProcessorToInDesignTaggedText:
 
         if self.stop_marker:
             self.check_for_stop_paragraph(para)
-        style = self.apply_rules_to(self.get_paragraph_style(para)) or default_style
+        style = self.apply_rules_to(para) or default_style
 
         self.writer.enter_paragraph(style)
         for chunk in para.chunks():
@@ -696,19 +701,28 @@ class WordProcessorToInDesignTaggedText:
         )
         return self.manual_styles[mfcs]
 
-    def apply_rules_to(self, style: OptionalStyle) -> OptionalStyle:
+    def apply_rules_to(self, para: IDocumentParagraph) -> OptionalStyle:
         """Convert style according to user-defined rules."""
+        style = self.get_paragraph_style(para)
         if style:
             for rule in self.rules:
-                if self.rule_applies_to(rule, style):
+                if self.rule_applies_to(rule, style, para.is_empty):
                     rule.applied += 1
                     return rule.into_this_style
         return style
 
-    def rule_applies_to(self, rule: Rule, style: Style) -> bool:
+    def rule_applies_to(
+        self,
+        rule: Rule,
+        style: Style,
+        is_empty: t.Callable[[], bool],
+    ) -> bool:
         """Check if `rule` should be applied on `style`."""
         if not rule.valid:
             return False
+        if rule.unless_empty:
+            if is_empty():
+                return False
         if rule.turn_this_style is not style:
             return False
         if rule.when_first_in_doc:

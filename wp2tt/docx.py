@@ -286,7 +286,7 @@ class DocxParagraph(DocxNode, IDocumentParagraph):
             if node.text:
                 yield node.text
 
-    def chunks(self) -> t.Iterable["DocxSpan | DocxImage | DocxFormula"]:
+    def chunks(self) -> t.Iterable[IDocumentParagraph.Chunk]:
         """Yield DocxSpan per text span."""
         for node in self._node_xpath(self.R_XPATH):
             if node.tag == self._mtag("oMath"):

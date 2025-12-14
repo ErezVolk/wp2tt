@@ -41,6 +41,7 @@ class IDocumentParagraph(ABC):
     Chunk: t.TypeAlias = (
         "IDocumentSpan | IDocumentImage | IDocumentFormula | IDocumentBookmark"
     )
+    __is_empty: bool
 
     @abstractmethod
     def style_wpid(self) -> str | None:
@@ -54,6 +55,14 @@ class IDocumentParagraph(ABC):
     def is_page_break(self) -> bool:
         """Return True iff the paragraph is a page break."""
         return False
+
+    def is_empty(self) -> bool:
+        """Return True iff the paragraph has no text."""
+        try:
+            return self.__is_empty
+        except AttributeError:
+            self.__is_empty = all(text.strip() == "" for text in self.text())
+            return self.__is_empty
 
     @abstractmethod
     def text(self) -> t.Iterable[str]:

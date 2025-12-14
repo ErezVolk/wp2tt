@@ -59,6 +59,7 @@ class Rule:
     into_this: str | None = None
     when_following: str | None = None
     when_first_in_doc: str | None = None
+    unless_empty: bool = False
 
     turn_this_style: OptionalStyle = dcl.field(default=None, metadata=ATTR_NO_INI)
     into_this_style: OptionalStyle = dcl.field(default=None, metadata=ATTR_NO_INI)
