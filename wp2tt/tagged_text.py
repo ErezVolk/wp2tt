@@ -38,9 +38,15 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
     _in_table: bool = False
     _extra_cells: int = 0
     _newly_newlined: bool = False
+    _newline: str
 
-    def __init__(self, properties: DocumentProperties | None = None) -> None:
+    def __init__(
+        self,
+        properties: DocumentProperties | None = None,
+        newline: str = "\n",
+    ) -> None:
         super().__init__()
+        self._newline = newline
         self._buffer = io.StringIO()
         self._styles: dict[Style, StyleState] = {}
         self._headers_written = False
@@ -235,9 +241,12 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
     def _write_escaped(self, text: str) -> None:
         return self._write(self._escape(text))
 
-    @classmethod
-    def _escape(cls, text: str) -> str:
-        return re.sub(r"([<>\\])", r"\\\1", text)
+    def _escape(self, text: str) -> str:
+        return re.sub(
+            r"([<>\\])", r"\\\1", text,
+        ).replace(
+            "\n", self._newline,
+        )
 
     def _write(self, string: str) -> None:
         if string:

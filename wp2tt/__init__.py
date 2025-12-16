@@ -515,7 +515,9 @@ class WordProcessorToInDesignTaggedText:
         log.info("Writing %s", self.output_fn)
         self.set_state(State())
         self.create_output()
-        with InDesignTaggedTextOutput(self.doc.properties) as self.writer:
+        properties = self.doc.properties
+        newline = "\u2028" if self.args.newline else "\n"
+        with InDesignTaggedTextOutput(properties, newline) as self.writer:
             self.define_styles()
             self.convert_document()
             self.write_output()

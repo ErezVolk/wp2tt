@@ -383,9 +383,11 @@ class DocxSpan(DocxNode, IDocumentSpan):
 
     def text(self) -> t.Iterable[str]:
         """Yield chunks of text."""
-        for node in self._node_xpath("w:tab | w:t"):
+        for node in self._node_xpath("w:tab | w:t | w:br[not(@*)]"):
             if node.tag == self.wtag("tab"):
                 yield "\t"
+            elif node.tag == self.wtag("br"):
+                yield "\n"
             elif node.text:
                 yield node.text
 

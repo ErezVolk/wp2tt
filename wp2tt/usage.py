@@ -146,6 +146,12 @@ class Wp2ttParser(ArgumentParser):
             type=int,
             help="Font size in points for converted formulas",
         )
+        self.add_argument(
+            "-N",
+            "--newline",
+            action="store_true",
+            help="Convert line breaks to U+2028 LINE SEPARATOR",
+        )
         group = self.add_mutually_exclusive_group()
         group.add_argument(
             "--table-cols",
@@ -202,6 +208,7 @@ class Wp2ttParser(ArgumentParser):
             cli.append('"$@"')  # Has to come before the dashes
             self._add_flag(cli, args, "convert_comments")
             self._add_flag(cli, args, "debug")
+            self._add_flag(cli, args, "newline")
             self._add_flag(cli, args, "manual_light")
             self._add_flag(cli, args, "manual")
             self._add_flag(cli, args, "maqaf")
