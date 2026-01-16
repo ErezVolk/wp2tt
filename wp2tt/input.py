@@ -58,7 +58,7 @@ class IDocParagraph(IDocTextSource):
     """A Paragraph inside a document."""
 
     Chunk: t.TypeAlias = (
-        "IDocSpan | IDocImage | IDocFormula | IDocBookmark"
+        "IDocSpan | IDocImage | IDocFormula | IDocBookmark | IDocHyperlink"
     )
 
     @abstractmethod
@@ -194,6 +194,24 @@ class IDocBookmark(ABC):
     @abstractmethod
     def name(self) -> str:
         """The name of this bookmark."""
+
+
+class IDocHyperlink(ABC):
+    """A hyperlink in a document."""
+
+    @property
+    @abstractmethod
+    def span(self) -> IDocSpan:
+        """The apparance of this hyperlink."""
+
+    @property
+    @abstractmethod
+    def target(self) -> str:
+        """The target of this hyperlink."""
+
+    def text(self) -> t.Iterable[str]:
+        """Yield strings of plain text."""
+        yield from self.span.text()
 
 
 class IDocFootnote(ABC):

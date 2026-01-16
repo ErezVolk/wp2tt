@@ -1,3 +1,4 @@
+- Handle both URL and text of Hyperlink
 - Tagged Text: Write ALL styles at the beginning
 - DOCX: find default RTL
 - DOCX: <w:bookmarkStart w:name="X"/> / <w:instrText>PAGEREF ..

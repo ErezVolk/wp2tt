@@ -25,6 +25,7 @@ from wp2tt.ini import SettingsFile
 from wp2tt.input import IDocComment
 from wp2tt.input import IDocFootnote
 from wp2tt.input import IDocFormula
+from wp2tt.input import IDocHyperlink
 from wp2tt.input import IDocImage
 from wp2tt.input import IDocInput
 from wp2tt.input import IDocParagraph
@@ -91,6 +92,7 @@ class WordProcessorToInDesignTaggedText:
     COMMENT_STYLE = SPECIAL_GROUP + "/(Comment)"
     IMAGE_STYLE = SPECIAL_GROUP + "/(Image)"
     FORMULA_STYLE = SPECIAL_GROUP + "/(Formula)"
+    HYPERLINK_STYLE = SPECIAL_GROUP + "/(Hyperlink)"
     TABLE_PARAGRAPH_STYLE = SPECIAL_GROUP + "/(Table Container)"
 
     IGNORED_STYLES: t.Mapping[str, list[str]] = {
@@ -124,6 +126,7 @@ class WordProcessorToInDesignTaggedText:
     footnote_ref_style: Style
     format_mask: ManualFormat
     formula_style: Style
+    hyperlink_style: Style
     image_count = itertools.count(1)
     image_dir: Path
     image_style: Style
@@ -332,6 +335,13 @@ class WordProcessorToInDesignTaggedText:
             realm="character",
             internal_name=self.FORMULA_STYLE,
             wpid=self.FORMULA_STYLE,
+            idtt="<cColor:Yellow><cColorTint:100>",
+            automatic=True,
+        )
+        self.hyperlink_style = self.found_style_definition(
+            realm="character",
+            internal_name=self.HYPERLINK_STYLE,
+            wpid=self.HYPERLINK_STYLE,
             idtt="<cColor:Yellow><cColorTint:100>",
             automatic=True,
         )
@@ -774,6 +784,8 @@ class WordProcessorToInDesignTaggedText:
             self.convert_span(chunk)
         elif isinstance(chunk, IDocImage):
             self.convert_image(chunk)
+        elif isinstance(chunk, IDocHyperlink):
+            self.convert_hyperlink(chunk)
         elif isinstance(chunk, IDocFormula):
             self.convert_formula(chunk)
         else:
@@ -816,6 +828,11 @@ class WordProcessorToInDesignTaggedText:
         """Save an image, keep a placeholder in the output."""
         path = self.find_image(img) or self.extract_image(img)
         self.write_image_link(path, self.image_style)
+
+    def convert_hyperlink(self, hyperlink: IDocHyperlink) -> None:
+        """Write a hyperlink."""
+        self.switch_character_style(self.hyperlink_style)
+        self.write_text(hyperlink.target.strip())
 
     def find_image(self, img: IDocImage) -> Path | None:
         """For an image with alt-text, try to look that up."""
@@ -954,8 +971,9 @@ class WordProcessorToInDesignTaggedText:
             text = "".join(
                 text
                 for paragraph in cmt.paragraphs()
-                for span in paragraph.spans()
-                for text in span.text()
+                for chunk in paragraph.chunks()
+                if isinstance(chunk, (IDocSpan | IDocHyperlink))
+                for text in chunk.text()
             )
             if not text.startswith(self.args.comment_prefix):
                 return

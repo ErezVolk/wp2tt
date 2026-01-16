@@ -14,6 +14,7 @@ from wp2tt.input import IDocFootnote
 from wp2tt.input import IDocFormula
 from wp2tt.input import IDocImage
 from wp2tt.input import IDocInput
+from wp2tt.input import IDocHyperlink
 from wp2tt.input import IDocParagraph
 from wp2tt.input import IDocSpan
 from wp2tt.input import IDocTable
@@ -100,7 +101,10 @@ class DocxInput(contextlib.ExitStack, WordXml, IDocInput):
         self.document = self.zip.load_xml("word/document.xml")
         self.footnotes = self.zip.load_xml("word/footnotes.xml")
         self.comments = self.zip.load_xml("word/comments.xml")
-        self.relationships = self.zip.load_xml("word/_rels/document.xml.rels")
+        self.relationships = {
+            "document": self.zip.load_xml("word/_rels/document.xml.rels"),
+            "comments": self.zip.load_xml("word/_rels/comments.xml.rels"),
+        }
 
     def _initialize_properties(self) -> None:
         self._properties = DocumentProperties(
@@ -183,6 +187,12 @@ class DocxInput(contextlib.ExitStack, WordXml, IDocInput):
             elif not node.get("__wp2tt_skip__"):
                 yield DocxParagraph(self, node)
 
+    def find_rels(self, rid: str) -> t.Iterable[etree._Entity]:
+        """Find a relationship."""
+        for rels in self.relationships.values():
+            if rels is not None:
+                yield from self.xpath(rels, f'//rel:Relationship[@Id="{rid}"]')
+
 
 class DocxNode(WordXml):
     """Base helper class for object which represent a node in a docx.
@@ -233,7 +243,7 @@ class DocxNode(WordXml):
 class DocxParagraph(DocxNode, IDocParagraph):
     """A Paragraph inside a .docx."""
 
-    R_XPATH = "w:r | w:ins/w:r | m:oMath | w:hyperlink/w:r"
+    R_XPATH = "w:r | w:ins/w:r | m:oMath | w:hyperlink"
     T_XPATH = "w:r/w:t | w:ins/w:r/w:t"
     SNIPPET_LEN = 10
 
@@ -291,6 +301,8 @@ class DocxParagraph(DocxNode, IDocParagraph):
         for node in self._node_xpath(self.R_XPATH):
             if node.tag == self._mtag("oMath"):
                 yield DocxFormula(node)
+            elif node.tag == self.wtag("hyperlink"):
+                yield DocxHyperlink(self.doc, node)
             else:
                 for drawing in self.xpath(node, "w:drawing[//a:blip[@r:embed]]"):
                     yield DocxImage(self.doc, drawing)
@@ -342,7 +354,7 @@ class DocxSpan(DocxNode, IDocSpan):
             yield DocxFootnote(self.doc, fnr)
 
     def comments(self) -> t.Iterable["DocxComment"]:
-        """Yield foornotes in this span."""
+        """Yield footnotes in this span."""
         for cmr in self._node_xpath("w:commentReference"):
             yield DocxComment(self.doc, cmr)
 
@@ -403,10 +415,9 @@ class DocxImage(DocxNode, IDocImage):
         for prop in self._node_xpath("./wp:inline/wp:docPr[@descr]"):
             self.descr = prop.get("descr")
 
-        rels = self.doc.relationships
         for blip in self._node_xpath(".//a:blip[@r:embed]"):
             rid = blip.get(self._rtag("embed"))
-            for rel in self.doc.xpath(rels, f'//rel:Relationship[@Id="{rid}"]'):
+            for rel in self.doc.find_rels(rid):
                 self.target = PurePosixPath("word") / rel.get("Target")
 
     def alt_text(self) -> str | None:
@@ -421,6 +432,28 @@ class DocxImage(DocxNode, IDocImage):
         """Extract image."""
         with self.doc.zip.open(str(self.target)) as ifo, Path(path).open("wb") as ofo:
             ofo.write(ifo.read())
+
+
+class DocxHyperlink(DocxNode, IDocHyperlink):
+    """A hyperlink inside a .docx."""
+
+    def __init__(self, doc: DocxInput, hyperlink: etree._Entity) -> None:
+        super().__init__(doc, hyperlink)
+        rid = hyperlink.get(self._rtag("id"))
+        for rel in self.doc.find_rels(rid):
+            self._target = rel.get("Target")
+        for rnode in self._node_xpath("./w:r"):
+            self._span = DocxSpan(doc, rnode)
+
+    @property
+    def span(self) -> IDocSpan:
+        """Return the display text."""
+        return self._span
+
+    @property
+    def target(self) -> str:
+        """Return the URL."""
+        return self._target
 
 
 class DocxFormula(IDocFormula):
