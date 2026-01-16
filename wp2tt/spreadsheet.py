@@ -9,14 +9,14 @@ import typing as t
 
 import pandas as pd
 
-from wp2tt.input import IDocumentComment
-from wp2tt.input import IDocumentFootnote
-from wp2tt.input import IDocumentInput
-from wp2tt.input import IDocumentParagraph
-from wp2tt.input import IDocumentSpan
-from wp2tt.input import IDocumentTable
-from wp2tt.input import IDocumentTableCell
-from wp2tt.input import IDocumentTableRow
+from wp2tt.input import IDocComment
+from wp2tt.input import IDocFootnote
+from wp2tt.input import IDocInput
+from wp2tt.input import IDocParagraph
+from wp2tt.input import IDocSpan
+from wp2tt.input import IDocTable
+from wp2tt.input import IDocTableCell
+from wp2tt.input import IDocTableRow
 from wp2tt.styles import DocumentProperties
 
 log = logging.getLogger(__name__)
@@ -45,7 +45,7 @@ class Wpids:
         return f"Spreadsheet Column ({name})"
 
 
-class _SpreadsheetInput(contextlib.ExitStack, IDocumentInput):
+class _SpreadsheetInput(contextlib.ExitStack, IDocInput):
     """Simple ODS reader (via pandas)"""
     _frame: pd.DataFrame
     _props: DocumentProperties = DocumentProperties()
@@ -136,7 +136,7 @@ class CsvInput(_SpreadsheetInput):
                 yield from self._para_styles(wpid, parent=Wpids.BODY_STYLE)
 
 
-class DataFrameTable(IDocumentTable):
+class DataFrameTable(IDocTable):
     """A DataFrame as a document table"""
     def __init__(self, frame: pd.DataFrame, column_wpids: list[str] | None):
         self._frame = frame
@@ -154,14 +154,14 @@ class DataFrameTable(IDocumentTable):
     def header_rows(self) -> int:
         return 1
 
-    def rows(self) -> t.Iterable[IDocumentTableRow]:
+    def rows(self) -> t.Iterable[IDocTableRow]:
         """Iterates the rows of the table"""
         yield DataFrameRow(self._frame.columns, Wpids.HEADER_STYLE)
         for _, row in self._frame.iterrows():
             yield DataFrameRow(row, self._column_wpids)
 
 
-class DataFrameRow(IDocumentTableRow):
+class DataFrameRow(IDocTableRow):
     """A row in a table inside a document"""
     def __init__(self, items, wpids: list[str] | str | None = None):
         self._items = items
@@ -172,7 +172,7 @@ class DataFrameRow(IDocumentTableRow):
         else:
             self._wpids = wpids
 
-    def cells(self) -> t.Iterable[IDocumentTableCell]:
+    def cells(self) -> t.Iterable[IDocTableCell]:
         """Iterates the cells in the row"""
         for item, wpid in zip(self._items, self._wpids):
             if item is None:
@@ -183,7 +183,7 @@ class DataFrameRow(IDocumentTableRow):
             yield SimpleCell(str(item), wpid)
 
 
-class SimpleCell(IDocumentTableCell):
+class SimpleCell(IDocTableCell):
     """A cell that only holds a single piece of text"""
     def __init__(self, contents, wpid):
         self._contents = contents.strip()
@@ -194,12 +194,12 @@ class SimpleCell(IDocumentTableCell):
         else:
             self._wpid = wpid
 
-    def contents(self) -> IDocumentParagraph:
+    def contents(self) -> IDocParagraph:
         """Get the contents of this cell"""
         return SimpleParagraph(self._contents, self._wpid)
 
 
-class SimpleParagraph(IDocumentParagraph):
+class SimpleParagraph(IDocParagraph):
     """A paragraph that only holds a single piece of text"""
     def __init__(self, contents, wpid):
         self._contents = contents
@@ -211,11 +211,11 @@ class SimpleParagraph(IDocumentParagraph):
     def text(self) -> t.Iterable[str]:
         yield self._contents
 
-    def chunks(self) -> t.Iterable[IDocumentSpan]:
+    def chunks(self) -> t.Iterable[IDocSpan]:
         yield SimpleSpan(self._contents)
 
 
-class SimpleSpan(IDocumentSpan):
+class SimpleSpan(IDocSpan):
     """A span that only holds a single piece of text"""
     def __init__(self, contents):
         self._contents = contents
@@ -223,8 +223,8 @@ class SimpleSpan(IDocumentSpan):
     def text(self) -> t.Iterable[str]:
         yield self._contents
 
-    def footnotes(self) -> t.Iterable[IDocumentFootnote]:
+    def footnotes(self) -> t.Iterable[IDocFootnote]:
         yield from ()
 
-    def comments(self) -> t.Iterable[IDocumentComment]:
+    def comments(self) -> t.Iterable[IDocComment]:
         yield from ()

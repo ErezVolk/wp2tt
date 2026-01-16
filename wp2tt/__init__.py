@@ -22,14 +22,15 @@ import cairosvg
 from wp2tt.cache import Cache
 from wp2tt.format import ManualFormat
 from wp2tt.ini import SettingsFile
-from wp2tt.input import IDocumentComment
-from wp2tt.input import IDocumentFootnote
-from wp2tt.input import IDocumentFormula
-from wp2tt.input import IDocumentImage
-from wp2tt.input import IDocumentInput
-from wp2tt.input import IDocumentParagraph
-from wp2tt.input import IDocumentSpan
-from wp2tt.input import IDocumentTable
+from wp2tt.input import IDocComment
+from wp2tt.input import IDocFootnote
+from wp2tt.input import IDocFormula
+from wp2tt.input import IDocHyperlink
+from wp2tt.input import IDocImage
+from wp2tt.input import IDocInput
+from wp2tt.input import IDocParagraph
+from wp2tt.input import IDocSpan
+from wp2tt.input import IDocTable
 from wp2tt.mathml import MathConverter
 from wp2tt.output import IOutput
 from wp2tt.output import WhitespaceStripper
@@ -91,6 +92,7 @@ class WordProcessorToInDesignTaggedText:
     COMMENT_STYLE = SPECIAL_GROUP + "/(Comment)"
     IMAGE_STYLE = SPECIAL_GROUP + "/(Image)"
     FORMULA_STYLE = SPECIAL_GROUP + "/(Formula)"
+    HYPERLINK_STYLE = SPECIAL_GROUP + "/(Hyperlink)"
     TABLE_PARAGRAPH_STYLE = SPECIAL_GROUP + "/(Table Container)"
 
     IGNORED_STYLES: t.Mapping[str, list[str]] = {
@@ -120,10 +122,11 @@ class WordProcessorToInDesignTaggedText:
     comment_style: Style
     comment_ref_style: Style
     config: t.Mapping[str, str]
-    doc: IDocumentInput
+    doc: IDocInput
     footnote_ref_style: Style
     format_mask: ManualFormat
     formula_style: Style
+    hyperlink_style: Style
     image_count = itertools.count(1)
     image_dir: Path
     image_style: Style
@@ -264,9 +267,9 @@ class WordProcessorToInDesignTaggedText:
             except PermissionError:
                 log.warning("No permission to run %s", rerun)
             except subprocess.CalledProcessError as exc:
-                log.error("%s exited with code %s", rerun, exc.returncode)
-            except OSError as exc:
-                log.error("Error running %s: %s", rerun, exc)
+                log.exception("%s exited with code %s", rerun, exc.returncode)
+            except OSError:
+                log.exception("Error running %s", rerun)
 
     def scan_style_definitions(self) -> None:
         """Create a Style object for everything in the document."""
@@ -332,6 +335,13 @@ class WordProcessorToInDesignTaggedText:
             realm="character",
             internal_name=self.FORMULA_STYLE,
             wpid=self.FORMULA_STYLE,
+            idtt="<cColor:Yellow><cColorTint:100>",
+            automatic=True,
+        )
+        self.hyperlink_style = self.found_style_definition(
+            realm="character",
+            internal_name=self.HYPERLINK_STYLE,
+            wpid=self.HYPERLINK_STYLE,
             idtt="<cColor:Yellow><cColorTint:100>",
             automatic=True,
         )
@@ -544,7 +554,7 @@ class WordProcessorToInDesignTaggedText:
             self.state.is_post_empty = False
             self.state.is_post_break = False
             for node in self.doc.paragraphs():
-                if isinstance(node, IDocumentTable):
+                if isinstance(node, IDocTable):
                     self.convert_table(node)
                 else:
                     self.convert_paragraph(node)
@@ -569,7 +579,7 @@ class WordProcessorToInDesignTaggedText:
             with Path(utf8_fn).open("w", encoding="UTF-8") as fobj:
                 fobj.write(text)
 
-    def convert_table(self, table: IDocumentTable) -> None:
+    def convert_table(self, table: IDocTable) -> None:
         """Convert entire table."""
         self.writer.enter_paragraph(self.table_paragraph_style)
 
@@ -597,7 +607,7 @@ class WordProcessorToInDesignTaggedText:
 
     def convert_paragraph(
         self,
-        para: IDocumentParagraph,
+        para: IDocParagraph,
         default_style: OptionalStyle = None,
     ) -> None:
         """Convert entire paragraph."""
@@ -627,7 +637,7 @@ class WordProcessorToInDesignTaggedText:
         self.state.is_post_empty = self.state.is_empty
         self.state.prev_para_style = style
 
-    def get_paragraph_style(self, para: IDocumentParagraph) -> OptionalStyle:
+    def get_paragraph_style(self, para: IDocParagraph) -> OptionalStyle:
         """Return style to be used for a paragraph."""
         self.state.para_char_fmt = ManualFormat.NORMAL
 
@@ -659,7 +669,7 @@ class WordProcessorToInDesignTaggedText:
         return self.get_manual_style("paragraph", unadorned, fmt)
 
     def get_span_format(
-        self, node: IDocumentSpan,
+        self, node: IDocSpan,
     ) -> ManualFormat:
         """Return the marked part of a paragraph/span's format."""
         return node.format() & self.format_mask
@@ -708,7 +718,7 @@ class WordProcessorToInDesignTaggedText:
         )
         return self.manual_styles[mfcs]
 
-    def apply_rules_to(self, para: IDocumentParagraph) -> OptionalStyle:
+    def apply_rules_to(self, para: IDocParagraph) -> OptionalStyle:
         """Convert style according to user-defined rules."""
         style = self.get_paragraph_style(para)
         if style:
@@ -740,7 +750,7 @@ class WordProcessorToInDesignTaggedText:
                 return False
         return True
 
-    def check_for_stop_paragraph(self, para: IDocumentParagraph) -> None:
+    def check_for_stop_paragraph(self, para: IDocParagraph) -> None:
         """Look for stop marker, raises StopMarkerFoundError() if found."""
         text = ""
         for chunk in para.text():
@@ -755,7 +765,7 @@ class WordProcessorToInDesignTaggedText:
     def define_variable_from_paragraph(
         self,
         variable: str,
-        para: IDocumentParagraph,
+        para: IDocParagraph,
     ) -> None:
         """Save contents of a paragraph to a text variable."""
         self.writer.define_text_variable(
@@ -768,18 +778,20 @@ class WordProcessorToInDesignTaggedText:
         self.state = state
         return prev
 
-    def convert_chunk(self, chunk: IDocumentParagraph.Chunk) -> None:
+    def convert_chunk(self, chunk: IDocParagraph.Chunk) -> None:
         """Convert all text and styles in a Span."""
-        if isinstance(chunk, IDocumentSpan):
+        if isinstance(chunk, IDocSpan):
             self.convert_span(chunk)
-        elif isinstance(chunk, IDocumentImage):
+        elif isinstance(chunk, IDocImage):
             self.convert_image(chunk)
-        elif isinstance(chunk, IDocumentFormula):
+        elif isinstance(chunk, IDocHyperlink):
+            self.convert_hyperlink(chunk)
+        elif isinstance(chunk, IDocFormula):
             self.convert_formula(chunk)
         else:
             log.warning("Unhandled chunk type %s", type(chunk))
 
-    def convert_span(self, span: IDocumentSpan) -> None:
+    def convert_span(self, span: IDocSpan) -> None:
         """Convert all text and styles in a Span."""
         self.switch_character_style(self.get_character_style(span))
         self.convert_span_text(span)
@@ -792,7 +804,7 @@ class WordProcessorToInDesignTaggedText:
             for cmt in span.comments():
                 self.convert_comment(cmt)
 
-    def get_character_style(self, span: IDocumentSpan) -> OptionalStyle:
+    def get_character_style(self, span: IDocSpan) -> OptionalStyle:
         """Return Style object for a Span."""
         unadorned = self.style("character", span.style_wpid())
         if not self.args.manual and not self.args.manual_light:
@@ -805,6 +817,11 @@ class WordProcessorToInDesignTaggedText:
             fmt = ManualFormat.NORMAL
         return self.get_manual_style("character", unadorned, fmt)
 
+    def convert_hyperlink(self, hyperlink: IDocHyperlink) -> None:
+        """Write a hyperlink."""
+        self.switch_character_style(self.hyperlink_style)
+        self.write_text(hyperlink.url().strip())
+
     def next_image_fn(self, infix: str, suffix: str) -> Path:
         """Generate next image filename."""
         count = next(self.image_count)
@@ -812,12 +829,12 @@ class WordProcessorToInDesignTaggedText:
         name = f"{self.output_stem}-{infix}-{count:03d}{suffix}"
         return self.image_dir / name
 
-    def convert_image(self, img: IDocumentImage) -> None:
+    def convert_image(self, img: IDocImage) -> None:
         """Save an image, keep a placeholder in the output."""
         path = self.find_image(img) or self.extract_image(img)
         self.write_image_link(path, self.image_style)
 
-    def find_image(self, img: IDocumentImage) -> Path | None:
+    def find_image(self, img: IDocImage) -> Path | None:
         """For an image with alt-text, try to look that up."""
         key = img.alt_text()
         if not key:
@@ -825,7 +842,7 @@ class WordProcessorToInDesignTaggedText:
 
         return self.settings.find_image(key)
 
-    def extract_image(self, img: IDocumentImage) -> Path:
+    def extract_image(self, img: IDocImage) -> Path:
         """Save image to file, optionally converting it."""
         suffix = img.suffix()
         path = self.next_image_fn("image", suffix)
@@ -855,7 +872,7 @@ class WordProcessorToInDesignTaggedText:
             self.do_write_text(str(path))
         self.switch_character_style(prev)
 
-    def convert_formula(self, formula: IDocumentFormula) -> None:
+    def convert_formula(self, formula: IDocFormula) -> None:
         """Convert a formula."""
         path = self.next_image_fn("formula", ".svg")
 
@@ -900,7 +917,7 @@ class WordProcessorToInDesignTaggedText:
         with Path(path).open("rb") as fobj:
             return fobj.read()
 
-    def convert_span_text(self, span: IDocumentSpan) -> None:
+    def convert_span_text(self, span: IDocSpan) -> None:
         """Convert text in a Span object."""
         switched = self.state.curr_char_style != self.state.active_char_style
         for raw in span.text():
@@ -939,7 +956,7 @@ class WordProcessorToInDesignTaggedText:
 
     def convert_footnote(
         self,
-        footnote: IDocumentFootnote | IDocumentComment,
+        footnote: IDocFootnote | IDocComment,
         ref_style: OptionalStyle = None,
         default_style: OptionalStyle = None,
     ) -> None:
@@ -948,7 +965,7 @@ class WordProcessorToInDesignTaggedText:
             for par in footnote.paragraphs():
                 self.convert_paragraph(par, default_style=default_style)
 
-    def convert_comment(self, cmt: IDocumentComment) -> None:
+    def convert_comment(self, cmt: IDocComment) -> None:
         """Tagged Text doesn't support notes, so convert them to footnotes."""
         if self.args.comment_prefix:
             text = "".join(

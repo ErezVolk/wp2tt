@@ -9,16 +9,17 @@ from os import PathLike
 
 from lxml import etree  # type: ignore[reportMissingImports]
 
-from wp2tt.input import IDocumentComment
-from wp2tt.input import IDocumentFootnote
-from wp2tt.input import IDocumentFormula
-from wp2tt.input import IDocumentImage
-from wp2tt.input import IDocumentInput
-from wp2tt.input import IDocumentParagraph
-from wp2tt.input import IDocumentSpan
-from wp2tt.input import IDocumentTable
-from wp2tt.input import IDocumentTableRow
-from wp2tt.input import IDocumentTableCell
+from wp2tt.input import IDocComment
+from wp2tt.input import IDocFootnote
+from wp2tt.input import IDocFormula
+from wp2tt.input import IDocHyperlink
+from wp2tt.input import IDocImage
+from wp2tt.input import IDocInput
+from wp2tt.input import IDocParagraph
+from wp2tt.input import IDocSpan
+from wp2tt.input import IDocTable
+from wp2tt.input import IDocTableRow
+from wp2tt.input import IDocTableCell
 from wp2tt.format import ManualFormat
 from wp2tt.mathml import MathConverter
 from wp2tt.styles import DocumentProperties
@@ -84,7 +85,7 @@ class WordXml:
         return None
 
 
-class DocxInput(contextlib.ExitStack, WordXml, IDocumentInput):
+class DocxInput(contextlib.ExitStack, WordXml, IDocInput):
     """A .docx reader."""
 
     _wpid_prefix: str | None = None
@@ -230,10 +231,10 @@ class DocxNode(WordXml):
                     yield value
 
 
-class DocxParagraph(DocxNode, IDocumentParagraph):
+class DocxParagraph(DocxNode, IDocParagraph):
     """A Paragraph inside a .docx."""
 
-    R_XPATH = "w:r | w:ins/w:r | m:oMath | w:hyperlink/w:r"
+    R_XPATH = "w:r | w:ins/w:r | m:oMath | w:hyperlink"
     T_XPATH = "w:r/w:t | w:ins/w:r/w:t"
     SNIPPET_LEN = 10
 
@@ -286,11 +287,13 @@ class DocxParagraph(DocxNode, IDocumentParagraph):
             if node.text:
                 yield node.text
 
-    def chunks(self) -> t.Iterable[IDocumentParagraph.Chunk]:
+    def chunks(self) -> t.Iterable[IDocParagraph.Chunk]:
         """Yield DocxSpan per text span."""
         for node in self._node_xpath(self.R_XPATH):
             if node.tag == self._mtag("oMath"):
                 yield DocxFormula(node)
+            elif node.tag == self.wtag("hyperlink"):
+                yield DocxHyperlink(self.doc, node)
             else:
                 for drawing in self.xpath(node, "w:drawing[//a:blip[@r:embed]]"):
                     yield DocxImage(self.doc, drawing)
@@ -325,7 +328,7 @@ class DocxParagraph(DocxNode, IDocumentParagraph):
         return False
 
 
-class DocxSpan(DocxNode, IDocumentSpan):
+class DocxSpan(DocxNode, IDocSpan):
     """A span of characters inside a .docx."""
 
     def __repr__(self) -> str:
@@ -392,7 +395,7 @@ class DocxSpan(DocxNode, IDocumentSpan):
                 yield node.text
 
 
-class DocxImage(DocxNode, IDocumentImage):
+class DocxImage(DocxNode, IDocImage):
     """An image inside a .docx."""
 
     descr: str | None = None
@@ -423,7 +426,7 @@ class DocxImage(DocxNode, IDocumentImage):
             ofo.write(ifo.read())
 
 
-class DocxFormula(IDocumentFormula):
+class DocxFormula(IDocFormula):
     """A formula inside a .docx."""
 
     def __init__(self, node: etree._Entity) -> None:
@@ -440,7 +443,30 @@ class DocxFormula(IDocumentFormula):
         return encoded.decode()
 
 
-class DocxTable(DocxNode, IDocumentTable):
+class DocxHyperlink(DocxNode, IDocHyperlink):
+    """A hyperlink inside a .docx."""
+
+    def __init__(self, doc: etree._Entity, hlnode: etree._Entity) -> None:
+        super().__init__(doc, hlnode)
+        self._url = "N/A"
+
+        rid = hlnode.get(self._rtag("id"))
+        rels = self.doc.relationships
+        for rel in self.doc.xpath(rels, f'//rel:Relationship[@Id="{rid}"]'):
+            self._url = rel.get("Target")
+        for rnode in self._node_xpath("./w:r"):
+            self._span = DocxSpan(doc, rnode)
+
+    def span(self) -> IDocSpan:
+        """Return the display text."""
+        return self._span
+
+    def url(self) -> str:
+        """Return the URL."""
+        return self._url
+
+
+class DocxTable(DocxNode, IDocTable):
     """A table inside a .docx."""
 
     def __init__(self, doc: DocxInput, node: etree._Entity) -> None:
@@ -477,7 +503,7 @@ class DocxTable(DocxNode, IDocumentTable):
         yield from self.orows
 
 
-class DocxTableRow(DocxNode, IDocumentTableRow):
+class DocxTableRow(DocxNode, IDocTableRow):
     """A table row."""
 
     def __init__(self, doc: DocxInput, node: etree._Entity) -> None:
@@ -495,7 +521,7 @@ class DocxTableRow(DocxNode, IDocumentTableRow):
         yield from self.ocells
 
 
-class DocxTableCell(DocxNode, IDocumentTableCell):
+class DocxTableCell(DocxNode, IDocTableCell):
     """A table cell."""
 
     def __init__(self, doc: DocxInput, node: etree._Entity) -> None:
@@ -517,8 +543,8 @@ class DocxTableCell(DocxNode, IDocumentTableCell):
         raise RuntimeError("Table cell without a paragraph")
 
 
-class DocxFootnote(DocxNode, IDocumentFootnote):
-    """IDocumentFootnote for .docx file."""
+class DocxFootnote(DocxNode, IDocFootnote):
+    """IDocFootnote for .docx file."""
 
     def paragraphs(self) -> t.Iterable[DocxParagraph]:
         """Yield DocxParagraph for each paragraph in a footnote."""
@@ -527,8 +553,8 @@ class DocxFootnote(DocxNode, IDocumentFootnote):
             yield DocxParagraph(self.doc, para)
 
 
-class DocxComment(DocxNode, IDocumentComment):
-    """IDocumentComment for .docx file."""
+class DocxComment(DocxNode, IDocComment):
+    """IDocComment for .docx file."""
 
     def paragraphs(self) -> t.Iterable[DocxParagraph]:
         """Yield DocxParagraph for each paragraph in a comment."""

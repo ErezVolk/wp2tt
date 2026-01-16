@@ -1,3 +1,4 @@
+- Proper Hyperlink (both url and display)
 - Tagged Text: Write ALL styles at the beginning
 - DOCX: find default RTL
 - DOCX: <w:bookmarkStart w:name="X"/> / <w:instrText>PAGEREF ..
