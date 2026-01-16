@@ -7,9 +7,9 @@ import logging
 from pathlib import Path
 import typing as t
 
-from wp2tt.input import IDocumentInput
-from wp2tt.input import IDocumentParagraph
-from wp2tt.input import IDocumentTable
+from wp2tt.input import IDocInput
+from wp2tt.input import IDocParagraph
+from wp2tt.input import IDocTable
 from wp2tt.docx import DocxInput
 from wp2tt.markdown import MarkdownInput
 from wp2tt.spreadsheet import CsvInput
@@ -20,8 +20,8 @@ from wp2tt.styles import DocumentProperties
 log = logging.getLogger(__name__)
 
 
-class ProxyInput(IDocumentInput, contextlib.ExitStack):
-    """Just a proxy IDocumentInput"""
+class ProxyInput(IDocInput, contextlib.ExitStack):
+    """Just a proxy IDocInput"""
     args: argparse.Namespace | None
 
     def __init__(self, args: argparse.Namespace | None = None):
@@ -36,7 +36,7 @@ class MultiInput(ProxyInput):
     def __init__(self, paths: Sequence[Path], args: argparse.Namespace | None = None):
         super().__init__(args)
         self._paths = paths
-        self._inputs: list[IDocumentInput] = []
+        self._inputs: list[IDocInput] = []
         for nth, path in enumerate(paths, 1):
             one = ByExtensionInput(path, self.args)
             one.set_nth(nth)
@@ -69,8 +69,8 @@ class MultiInput(ProxyInput):
             log.debug("%u style(s) in %r", in_file, path)
         log.debug("%u style(s) in %u docs", total, len(self._paths))
 
-    def paragraphs(self) -> t.Iterable[IDocumentParagraph | IDocumentTable]:
-        """Yield an IDocumentParagraph object for each body paragraph."""
+    def paragraphs(self) -> t.Iterable[IDocParagraph | IDocTable]:
+        """Yield an IDocParagraph object for each body paragraph."""
         total = 0
         for path, doc in zip(self._paths, self._inputs, strict=True):
             in_file = 0
@@ -86,7 +86,7 @@ class MultiInput(ProxyInput):
 class ByExtensionInput(ProxyInput):
     """An input, based on the file's extension."""
 
-    _input: IDocumentInput
+    _input: IDocInput
 
     def __init__(self, path: Path, args: argparse.Namespace | None = None) -> None:
         super().__init__(args)
@@ -124,5 +124,5 @@ class ByExtensionInput(ProxyInput):
         yield from self._input.styles_in_use()
 
     def paragraphs(self):
-        """Yield an IDocumentParagraph object for each body paragraph."""
+        """Yield an IDocParagraph object for each body paragraph."""
         yield from self._input.paragraphs()

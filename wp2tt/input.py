@@ -8,7 +8,7 @@ from wp2tt.format import ManualFormat
 from wp2tt.styles import DocumentProperties
 
 
-class IDocumentInput(ABC):
+class IDocInput(ABC):
     """A document."""
 
     def set_nth(self, nth: int) -> None:
@@ -30,12 +30,12 @@ class IDocumentInput(ABC):
         """Yield a pair (realm, wpid) for every style used in the document."""
         raise NotImplementedError
 
-    def paragraphs(self) -> t.Iterable["IDocumentParagraph | IDocumentTable"]:
-        """Yield an IDocumentParagraph object for each body paragraph."""
+    def paragraphs(self) -> t.Iterable["IDocParagraph | IDocTable"]:
+        """Yield an IDocParagraph object for each body paragraph."""
         raise NotImplementedError
 
 
-class IDocumentTextSource(ABC):
+class IDocTextSource(ABC):
     """Something that may contain text."""
 
     __is_empty: bool
@@ -54,11 +54,11 @@ class IDocumentTextSource(ABC):
             return self.__is_empty
 
 
-class IDocumentParagraph(IDocumentTextSource):
+class IDocParagraph(IDocTextSource):
     """A Paragraph inside a document."""
 
     Chunk: t.TypeAlias = (
-        "IDocumentSpan | IDocumentImage | IDocumentFormula | IDocumentBookmark"
+        "IDocSpan | IDocImage | IDocFormula | IDocBookmark"
     )
 
     @abstractmethod
@@ -79,26 +79,26 @@ class IDocumentParagraph(IDocumentTextSource):
         """Yield all elements in the paragraph."""
         raise NotImplementedError
 
-    def spans(self) -> t.Iterable["IDocumentSpan"]:
-        """Yield an IDocumentSpan per text span."""
+    def spans(self) -> t.Iterable["IDocSpan"]:
+        """Yield an IDocSpan per text span."""
         for chunk in self.chunks():
-            if isinstance(chunk, IDocumentSpan):
+            if isinstance(chunk, IDocSpan):
                 yield chunk
 
 
-class IDocumentSpan(IDocumentTextSource):
+class IDocSpan(IDocTextSource):
     """A span of characters inside a document."""
 
     def style_wpid(self) -> str | None:
         """Return the wpid for this span's style."""
         return None
 
-    def footnotes(self) -> t.Iterable["IDocumentFootnote"]:
-        """Yield an IDocumentFootnote object for each footnote in this span."""
+    def footnotes(self) -> t.Iterable["IDocFootnote"]:
+        """Yield an IDocFootnote object for each footnote in this span."""
         raise NotImplementedError
 
-    def comments(self) -> t.Iterable["IDocumentComment"]:
-        """Yield an IDocumentComment object for each comment in this span."""
+    def comments(self) -> t.Iterable["IDocComment"]:
+        """Yield an IDocComment object for each comment in this span."""
         raise NotImplementedError
 
     def format(self) -> ManualFormat:
@@ -106,7 +106,7 @@ class IDocumentSpan(IDocumentTextSource):
         return ManualFormat.NORMAL
 
 
-class IDocumentImage(ABC):
+class IDocImage(ABC):
     """An image inside a document."""
 
     def alt_text(self) -> str | None:
@@ -124,7 +124,7 @@ class IDocumentImage(ABC):
         raise NotImplementedError
 
 
-class IDocumentFormula(ABC):
+class IDocFormula(ABC):
     """A formula inside a document."""
 
     @abstractmethod
@@ -138,7 +138,7 @@ class IDocumentFormula(ABC):
         raise NotImplementedError
 
 
-class IDocumentTable(ABC):
+class IDocTable(ABC):
     """A table inside a document."""
 
     def style_wpid(self) -> str | None:
@@ -160,21 +160,21 @@ class IDocumentTable(ABC):
         return 0
 
     @abstractmethod
-    def rows(self) -> t.Iterable["IDocumentTableRow"]:
+    def rows(self) -> t.Iterable["IDocTableRow"]:
         """Iterate the rows of the table."""
         raise NotImplementedError
 
 
-class IDocumentTableRow(ABC):
+class IDocTableRow(ABC):
     """A row in a table inside a document."""
 
     @abstractmethod
-    def cells(self) -> t.Iterable["IDocumentTableCell"]:
+    def cells(self) -> t.Iterable["IDocTableCell"]:
         """Iterate the cells in the row."""
         raise NotImplementedError
 
 
-class IDocumentTableCell(ABC):
+class IDocTableCell(ABC):
     """A cell in a table inside a document."""
 
     @property
@@ -183,11 +183,11 @@ class IDocumentTableCell(ABC):
         return (1, 1)
 
     @abstractmethod
-    def contents(self) -> IDocumentParagraph:
+    def contents(self) -> IDocParagraph:
         """Get the contents of this cell."""
 
 
-class IDocumentBookmark(ABC):
+class IDocBookmark(ABC):
     """A bookmark in a document."""
 
     @property
@@ -196,19 +196,19 @@ class IDocumentBookmark(ABC):
         """The name of this bookmark."""
 
 
-class IDocumentFootnote(ABC):
+class IDocFootnote(ABC):
     """A footnote."""
 
     @abstractmethod
-    def paragraphs(self) -> t.Iterable[IDocumentParagraph]:
-        """Yield an IDocumentParagraph object for each footnote paragraph."""
+    def paragraphs(self) -> t.Iterable[IDocParagraph]:
+        """Yield an IDocParagraph object for each footnote paragraph."""
         raise NotImplementedError
 
 
-class IDocumentComment(ABC):
+class IDocComment(ABC):
     """A comment (balloon)."""
 
     @abstractmethod
-    def paragraphs(self) -> t.Iterable[IDocumentParagraph]:
-        """Yield an IDocumentParagraph object for each comment paragraph."""
+    def paragraphs(self) -> t.Iterable[IDocParagraph]:
+        """Yield an IDocParagraph object for each comment paragraph."""
         raise NotImplementedError

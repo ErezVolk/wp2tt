@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """.odt file parsing."""
 import contextlib
 import logging
@@ -7,11 +6,11 @@ import typing as t
 
 from lxml import etree
 
-from wp2tt.input import IDocumentComment
-from wp2tt.input import IDocumentFootnote
-from wp2tt.input import IDocumentInput
-from wp2tt.input import IDocumentParagraph
-from wp2tt.input import IDocumentSpan
+from wp2tt.input import IDocComment
+from wp2tt.input import IDocFootnote
+from wp2tt.input import IDocInput
+from wp2tt.input import IDocParagraph
+from wp2tt.input import IDocSpan
 from wp2tt.styles import DocumentProperties
 from wp2tt.zip import ZipDocument
 
@@ -44,7 +43,7 @@ class OoXml:
         return node.get(self._ootag(tag))
 
 
-class XodtInput(contextlib.ExitStack, OoXml, IDocumentInput):
+class XodtInput(contextlib.ExitStack, OoXml, IDocInput):
     """A reader for .odt and .fodt."""
 
     def __init__(self, path: Path, zipped: bool):
@@ -137,7 +136,7 @@ class OdtNode(OoXml):
         return self.node.xpath(expr, namespaces=self._NS)
 
 
-class OdtParagraph(OdtNode, IDocumentParagraph):
+class OdtParagraph(OdtNode, IDocParagraph):
     """A Paragraph inside a .docx."""
 
     def style_wpid(self):
@@ -166,7 +165,7 @@ class OdtParagraph(OdtNode, IDocumentParagraph):
                 yield OdtTailSpan(self.doc, node)
 
 
-class OdtSpanBase(OdtNode, IDocumentSpan):
+class OdtSpanBase(OdtNode, IDocSpan):
     """Base for .odt span classes"""
 
 
@@ -192,7 +191,7 @@ class OdtSpanSpan(OdtSpanBase):
         for fnr in self._node_xpath('text:note[@text:node-class="footnote"]'):
             yield OdtFootnote(self.doc, fnr)
 
-    def comments(self) -> Iterable["IDocumentComment"]:
+    def comments(self) -> Iterable["IDocComment"]:
         yield from ()
 
     def text(self):
@@ -207,7 +206,7 @@ class OdtTailSpan(OdtSpanBase):
             yield self.node.tail
 
 
-class OdtFootnote(OdtNode, IDocumentFootnote):
+class OdtFootnote(OdtNode, IDocFootnote):
     """Footnote in .odt"""
     def paragraphs(self):
         for para in self._node_xpath("text:note-body/text-p"):

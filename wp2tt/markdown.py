@@ -9,11 +9,11 @@ import typing as t
 import mistune
 from lxml import etree
 
-from wp2tt.input import IDocumentComment
-from wp2tt.input import IDocumentFootnote
-from wp2tt.input import IDocumentInput
-from wp2tt.input import IDocumentParagraph
-from wp2tt.input import IDocumentSpan
+from wp2tt.input import IDocComment
+from wp2tt.input import IDocFootnote
+from wp2tt.input import IDocInput
+from wp2tt.input import IDocParagraph
+from wp2tt.input import IDocSpan
 from wp2tt.styles import DocumentProperties
 
 log = logging.getLogger(__name__)
@@ -136,7 +136,7 @@ class MarkdownUnRenderer:
         raise NotImplementedError("footnotes()")
 
 
-class MarkdownInput(IDocumentInput, contextlib.ExitStack):
+class MarkdownInput(IDocInput, contextlib.ExitStack):
     """A Markdown reader."""
 
     def __init__(self, path: Path):
@@ -190,7 +190,7 @@ class MarkdownInput(IDocumentInput, contextlib.ExitStack):
                 yield MarkdownParagraph(para)
 
 
-class MarkdownParagraph(IDocumentParagraph):
+class MarkdownParagraph(IDocParagraph):
     """A Paragraph inside a document."""
 
     def __init__(self, node):
@@ -214,7 +214,7 @@ class MarkdownParagraph(IDocumentParagraph):
         yield MarkdownTailSpan(self.node)
 
 
-class MarkdownSpanBase(IDocumentSpan):
+class MarkdownSpanBase(IDocSpan):
     """Base class for our span types"""
     def __init__(self, node):
         self.node = node
@@ -222,10 +222,10 @@ class MarkdownSpanBase(IDocumentSpan):
     def style_wpid(self):
         return None
 
-    def footnotes(self) -> t.Iterable["IDocumentFootnote"]:
+    def footnotes(self) -> t.Iterable["IDocFootnote"]:
         yield from ()
 
-    def comments(self) -> t.Iterable["IDocumentComment"]:
+    def comments(self) -> t.Iterable["IDocComment"]:
         yield from ()
 
 
@@ -257,7 +257,7 @@ class MarkdownSpanSpan(MarkdownSpanBase):
         yield self.node.text or ""
 
 
-class MarkdownFootnote(IDocumentFootnote):
+class MarkdownFootnote(IDocFootnote):
     """A footnote."""
 
     def paragraphs(self):
