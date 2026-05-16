@@ -173,8 +173,10 @@ class DocxInput(contextlib.ExitStack, WordXml, IDocInput):
     }
     _TAG_EXPRS = " or ".join(f"self::w:{tag}" for tag in _TAG_TO_REALM)
     TAG_XPATH = f"//*[{_TAG_EXPRS}]"
-    WTAG_TO_REALM: t.Mapping[str, str] = {
-        WordXml.wtag(tag): realm for tag, realm in _TAG_TO_REALM.items()
+    WTAG_TO_REALM: t.ClassVar[dict[str, str]] = {
+        WordXml.wtag(tag): realm
+        for tag, realm
+        in _TAG_TO_REALM.items()
     }
 
     def styles_in_use(self) -> t.Iterable[tuple[str, str | None]]:
@@ -183,7 +185,8 @@ class DocxInput(contextlib.ExitStack, WordXml, IDocInput):
             if node is None:
                 continue
             for snode in self.xpath(node, self.TAG_XPATH):
-                realm = self.WTAG_TO_REALM[snode.tag]
+                wtag = str(snode.tag)  # Looks like only ty thinks it can be non-str
+                realm = self.WTAG_TO_REALM[wtag]
                 wpid = self.export_wpid(snode.attrib.get(self.wtag("val")))
                 yield (realm, wpid)
 
