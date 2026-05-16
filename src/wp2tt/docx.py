@@ -50,8 +50,8 @@ class WordXml:
 
     @classmethod
     def xpath(
-        cls, nodes: list[etree._Entity] | etree._Entity, expr: str,
-    ) -> t.Iterable[etree._Entity]:
+        cls, nodes: list[etree._Element] | etree._Element, expr: str,
+    ) -> t.Iterable[etree._Element]:
         """Wrap etree.xpath, with namespaces and multiple nodes."""
         if not isinstance(nodes, list):
             nodes = [nodes]
@@ -77,7 +77,7 @@ class WordXml:
 
     @classmethod
     def _wval(
-        cls, nodes: list[etree._Entity] | etree._Entity, prop: str,
+        cls, nodes: list[etree._Element] | etree._Element, prop: str,
     ) -> str | None:
         if not isinstance(nodes, list):
             nodes = [nodes]
@@ -199,7 +199,7 @@ class DocxInput(contextlib.ExitStack, WordXml, IDocInput):
             elif not node.attrib.get("__wp2tt_skip__"):
                 yield DocxParagraph(self, node)
 
-    def find_rels(self, rid: str) -> t.Iterable[etree._Entity]:
+    def find_rels(self, rid: str) -> t.Iterable[etree._Element]:
         """Find a relationship."""
         for rels in self.relationships.values():
             if rels is not None:
@@ -213,19 +213,19 @@ class DocxNode(WordXml):
     used for parargaph breaks deleted with track changes.
     """
 
-    def __init__(self, doc: DocxInput, node: etree._Entity) -> None:
+    def __init__(self, doc: DocxInput, node: etree._Element) -> None:
         self.doc = doc
         self.head_node = node
         self.nodes = [node]
 
-    def add_node(self, node: etree._Entity) -> None:
+    def add_node(self, node: etree._Element) -> None:
         """Extend the list of nodes."""
         self.nodes.append(node)
 
     def _node_wtag(self, tag: str) -> str | None:
         return self.head_node.attrib.get(self.wtag(tag))
 
-    def _node_xpath(self, expr: str) -> t.Iterable[etree._Entity]:
+    def _node_xpath(self, expr: str) -> t.Iterable[etree._Element]:
         for node in self.nodes:
             yield from node.xpath(expr, namespaces=self._NS)
 
@@ -259,7 +259,7 @@ class DocxParagraph(DocxNode, IDocParagraph):
     T_XPATH = "w:r/w:t | w:ins/w:r/w:t"
     SNIPPET_LEN = 10
 
-    def __init__(self, doc: DocxInput, para: etree._Entity) -> None:
+    def __init__(self, doc: DocxInput, para: etree._Element) -> None:
         super().__init__(doc, para)
         while (ctd := self.get_next(para)):
             ctd.attrib["__wp2tt_skip__"] = "yes"
@@ -271,7 +271,7 @@ class DocxParagraph(DocxNode, IDocParagraph):
         pids = "/".join(self._para_ids)
         return f"<w:p {pids}>"
 
-    def _get_para_id(self, para: etree._Entity) -> str:
+    def _get_para_id(self, para: etree._Element) -> str:
         """Create a hopefully unique paragraph ID."""
         w14id = para.attrib.get(self._w14tag("paraId"))
         if w14id:
@@ -292,7 +292,7 @@ class DocxParagraph(DocxNode, IDocParagraph):
             return f'"{text}"'
         return f'"{text[:self.SNIPPET_LEN-3]}"...'
 
-    def get_next(self, para: etree._Entity) -> etree._Entity | None:
+    def get_next(self, para: etree._Element) -> etree._Element | None:
         """If a <w:p> para has deleted, tracked newline, return next one."""
         if (node := para.getnext()):
             for _ in self.xpath(para, "./w:pPr/w:rPr/w:del"):
@@ -330,7 +330,7 @@ class DocxParagraph(DocxNode, IDocParagraph):
         return self.node_format(self.nodes)
 
     @classmethod
-    def node_format(cls, nodes: list[etree._Entity] | etree._Entity) -> ManualFormat:
+    def node_format(cls, nodes: list[etree._Element] | etree._Element) -> ManualFormat:
         """Return manual formatting on a paragraph/style."""
         fmt = ManualFormat.LTR
         justification = cls._wval(nodes, "w:pPr/w:jc")
@@ -384,7 +384,7 @@ class DocxSpan(DocxNode, IDocSpan):
     }
 
     @classmethod
-    def node_format(cls, nodes: list[etree._Entity] | etree._Entity) -> ManualFormat:
+    def node_format(cls, nodes: list[etree._Element] | etree._Element) -> ManualFormat:
         """Get manual formatting for a span/style."""
         fmt = ManualFormat.LTR
         for expr, flag in cls.XPATH_TO_FMT.items():
@@ -423,7 +423,7 @@ class DocxImage(DocxNode, IDocImage):
     descr: str | None = None
     target: PurePosixPath
 
-    def __init__(self, doc: DocxInput, drawing: etree._Entity) -> None:
+    def __init__(self, doc: DocxInput, drawing: etree._Element) -> None:
         super().__init__(doc, drawing)
         for prop in self._node_xpath("./wp:inline/wp:docPr[@descr]"):
             self.descr = prop.attrib.get("descr")
@@ -451,7 +451,7 @@ class DocxImage(DocxNode, IDocImage):
 class DocxHyperlink(DocxNode, IDocHyperlink):
     """A hyperlink inside a .docx."""
 
-    def __init__(self, doc: DocxInput, hyperlink: etree._Entity) -> None:
+    def __init__(self, doc: DocxInput, hyperlink: etree._Element) -> None:
         super().__init__(doc, hyperlink)
         if (rid := hyperlink.attrib.get(self._rtag("id"))):
             for rel in self.doc.find_rels(rid):
@@ -474,7 +474,7 @@ class DocxHyperlink(DocxNode, IDocHyperlink):
 class DocxFormula(IDocFormula):
     """A formula inside a .docx."""
 
-    def __init__(self, node: etree._Entity) -> None:
+    def __init__(self, node: etree._Element) -> None:
         self.node = node
 
     def raw(self) -> bytes:
@@ -491,7 +491,7 @@ class DocxFormula(IDocFormula):
 class DocxTable(DocxNode, IDocTable):
     """A table inside a .docx."""
 
-    def __init__(self, doc: DocxInput, node: etree._Entity) -> None:
+    def __init__(self, doc: DocxInput, node: etree._Element) -> None:
         super().__init__(doc, node)
         self.orows = [DocxTableRow(doc, row) for row in self.xpath(node, "./w:tr")]
         self.n_header_rows = sum(row.is_header() for row in self.orows)
@@ -528,7 +528,7 @@ class DocxTable(DocxNode, IDocTable):
 class DocxTableRow(DocxNode, IDocTableRow):
     """A table row."""
 
-    def __init__(self, doc: DocxInput, node: etree._Entity) -> None:
+    def __init__(self, doc: DocxInput, node: etree._Element) -> None:
         super().__init__(doc, node)
         self.ocells = [DocxTableCell(doc, cell) for cell in self.xpath(node, "./w:tc")]
 
@@ -546,7 +546,7 @@ class DocxTableRow(DocxNode, IDocTableRow):
 class DocxTableCell(DocxNode, IDocTableCell):
     """A table cell."""
 
-    def __init__(self, doc: DocxInput, node: etree._Entity) -> None:
+    def __init__(self, doc: DocxInput, node: etree._Element) -> None:
         super().__init__(doc, node)
         try:
             self.span = int(self._wval(node, "./w:tcPr/w:gridSpan") or "1")

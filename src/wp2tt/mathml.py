@@ -19,7 +19,7 @@ class MathConverter:
     transform: etree.XSLT | None = None
 
     @classmethod
-    def omml_to_mathml(cls, omml: etree._Entity) -> etree._ElementTree:
+    def omml_to_mathml(cls, omml: etree._Element) -> etree._ElementTree:
         """Convert Office Math Markup Language to MathML."""
         if cls.transform is None:
             cls.transform = cls._load_xslt()
