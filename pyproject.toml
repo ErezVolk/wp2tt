@@ -10,6 +10,7 @@ dependencies = [
   "lxml",
   "mistune",
   "pandas",
+  "types-lxml>=2026.2.16",
   "ziamath",
 ]
 
