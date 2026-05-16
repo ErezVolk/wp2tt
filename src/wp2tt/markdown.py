@@ -18,7 +18,7 @@ from wp2tt.styles import DocumentProperties
 log = logging.getLogger(__name__)
 
 
-class MarkdownUnRenderer:
+class MarkdownUnRenderer(mistune.BaseRenderer):
     """Mistune callback to convert Markdown to XML."""
 
     NAMELESS_P_PRE = '<p wpid="normal">'
@@ -175,9 +175,9 @@ class MarkdownInput(IDocInput, contextlib.ExitStack):
     def styles_in_use(self):
         """Yield a pair (realm, wpid) for every style used in the document."""
         for node in self.xpath("//p[@wpid]"):
-            yield "paragraph", node.get("wpid")
+            yield "paragraph", node.attrib.get("wpid")
         for node in self.xpath("//s[@wpid]"):
-            yield "character", node.get("wpid")
+            yield "character", node.attrib.get("wpid")
         for node in self.xpath("//li"):
             yield "paragraph", "list item"
             break
@@ -197,7 +197,7 @@ class MarkdownParagraph(IDocParagraph):
 
     def style_wpid(self):
         """Returns the wpid for this paragraph's style."""
-        return self.node.get("wpid")
+        return self.node.attrib.get("wpid")
 
     def text(self):
         """Yields strings of plain text."""
@@ -252,7 +252,7 @@ class MarkdownSpanSpan(MarkdownSpanBase):
 
     def style_wpid(self):
         """Returns the wpid for this span's style."""
-        return self.node.get("wpid")
+        return self.node.attrib.get("wpid")
 
     def text(self):
         """Yields strings of plain text."""
