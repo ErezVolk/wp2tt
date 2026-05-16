@@ -147,13 +147,13 @@ class MarkdownInput(IDocInput, contextlib.ExitStack):
     def _read_markdown(self, path: Path):
         renderer = MarkdownUnRenderer()
         parse = mistune.Markdown(renderer=renderer)
-        with open(path, "r", encoding="utf8") as mdfo:
+        with open(path, encoding="utf8") as mdfo:
             xml = parse(mdfo.read())
         self._root = etree.fromstring(f"<document>{xml}</document>")
         print(
             etree.tostring(
-                self._root, pretty_print=True, encoding="utf-8", xml_declaration=True
-            ).decode("utf-8")
+                self._root, pretty_print=True, encoding="utf-8", xml_declaration=True,
+            ).decode("utf-8"),
         )
 
     @property
@@ -216,6 +216,7 @@ class MarkdownParagraph(IDocParagraph):
 
 class MarkdownSpanBase(IDocSpan):
     """Base class for our span types"""
+
     def __init__(self, node):
         self.node = node
 
@@ -231,6 +232,7 @@ class MarkdownSpanBase(IDocSpan):
 
 class MarkdownHeadSpan(MarkdownSpanBase):
     """Head of XML node"""
+
     def text(self):
         """Yields strings of plain text."""
         if self.node.text:
@@ -239,6 +241,7 @@ class MarkdownHeadSpan(MarkdownSpanBase):
 
 class MarkdownTailSpan(MarkdownSpanBase):
     """Tail of XML node"""
+
     def text(self):
         """Yields strings of plain text."""
         if self.node.tail:
@@ -262,4 +265,4 @@ class MarkdownFootnote(IDocFootnote):
 
     def paragraphs(self):
         """Yields a MarkdownParagraph object for each footnote paragraph."""
-        raise NotImplementedError()
+        raise NotImplementedError

@@ -59,8 +59,8 @@ class XodtInput(contextlib.ExitStack, OoXml, IDocInput):
     def _initialize_properties(self):
         self._properties = DocumentProperties(
             has_rtl=self._has_node(
-                '//style:paragraph-properties[@style:writing-mode="rl-tb"]'
-            )
+                '//style:paragraph-properties[@style:writing-mode="rl-tb"]',
+            ),
         )
 
     def _has_node(self, ootag):
@@ -90,7 +90,7 @@ class XodtInput(contextlib.ExitStack, OoXml, IDocInput):
                 "wpid": name,
                 "parent_wpid": self._ooget(node, "style:parent-style-name"),
                 "next_wpid": self._ooget(node, "style:next-style-name"),
-            }
+            },
         )
         return style_kwargs
 
@@ -111,7 +111,7 @@ class XodtInput(contextlib.ExitStack, OoXml, IDocInput):
 
     @classmethod
     def _open_flat(cls, path):
-        with open(path, "r", encoding="utf8") as fobj:
+        with open(path, encoding="utf8") as fobj:
             return etree.parse(fobj).getroot()
 
     def _load_xml(self, path_in_zip):
@@ -158,7 +158,7 @@ class OdtParagraph(OdtNode, IDocParagraph):
                     yield OdtHeadSpan(self.doc, node)
                 else:
                     log.debug(
-                        "Not sure what to do with a <%s> %r", node.tag, node.text[:8]
+                        "Not sure what to do with a <%s> %r", node.tag, node.text[:8],
                     )
                     yield OdtHeadSpan(self.doc, node)
             else:
@@ -171,6 +171,7 @@ class OdtSpanBase(OdtNode, IDocSpan):
 
 class OdtHeadSpan(OdtSpanBase):
     """Beginning of a span"""
+
     def text(self):
         if self.node.text:
             yield self.node.text
@@ -178,12 +179,14 @@ class OdtHeadSpan(OdtSpanBase):
 
 class OdtTabSpan(OdtSpanBase):
     """A tab character"""
+
     def text(self):
         yield "\t"
 
 
 class OdtSpanSpan(OdtSpanBase):
     """A proper text span"""
+
     def style_wpid(self):
         return self._node_ooget("text:style-name")
 
@@ -201,6 +204,7 @@ class OdtSpanSpan(OdtSpanBase):
 
 class OdtTailSpan(OdtSpanBase):
     """End of a span"""
+
     def text(self):
         if self.node.tail:
             yield self.node.tail
@@ -208,6 +212,7 @@ class OdtTailSpan(OdtSpanBase):
 
 class OdtFootnote(OdtNode, IDocFootnote):
     """Footnote in .odt"""
+
     def paragraphs(self):
         for para in self._node_xpath("text:note-body/text-p"):
             yield OdtParagraph(self.doc, para)

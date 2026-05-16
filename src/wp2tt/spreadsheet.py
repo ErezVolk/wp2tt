@@ -47,6 +47,7 @@ class Wpids:
 
 class _SpreadsheetInput(contextlib.ExitStack, IDocInput):
     """Simple ODS reader (via pandas)"""
+
     _frame: pd.DataFrame
     _props: DocumentProperties = DocumentProperties()
     _column_wpids: list[str] | None = None
@@ -123,6 +124,7 @@ class OdsInput(_SpreadsheetInput):
 
 class CsvInput(_SpreadsheetInput):
     """CSV reader"""
+
     def _read_spreadsheet(self, path: Path) -> pd.DataFrame:
         frame = pd.read_csv(path).fillna("")
         self._column_wpids = [Wpids.column(col) for col in frame.columns]
@@ -138,6 +140,7 @@ class CsvInput(_SpreadsheetInput):
 
 class DataFrameTable(IDocTable):
     """A DataFrame as a document table"""
+
     def __init__(self, frame: pd.DataFrame, column_wpids: list[str] | None):
         self._frame = frame
         self._column_wpids = column_wpids
@@ -163,6 +166,7 @@ class DataFrameTable(IDocTable):
 
 class DataFrameRow(IDocTableRow):
     """A row in a table inside a document"""
+
     def __init__(self, items, wpids: list[str] | str | None = None):
         self._items = items
         if wpids is None:
@@ -185,6 +189,7 @@ class DataFrameRow(IDocTableRow):
 
 class SimpleCell(IDocTableCell):
     """A cell that only holds a single piece of text"""
+
     def __init__(self, contents, wpid):
         self._contents = contents.strip()
         if re.search(r"[\u0591-\u05F4\u0600-\u06FF]", contents):
@@ -201,6 +206,7 @@ class SimpleCell(IDocTableCell):
 
 class SimpleParagraph(IDocParagraph):
     """A paragraph that only holds a single piece of text"""
+
     def __init__(self, contents, wpid):
         self._contents = contents
         self._wpid = wpid
@@ -217,6 +223,7 @@ class SimpleParagraph(IDocParagraph):
 
 class SimpleSpan(IDocSpan):
     """A span that only holds a single piece of text"""
+
     def __init__(self, contents):
         self._contents = contents
 

@@ -22,6 +22,7 @@ log = logging.getLogger(__name__)
 
 class ProxyInput(IDocInput, contextlib.ExitStack):
     """Just a proxy IDocInput"""
+
     args: argparse.Namespace | None
 
     def __init__(self, args: argparse.Namespace | None = None):
@@ -31,6 +32,7 @@ class ProxyInput(IDocInput, contextlib.ExitStack):
 
 class MultiInput(ProxyInput):
     """Input from multiple files."""
+
     _args: argparse.Namespace | None
 
     def __init__(self, paths: Sequence[Path], args: argparse.Namespace | None = None):

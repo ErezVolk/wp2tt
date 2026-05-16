@@ -453,7 +453,7 @@ class WordProcessorToInDesignTaggedText:
         )
 
     def found_style_definition(
-        self, realm: str, internal_name: str, wpid: str, **kwargs
+        self, realm: str, internal_name: str, wpid: str, **kwargs,
     ) -> Style:
         """Handle a style definition.
 
