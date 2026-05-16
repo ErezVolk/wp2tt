@@ -59,16 +59,20 @@ class Rule:
     into_this: str | None = None
     when_following: str | None = None
     when_first_in_doc: str | None = None
-    unless_empty: bool = False
+    unless_empty: bool = dcl.field(default=False, init=False)
 
-    turn_this_style: OptionalStyle = dcl.field(default=None, metadata=ATTR_NO_INI)
-    into_this_style: OptionalStyle = dcl.field(default=None, metadata=ATTR_NO_INI)
+    turn_this_style: OptionalStyle = dcl.field(
+        default=None, metadata=ATTR_NO_INI, init=False,
+    )
+    into_this_style: OptionalStyle = dcl.field(
+        default=None, metadata=ATTR_NO_INI, init=False,
+    )
     when_following_styles: list[Style] | None = dcl.field(
-        default=None, metadata=ATTR_NO_INI,
+        default=None, metadata=ATTR_NO_INI, init=False,
     )
 
-    valid: bool = dcl.field(default=True, metadata=ATTR_NO_INI)
-    applied: int = dcl.field(default=0, metadata=ATTR_NO_INI)
+    valid: bool = dcl.field(default=True, metadata=ATTR_NO_INI, init=False)
+    applied: int = dcl.field(default=0, metadata=ATTR_NO_INI, init=False)
 
     def __str__(self) -> str:
         return f"<{self.mnemonic} {self.description!r}>"
