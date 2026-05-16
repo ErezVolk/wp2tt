@@ -191,7 +191,7 @@ class OdtSpanSpan(OdtSpanBase):
         for fnr in self._node_xpath('text:note[@text:node-class="footnote"]'):
             yield OdtFootnote(self.doc, fnr)
 
-    def comments(self) -> Iterable["IDocComment"]:
+    def comments(self) -> t.Iterable["IDocComment"]:
         yield from ()
 
     def text(self):

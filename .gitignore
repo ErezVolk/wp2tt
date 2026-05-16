@@ -1,12 +1,22 @@
-*.docx
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
 *.egg-info
+
+# Virtual environments
+.venv
+
+# WP2TT
+*.docx
 *.idtt*
 *.indd
 *.ini
 *.ods
 *.oxml
 *.pdf
-*.pyc
 *.rerun
 *.rtf
 *.tagged.txt*
@@ -15,9 +25,6 @@
 *.xml
 .*.swp
 .DS_Store
-__pycache__
-build
-dist
 sandbox
 test.*
 ~*.idlk

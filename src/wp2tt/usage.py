@@ -10,8 +10,6 @@ import re
 import shlex
 import sys
 
-from wp2tt.version import WP2TT_VERSION
-
 __all__ = ["Wp2ttParser"]
 log = logging.getLogger(__name__)
 
@@ -24,7 +22,7 @@ class Wp2ttParser(ArgumentParser):
 
     def __init__(self) -> None:
         super().__init__(
-            description=f"Word Processor to InDesign Tagged Text, v{WP2TT_VERSION}",
+            description="Word Processor to InDesign Tagged Text",
         )
         self.add_argument("input", type=Path, help="Input word processor file")
         self.add_argument(
