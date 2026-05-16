@@ -6,7 +6,9 @@ from pathlib import Path
 from lxml import etree
 import ziamath.config
 import ziamath.zmath
-ziamath.config.svg2 = False  # Otherwise InDesign chokes
+
+# This is required for InDesign compatibility
+ziamath.config.svg2 = False  # type: ignore[ty:unresolved-attribute]
 
 
 class MathConverter:
