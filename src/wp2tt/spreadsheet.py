@@ -66,7 +66,11 @@ class _SpreadsheetInput(contextlib.ExitStack, IDocInput):
         else:
             return
         log.debug("Using columns: %s", ", ".join(cols))
-        self._frame = self._frame[cols]
+        subframe = self._frame[cols]
+        if isinstance(subframe, pd.DataFrame):
+            self._frame = subframe
+        else:
+            log.warning("Cannot reduce table.")
 
     @abstractmethod
     def _read_spreadsheet(self, path: Path) -> pd.DataFrame:
