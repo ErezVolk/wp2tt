@@ -23,6 +23,7 @@ class MathConverter:
         """Convert Office Math Markup Language to MathML."""
         if cls.transform is None:
             cls.transform = cls._load_xslt()
+        assert cls.transform is not None
         return cls.transform.apply(omml)
 
     @classmethod

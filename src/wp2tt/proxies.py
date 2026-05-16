@@ -35,7 +35,11 @@ class MultiInput(ProxyInput):
 
     _args: argparse.Namespace | None
 
-    def __init__(self, paths: Sequence[Path], args: argparse.Namespace | None = None) -> None:
+    def __init__(
+        self,
+        paths: Sequence[Path],
+        args: argparse.Namespace | None = None,
+    ) -> None:
         super().__init__(args)
         self._paths = paths
         self._inputs: list[IDocInput] = []

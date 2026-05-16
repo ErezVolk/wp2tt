@@ -858,7 +858,7 @@ class WordProcessorToInDesignTaggedText:
             else:
                 log.debug("Converting %s -> %s", path.name, svg.name)
                 cmd = ["emf2svg-conv", "-i", str(path), "-o", str(svg)]
-                subprocess.run(cmd, check=True)
+                subprocess.run(cmd, check=True)  # noqa: S603
                 self.svg2png(svg, path)
                 path = svg
                 self.cache.put(path, cached)
