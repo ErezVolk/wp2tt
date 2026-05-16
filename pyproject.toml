@@ -52,18 +52,18 @@ target-version = "py311"
 [tool.ruff.lint]
 select = ["ALL"]
 ignore = [
+   "ANN002",  # Missing type annotation for `*args`
    "ANN003",  # Missing type annotation for `**kwargs`
-   "ANN101",
-   "ANN102",
    "D105",
    "D107",
+   "D203",
+   "D213",
    "E203",  # Whitespace before :
    "EM101",
    "EM102",
    "I001",
    "S101",
    "S311",
-   "S320",
    "S324",
    "SIM102",
    "T201",

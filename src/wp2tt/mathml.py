@@ -1,5 +1,5 @@
 """Math conversion."""
-# TODO: InDesign now supports MathML
+# InDesign now supports MathML; we should move to that.
 
 from pathlib import Path
 

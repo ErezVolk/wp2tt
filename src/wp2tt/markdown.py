@@ -1,5 +1,6 @@
 """Read Markdown document."""
 # pylint: disable=unused-argument
+# ruff: noqa: ANN001, ANN201, ARG002, FBT002
 import logging
 from pathlib import Path
 import contextlib
@@ -146,7 +147,7 @@ class MarkdownInput(IDocInput, contextlib.ExitStack):
     def _read_markdown(self, path: Path) -> None:
         renderer = MarkdownUnRenderer()
         parse = mistune.Markdown(renderer=renderer)
-        with open(path, encoding="utf8") as mdfo:
+        with path.open(encoding="utf8") as mdfo:
             xml = parse(mdfo.read())
         self._root = etree.fromstring(f"<document>{xml}</document>")
         print(
@@ -157,6 +158,7 @@ class MarkdownInput(IDocInput, contextlib.ExitStack):
 
     @property
     def properties(self):
+        """A DocumentProperties object."""
         return self._properties
 
     def styles_defined(self) -> t.Iterable[dict[str, str]]:
@@ -169,7 +171,7 @@ class MarkdownInput(IDocInput, contextlib.ExitStack):
             }
 
     def xpath(self, expr) -> t.Iterable[etree._Entity]:
-        """Wrapper for `lxml.xpath()`."""
+        """Wrap `lxml.xpath()`."""
         yield from self._root.xpath(expr)
 
     def styles_in_use(self):
@@ -178,12 +180,12 @@ class MarkdownInput(IDocInput, contextlib.ExitStack):
             yield "paragraph", node.attrib.get("wpid")
         for node in self.xpath("//s[@wpid]"):
             yield "character", node.attrib.get("wpid")
-        for node in self.xpath("//li"):
+        for _ in self.xpath("//li"):
             yield "paragraph", "list item"
             break
 
     def paragraphs(self):
-        """Yields a MarkdownParagraph object for each body paragraph."""
+        """Yield a MarkdownParagraph object for each body paragraph."""
         for para in self._root:
             if para.tag == ("p"):
                 yield MarkdownParagraph(para)
@@ -196,15 +198,15 @@ class MarkdownParagraph(IDocParagraph):
         self.node = node
 
     def style_wpid(self):
-        """Returns the wpid for this paragraph's style."""
+        """Return the wpid for this paragraph's style."""
         return self.node.attrib.get("wpid")
 
     def text(self):
-        """Yields strings of plain text."""
+        """Yield strings of plain text."""
         for span in self.spans():
             yield from span.text()
 
-    def chunks(self):
+    def chunks(self) -> t.Iterable[IDocParagraph.Chunk]:
         """Yield a MarkdownSpan per text span."""
         yield MarkdownHeadSpan(self.node)
         for span in self.node.xpath("s"):
@@ -220,12 +222,14 @@ class MarkdownSpanBase(IDocSpan):
         self.node = node
 
     def style_wpid(self) -> None:
-        return None
+        """Return the wpid for this span's style."""
 
     def footnotes(self) -> t.Iterable["IDocFootnote"]:
+        """Yield an IDocFootnote object for each footnote in this span."""
         yield from ()
 
     def comments(self) -> t.Iterable["IDocComment"]:
+        """Yield an IDocComment object for each comment in this span."""
         yield from ()
 
 
@@ -233,7 +237,7 @@ class MarkdownHeadSpan(MarkdownSpanBase):
     """Head of XML node."""
 
     def text(self):
-        """Yields strings of plain text."""
+        """Yield strings of plain text."""
         if self.node.text:
             yield self.node.text
 
@@ -242,7 +246,7 @@ class MarkdownTailSpan(MarkdownSpanBase):
     """Tail of XML node."""
 
     def text(self):
-        """Yields strings of plain text."""
+        """Yield strings of plain text."""
         if self.node.tail:
             yield self.node.tail
 
@@ -251,11 +255,11 @@ class MarkdownSpanSpan(MarkdownSpanBase):
     """A span of characters inside a document."""
 
     def style_wpid(self):
-        """Returns the wpid for this span's style."""
+        """Return the wpid for this span's style."""
         return self.node.attrib.get("wpid")
 
     def text(self):
-        """Yields strings of plain text."""
+        """Yield strings of plain text."""
         yield self.node.text or ""
 
 
@@ -263,5 +267,5 @@ class MarkdownFootnote(IDocFootnote):
     """A footnote."""
 
     def paragraphs(self):
-        """Yields a MarkdownParagraph object for each footnote paragraph."""
+        """Yield a MarkdownParagraph object for each footnote paragraph."""
         raise NotImplementedError
