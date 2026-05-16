@@ -1,4 +1,5 @@
 """ArgumentParser for this program."""
+# ruff: noqa: ANN001, ARG002
 from argparse import Action
 from argparse import ArgumentParser
 from argparse import ArgumentTypeError
