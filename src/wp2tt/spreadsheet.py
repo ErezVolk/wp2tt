@@ -30,17 +30,17 @@ class Wpids:
     BODY_STYLE = "Spreadsheet Body"
 
     @classmethod
-    def rtl(cls, style) -> str:
+    def rtl(cls, style: str) -> str:
         """Nice name for RTL version of a style."""
         return f"{style} (RTL)"
 
     @classmethod
-    def number(cls, style) -> str:
+    def number(cls, style: str) -> str:
         """Nice name for Number version of a style."""
         return f"{style} (Number)"
 
     @classmethod
-    def column(cls, name) -> str:
+    def column(cls, name: str) -> str:
         """Nice name for column style."""
         return f"Spreadsheet Column ({name})"
 
@@ -106,7 +106,7 @@ class _SpreadsheetInput(contextlib.ExitStack, IDocInput):
             }
 
     def styles_in_use(self) -> t.Iterable[tuple[str, str]]:
-        """Basic styles."""
+        """Yield all basic styles."""
         for style_dict in self.styles_defined():
             yield (style_dict["realm"], style_dict["wpid"])
 
@@ -177,14 +177,15 @@ class DataFrameRow(IDocTableRow):
             self._wpids = wpids
 
     def cells(self) -> t.Iterable[IDocTableCell]:
-        """Iterates the cells in the row."""
+        """Iterate the cells in the row."""
         for item, wpid in zip(self._items, self._wpids, strict=False):
             if item is None:
-                item = ""
-            elif pd.api.types.is_number(item):
-                if not isinstance(item, int) and item.is_integer():
-                    item = int(item)
-            yield SimpleCell(str(item), wpid)
+                contents = ""
+            elif pd.api.types.is_integer(item) and not isinstance(item, int):
+                contents = str(int(item))
+            else:
+                contents = str(item)
+            yield SimpleCell(contents, wpid)
 
 
 class SimpleCell(IDocTableCell):
