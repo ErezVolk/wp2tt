@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Utility classes."""
 import argparse
 from collections.abc import Sequence
@@ -50,11 +49,11 @@ class MultiInput(ProxyInput):
             self.enter_context(one)
 
     @property
-    def properties(self):
+    def properties(self) -> DocumentProperties:
         """A DocumentProperties object."""
         return DocumentProperties()  # Worst case scenario
 
-    def styles_defined(self):
+    def styles_defined(self) -> t.Iterable[dict[str, str]]:
         """Yield a Style object kwargs for every style defined in the document."""
         known = set()
         for doc in self._inputs:
@@ -63,7 +62,7 @@ class MultiInput(ProxyInput):
                     yield style
                     known.add(str(style))
 
-    def styles_in_use(self):
+    def styles_in_use(self) -> t.Iterable[tuple[str, str | None]]:
         """Yield a pair (realm, wpid) for every style used in the document."""
         total = 0
         for path, doc in zip(self._paths, self._inputs, strict=True):
@@ -113,22 +112,23 @@ class ByExtensionInput(ProxyInput):
             raise RuntimeError(f"Unknown file extension for {path}")
         self.enter_context(self._input)
 
-    def set_nth(self, nth) -> None:
+    def set_nth(self, nth: int) -> None:
+        """When supported, make all IDs globally unique."""
         self._input.set_nth(nth)
 
     @property
-    def properties(self):
+    def properties(self) -> DocumentProperties:
         """A DocumentProperties object."""
         return self._input.properties
 
-    def styles_defined(self):
+    def styles_defined(self) -> t.Iterable[dict[str, str]]:
         """Yield a Style object kwargs for every style defined in the document."""
         yield from self._input.styles_defined()
 
-    def styles_in_use(self):
+    def styles_in_use(self) -> t.Iterable[tuple[str, str | None]]:
         """Yield a pair (realm, wpid) for every style used in the document."""
         yield from self._input.styles_in_use()
 
-    def paragraphs(self):
+    def paragraphs(self) -> t.Iterator[IDocParagraph | IDocTable]:
         """Yield an IDocParagraph object for each body paragraph."""
         yield from self._input.paragraphs()
