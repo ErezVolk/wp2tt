@@ -24,10 +24,10 @@ class MathConverter:
         if cls.transform is None:
             cls.transform = cls._load_xslt()
         assert cls.transform is not None
-        return cls.transform.apply(omml)
+        return cls.transform(omml)
 
     @classmethod
-    def mathml_to_svg(cls, mathml: etree._ElementTree, size: int | None) -> bytes:
+    def mathml_to_svg(cls, mathml: str, size: int | None) -> bytes:
         """Convert MathML to SVG."""
         converted = ziamath.zmath.Math(mathml, size=size or 12)
         return converted.svg().encode("utf-8")
