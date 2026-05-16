@@ -96,7 +96,7 @@ class _SpreadsheetInput(contextlib.ExitStack, IDocInput):
         name: str,
         parent: str | None = None,
     ) -> t.Iterable[dict[str, str]]:
-        """Helper for `self.styles_defined()`."""
+        """Get paragraph styles for `self.styles_defined()`."""
         child = {"realm": "paragraph", "wpid": name, "internal_name": name}
         if parent is not None:
             child["parent_wpid"] = parent
@@ -150,6 +150,7 @@ class DataFrameTable(IDocTable):
         self._column_wpids = column_wpids
 
     def style_wpid(self) -> str | None:
+        """Return the wpid for this table's style."""
         return Wpids.TABLE_STYLE
 
     @property
@@ -159,10 +160,11 @@ class DataFrameTable(IDocTable):
 
     @property
     def header_rows(self) -> int:
+        """Return manual formatting on this paragraph."""
         return 1
 
     def rows(self) -> t.Iterable[IDocTableRow]:
-        """Iterates the rows of the table."""
+        """Iterate the rows of the table."""
         yield DataFrameRow(self._frame.columns, Wpids.HEADER_STYLE)
         for _, row in self._frame.iterrows():
             yield DataFrameRow(row, self._column_wpids)
@@ -171,7 +173,11 @@ class DataFrameTable(IDocTable):
 class DataFrameRow(IDocTableRow):
     """A row in a table inside a document."""
 
-    def __init__(self, items, wpids: list[str] | str | None = None) -> None:
+    def __init__(
+        self,
+        items: pd.Series | pd.Index,
+        wpids: list[str] | str | None = None,
+    ) -> None:
         self._items = items
         if wpids is None:
             self._wpids = [Wpids.BODY_STYLE] * len(self._items)
@@ -195,7 +201,7 @@ class DataFrameRow(IDocTableRow):
 class SimpleCell(IDocTableCell):
     """A cell that only holds a single piece of text."""
 
-    def __init__(self, contents, wpid) -> None:
+    def __init__(self, contents: str, wpid: str) -> None:
         self._contents = contents.strip()
         if re.search(r"[\u0591-\u05F4\u0600-\u06FF]", contents):
             self._wpid = Wpids.rtl(wpid)
@@ -212,31 +218,37 @@ class SimpleCell(IDocTableCell):
 class SimpleParagraph(IDocParagraph):
     """A paragraph that only holds a single piece of text."""
 
-    def __init__(self, contents, wpid) -> None:
+    def __init__(self, contents: str, wpid: str) -> None:
         self._contents = contents
         self._wpid = wpid
 
-    def style_wpid(self):
+    def style_wpid(self) -> str:
+        """Get WPID."""
         return self._wpid
 
     def text(self) -> t.Iterable[str]:
+        """Yield one chunk of text."""
         yield self._contents
 
     def chunks(self) -> t.Iterable[IDocSpan]:
+        """Yield one span of text."""
         yield SimpleSpan(self._contents)
 
 
 class SimpleSpan(IDocSpan):
     """A span that only holds a single piece of text."""
 
-    def __init__(self, contents) -> None:
+    def __init__(self, contents: str) -> None:
         self._contents = contents
 
     def text(self) -> t.Iterable[str]:
+        """Get span text."""
         yield self._contents
 
     def footnotes(self) -> t.Iterable[IDocFootnote]:
+        """Pretend to get footnotes."""
         yield from ()
 
     def comments(self) -> t.Iterable[IDocComment]:
+        """Pretend to get comments."""
         yield from ()

@@ -20,7 +20,7 @@ log = logging.getLogger(__name__)
 class OoXml:
     """Basic helper class for the OpenOffice XML format."""
 
-    _NS: t.Mapping[str, str] = {
+    _NS: t.ClassVar[dict[str, str]] = {
         "office": "urn:oasis:names:tc:opendocument:xmlns:office:1.0",
         "style": "urn:oasis:names:tc:opendocument:xmlns:style:1.0",
         "text": "urn:oasis:names:tc:opendocument:xmlns:text:1.0",
@@ -108,7 +108,7 @@ class XodtInput(contextlib.ExitStack, OoXml, IDocInput):
     def paragraphs(self) -> t.Iterable[IDocParagraph]:
         """Yield a OdtParagraph object for each body paragraph."""
         for para in self._xpath(self._content, "//office:body/office:text/text:p"):
-            yield OdtParagraph(self, para)
+            yield OdtParagraph(para)
 
     def _open_zip(self, path: Path) -> ZipDocument:
         return self.enter_context(ZipDocument(path))
@@ -123,7 +123,10 @@ class XodtInput(contextlib.ExitStack, OoXml, IDocInput):
         if not self._zipped:
             return self._flat
 
-        return self._zip.load_xml(path_in_zip)
+        if not (loaded := self._zip.load_xml(path_in_zip)):
+            raise RuntimeError(f"Missing in Zip: {path_in_zip}")
+
+        return loaded
 
 
 class OdtNode(OoXml):
@@ -161,9 +164,8 @@ class OdtParagraph(OdtNode, IDocParagraph):
                 elif node.tag == self._ootag("text:p"):
                     yield OdtHeadSpan(node)
                 else:
-                    log.debug(
-                        "Not sure what to do with a <%s> %r", node.tag, node.text[:8],
-                    )
+                    text = node.text or ""
+                    log.debug("Not sure what to do with a <%s> %r", node.tag, text[:8])
                     yield OdtHeadSpan(node)
             else:
                 yield OdtTailSpan(node)
