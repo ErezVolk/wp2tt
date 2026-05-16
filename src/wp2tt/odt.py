@@ -34,7 +34,7 @@ class OoXml:
     def _xpath(self, node, expr) -> t.Iterable[etree._Entity]:
         return node.xpath(expr, namespaces=self._NS)
 
-    def _ootag(self, tag):
+    def _ootag(self, tag) -> str:
         namespace, tag = tag.split(":", 1)
         prefix = self._NS[namespace]
         return f"{{{prefix}}}{tag}"
@@ -46,7 +46,7 @@ class OoXml:
 class XodtInput(contextlib.ExitStack, OoXml, IDocInput):
     """A reader for .odt and .fodt."""
 
-    def __init__(self, path: Path, zipped: bool):
+    def __init__(self, path: Path, zipped: bool) -> None:
         super().__init__()
         self._zipped = zipped
         if zipped:
@@ -56,14 +56,14 @@ class XodtInput(contextlib.ExitStack, OoXml, IDocInput):
         self._content = self._load_xml("content.xml")
         self._initialize_properties()
 
-    def _initialize_properties(self):
+    def _initialize_properties(self) -> None:
         self._properties = DocumentProperties(
             has_rtl=self._has_node(
                 '//style:paragraph-properties[@style:writing-mode="rl-tb"]',
             ),
         )
 
-    def _has_node(self, ootag):
+    def _has_node(self, ootag) -> bool:
         for _ in self._xpath(self._content, ootag):
             return True
         return False
@@ -125,7 +125,7 @@ class XodtInput(contextlib.ExitStack, OoXml, IDocInput):
 class OdtNode(OoXml):
     """Base helper class for object which represent a node in a docx."""
 
-    def __init__(self, doc, node):
+    def __init__(self, doc, node) -> None:
         self.doc = doc
         self.node = node
 
@@ -166,11 +166,11 @@ class OdtParagraph(OdtNode, IDocParagraph):
 
 
 class OdtSpanBase(OdtNode, IDocSpan):
-    """Base for .odt span classes"""
+    """Base for .odt span classes."""
 
 
 class OdtHeadSpan(OdtSpanBase):
-    """Beginning of a span"""
+    """Beginning of a span."""
 
     def text(self):
         if self.node.text:
@@ -178,14 +178,14 @@ class OdtHeadSpan(OdtSpanBase):
 
 
 class OdtTabSpan(OdtSpanBase):
-    """A tab character"""
+    """A tab character."""
 
     def text(self):
         yield "\t"
 
 
 class OdtSpanSpan(OdtSpanBase):
-    """A proper text span"""
+    """A proper text span."""
 
     def style_wpid(self):
         return self._node_ooget("text:style-name")
@@ -203,7 +203,7 @@ class OdtSpanSpan(OdtSpanBase):
 
 
 class OdtTailSpan(OdtSpanBase):
-    """End of a span"""
+    """End of a span."""
 
     def text(self):
         if self.node.tail:
@@ -211,7 +211,7 @@ class OdtTailSpan(OdtSpanBase):
 
 
 class OdtFootnote(OdtNode, IDocFootnote):
-    """Footnote in .odt"""
+    """Footnote in .odt."""
 
     def paragraphs(self):
         for para in self._node_xpath("text:note-body/text-p"):

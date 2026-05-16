@@ -263,13 +263,14 @@ class WordProcessorToInDesignTaggedText:
                 continue
             log.info("%s exists, trying to run it...", rerun)
             try:
-                subprocess.run([str(rerun.resolve())], check=True)
+                cmd = [str(rerun.resolve())]
+                subprocess.run(cmd, check=True)  # noqa: S603
             except PermissionError:
                 log.warning("No permission to run %s", rerun)
             except subprocess.CalledProcessError as exc:
-                log.error("%s exited with code %s", rerun, exc.returncode)
-            except OSError as exc:
-                log.error("Error running %s: %s", rerun, exc)
+                log.error("%s exited with %s", rerun, exc.returncode)  # noqa: TRY400
+            except OSError:
+                log.exception("Error running %s", rerun)
 
     def scan_style_definitions(self) -> None:
         """Create a Style object for everything in the document."""

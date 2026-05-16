@@ -30,29 +30,29 @@ class Wpids:
     BODY_STYLE = "Spreadsheet Body"
 
     @classmethod
-    def rtl(cls, style):
-        """Nice name for RTL version of a style"""
+    def rtl(cls, style) -> str:
+        """Nice name for RTL version of a style."""
         return f"{style} (RTL)"
 
     @classmethod
-    def number(cls, style):
-        """Nice name for Number version of a style"""
+    def number(cls, style) -> str:
+        """Nice name for Number version of a style."""
         return f"{style} (Number)"
 
     @classmethod
-    def column(cls, name):
-        """Nice name for column style"""
+    def column(cls, name) -> str:
+        """Nice name for column style."""
         return f"Spreadsheet Column ({name})"
 
 
 class _SpreadsheetInput(contextlib.ExitStack, IDocInput):
-    """Simple ODS reader (via pandas)"""
+    """Simple ODS reader (via pandas)."""
 
     _frame: pd.DataFrame
     _props: DocumentProperties = DocumentProperties()
     _column_wpids: list[str] | None = None
 
-    def __init__(self, path: Path, args: argparse.Namespace | None = None):
+    def __init__(self, path: Path, args: argparse.Namespace | None = None) -> None:
         super().__init__()
         self._frame = self._read_spreadsheet(path)
         if not args:
@@ -70,7 +70,7 @@ class _SpreadsheetInput(contextlib.ExitStack, IDocInput):
 
     @abstractmethod
     def _read_spreadsheet(self, path: Path) -> pd.DataFrame:
-        """Read the file, according to the subclass"""
+        """Read the file, according to the subclass."""
 
     @property
     def properties(self) -> DocumentProperties:
@@ -78,7 +78,7 @@ class _SpreadsheetInput(contextlib.ExitStack, IDocInput):
         return self._props
 
     def styles_defined(self) -> t.Iterable[dict[str, str]]:
-        """Styles defined"""
+        """Styles defined."""
         yield {
             "realm": "table",
             "wpid": Wpids.TABLE_STYLE,
@@ -92,7 +92,7 @@ class _SpreadsheetInput(contextlib.ExitStack, IDocInput):
         name: str,
         parent: str | None = None,
     ) -> t.Iterable[dict[str, str]]:
-        """Helper for `self.styles_defined()`"""
+        """Helper for `self.styles_defined()`."""
         child = {"realm": "paragraph", "wpid": name, "internal_name": name}
         if parent is not None:
             child["parent_wpid"] = parent
@@ -106,7 +106,7 @@ class _SpreadsheetInput(contextlib.ExitStack, IDocInput):
             }
 
     def styles_in_use(self) -> t.Iterable[tuple[str, str]]:
-        """Basic styles"""
+        """Basic styles."""
         for style_dict in self.styles_defined():
             yield (style_dict["realm"], style_dict["wpid"])
 
@@ -116,14 +116,14 @@ class _SpreadsheetInput(contextlib.ExitStack, IDocInput):
 
 
 class OdsInput(_SpreadsheetInput):
-    """ODS reader"""
+    """ODS reader."""
 
     def _read_spreadsheet(self, path: Path) -> pd.DataFrame:
         return pd.read_excel(path)
 
 
 class CsvInput(_SpreadsheetInput):
-    """CSV reader"""
+    """CSV reader."""
 
     def _read_spreadsheet(self, path: Path) -> pd.DataFrame:
         frame = pd.read_csv(path).fillna("")
@@ -131,7 +131,7 @@ class CsvInput(_SpreadsheetInput):
         return frame
 
     def styles_defined(self) -> t.Iterable[dict[str, str]]:
-        """CSV files get per-columns styles"""
+        """CSV files get per-columns styles."""
         yield from super().styles_defined()
         if self._column_wpids is not None:
             for wpid in self._column_wpids:
@@ -139,9 +139,9 @@ class CsvInput(_SpreadsheetInput):
 
 
 class DataFrameTable(IDocTable):
-    """A DataFrame as a document table"""
+    """A DataFrame as a document table."""
 
-    def __init__(self, frame: pd.DataFrame, column_wpids: list[str] | None):
+    def __init__(self, frame: pd.DataFrame, column_wpids: list[str] | None) -> None:
         self._frame = frame
         self._column_wpids = column_wpids
 
@@ -150,7 +150,7 @@ class DataFrameTable(IDocTable):
 
     @property
     def shape(self) -> tuple[int, int]:
-        """(number of rows, number of columns)"""
+        """(number of rows, number of columns)."""
         return (len(self._frame) + 1, len(self._frame.columns))
 
     @property
@@ -158,16 +158,16 @@ class DataFrameTable(IDocTable):
         return 1
 
     def rows(self) -> t.Iterable[IDocTableRow]:
-        """Iterates the rows of the table"""
+        """Iterates the rows of the table."""
         yield DataFrameRow(self._frame.columns, Wpids.HEADER_STYLE)
         for _, row in self._frame.iterrows():
             yield DataFrameRow(row, self._column_wpids)
 
 
 class DataFrameRow(IDocTableRow):
-    """A row in a table inside a document"""
+    """A row in a table inside a document."""
 
-    def __init__(self, items, wpids: list[str] | str | None = None):
+    def __init__(self, items, wpids: list[str] | str | None = None) -> None:
         self._items = items
         if wpids is None:
             self._wpids = [Wpids.BODY_STYLE] * len(self._items)
@@ -177,8 +177,8 @@ class DataFrameRow(IDocTableRow):
             self._wpids = wpids
 
     def cells(self) -> t.Iterable[IDocTableCell]:
-        """Iterates the cells in the row"""
-        for item, wpid in zip(self._items, self._wpids):
+        """Iterates the cells in the row."""
+        for item, wpid in zip(self._items, self._wpids, strict=False):
             if item is None:
                 item = ""
             elif pd.api.types.is_number(item):
@@ -188,9 +188,9 @@ class DataFrameRow(IDocTableRow):
 
 
 class SimpleCell(IDocTableCell):
-    """A cell that only holds a single piece of text"""
+    """A cell that only holds a single piece of text."""
 
-    def __init__(self, contents, wpid):
+    def __init__(self, contents, wpid) -> None:
         self._contents = contents.strip()
         if re.search(r"[\u0591-\u05F4\u0600-\u06FF]", contents):
             self._wpid = Wpids.rtl(wpid)
@@ -200,14 +200,14 @@ class SimpleCell(IDocTableCell):
             self._wpid = wpid
 
     def contents(self) -> IDocParagraph:
-        """Get the contents of this cell"""
+        """Get the contents of this cell."""
         return SimpleParagraph(self._contents, self._wpid)
 
 
 class SimpleParagraph(IDocParagraph):
-    """A paragraph that only holds a single piece of text"""
+    """A paragraph that only holds a single piece of text."""
 
-    def __init__(self, contents, wpid):
+    def __init__(self, contents, wpid) -> None:
         self._contents = contents
         self._wpid = wpid
 
@@ -222,9 +222,9 @@ class SimpleParagraph(IDocParagraph):
 
 
 class SimpleSpan(IDocSpan):
-    """A span that only holds a single piece of text"""
+    """A span that only holds a single piece of text."""
 
-    def __init__(self, contents):
+    def __init__(self, contents) -> None:
         self._contents = contents
 
     def text(self) -> t.Iterable[str]:

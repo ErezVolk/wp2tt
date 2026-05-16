@@ -21,11 +21,11 @@ log = logging.getLogger(__name__)
 
 
 class ProxyInput(IDocInput, contextlib.ExitStack):
-    """Just a proxy IDocInput"""
+    """Just a proxy IDocInput."""
 
     args: argparse.Namespace | None
 
-    def __init__(self, args: argparse.Namespace | None = None):
+    def __init__(self, args: argparse.Namespace | None = None) -> None:
         super().__init__()
         self.args = args
 
@@ -35,7 +35,7 @@ class MultiInput(ProxyInput):
 
     _args: argparse.Namespace | None
 
-    def __init__(self, paths: Sequence[Path], args: argparse.Namespace | None = None):
+    def __init__(self, paths: Sequence[Path], args: argparse.Namespace | None = None) -> None:
         super().__init__(args)
         self._paths = paths
         self._inputs: list[IDocInput] = []
@@ -109,7 +109,7 @@ class ByExtensionInput(ProxyInput):
             raise RuntimeError(f"Unknown file extension for {path}")
         self.enter_context(self._input)
 
-    def set_nth(self, nth):
+    def set_nth(self, nth) -> None:
         self._input.set_nth(nth)
 
     @property

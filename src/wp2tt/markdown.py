@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Read Markdown document"""
+"""Read Markdown document."""
 # pylint: disable=unused-argument
 import logging
 from pathlib import Path
@@ -25,126 +25,126 @@ class MarkdownUnRenderer:
     NAMELESS_P_PRE = '<p wpid="normal">'
     NAMELESS_P_POST = "</p>"
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs) -> None:
         self.options = kwargs
 
-    def placeholder(self):
-        """Mistune element"""
+    def placeholder(self) -> str:
+        """Mistune element."""
         return ""
 
-    def header(self, text, level, raw=None):
-        """Mistune element"""
+    def header(self, text, level, raw=None) -> str:
+        """Mistune element."""
         return f'<p wpid="header">{text}</p>'
 
     def text(self, text):
-        """Mistune element"""
+        """Mistune element."""
         return text
 
-    def paragraph(self, text):
-        """Mistune element"""
+    def paragraph(self, text) -> str:
+        """Mistune element."""
         return f"{self.NAMELESS_P_PRE}{text}{self.NAMELESS_P_POST}"
 
-    def emphasis(self, text):
-        """Mistune element"""
+    def emphasis(self, text) -> str:
+        """Mistune element."""
         return f'<s wpid="emphasis">{text}</s>'
 
-    def double_emphasis(self, text):
-        """Mistune element"""
+    def double_emphasis(self, text) -> str:
+        """Mistune element."""
         return f'<s wpid="doule emphasis">{text}</s>'
 
-    def autolink(self, link, is_email=False):
-        """Mistune element"""
+    def autolink(self, link, is_email=False) -> str:
+        """Mistune element."""
         return f'<s wpid="link">{link}</s>'
 
-    def link(self, link, title, content):
-        """Mistune element"""
+    def link(self, link, title, content) -> str:
+        """Mistune element."""
         return f'<s wpid="link" title="{title}">{content}</s>'
 
-    def list_item(self, text):
-        """Mistune element"""
+    def list_item(self, text) -> str:
+        """Mistune element."""
         if text.startswith(self.NAMELESS_P_PRE) and text.endswith(self.NAMELESS_P_POST):
             text = text[len(self.NAMELESS_P_PRE) : -len(self.NAMELESS_P_POST)]
         return f'<p wpid="list item">{text}</p>'
 
     def list(self, text, ordered=True):
-        """Mistune element"""
+        """Mistune element."""
         return text
 
-    def block_html(self, html):
-        """Mistune element"""
+    def block_html(self, html) -> str:
+        """Mistune element."""
         log.warning("HTML is corrently ignored in Markdown")
         return ""
 
     def block_code(self, code, language=None):
-        """Mistune element"""
+        """Mistune element."""
         raise NotImplementedError("block_code()")
 
     def block_quote(self, text):
-        """Mistune element"""
+        """Mistune element."""
         raise NotImplementedError("block_quote()")
 
     def hrule(self):
-        """Mistune element"""
+        """Mistune element."""
         raise NotImplementedError("hrule()")
 
     def table(self, header, body):
-        """Mistune element"""
+        """Mistune element."""
         raise NotImplementedError("table()")
 
     def table_row(self, content):
-        """Mistune element"""
+        """Mistune element."""
         raise NotImplementedError("table_row()")
 
     def table_cell(self, content, **flags):
-        """Mistune element"""
+        """Mistune element."""
         raise NotImplementedError("table_cell()")
 
     def codespan(self, text):
-        """Mistune element"""
+        """Mistune element."""
         raise NotImplementedError("codespan()")
 
     def image(self, src, title, alt_text):
-        """Mistune element"""
+        """Mistune element."""
         raise NotImplementedError("image()")
 
     def linebreak(self):
-        """Mistune element"""
+        """Mistune element."""
         raise NotImplementedError("linebreak()")
 
     def newline(self):
-        """Mistune element"""
+        """Mistune element."""
         raise NotImplementedError("newline()")
 
     def strikethrough(self, text):
-        """Mistune element"""
+        """Mistune element."""
         raise NotImplementedError("strikethrough()")
 
     def inline_html(self, text):
-        """Mistune element"""
+        """Mistune element."""
         raise NotImplementedError("inline_html()")
 
     def footnote_ref(self, key, index):
-        """Mistune element"""
+        """Mistune element."""
         raise NotImplementedError("footnote_ref()")
 
     def footnote_item(self, key, text):
-        """Mistune element"""
+        """Mistune element."""
         raise NotImplementedError("footnote_item()")
 
     def footnotes(self, text):
-        """Mistune element"""
+        """Mistune element."""
         raise NotImplementedError("footnotes()")
 
 
 class MarkdownInput(IDocInput, contextlib.ExitStack):
     """A Markdown reader."""
 
-    def __init__(self, path: Path):
+    def __init__(self, path: Path) -> None:
         super().__init__()
         self._read_markdown(path)
         self._properties = DocumentProperties(has_rtl=False)
 
-    def _read_markdown(self, path: Path):
+    def _read_markdown(self, path: Path) -> None:
         renderer = MarkdownUnRenderer()
         parse = mistune.Markdown(renderer=renderer)
         with open(path, encoding="utf8") as mdfo:
@@ -170,7 +170,7 @@ class MarkdownInput(IDocInput, contextlib.ExitStack):
             }
 
     def xpath(self, expr) -> t.Iterable[etree._Entity]:
-        """Wrapper for `lxml.xpath()`"""
+        """Wrapper for `lxml.xpath()`."""
         yield from self._root.xpath(expr)
 
     def styles_in_use(self):
@@ -186,14 +186,14 @@ class MarkdownInput(IDocInput, contextlib.ExitStack):
     def paragraphs(self):
         """Yields a MarkdownParagraph object for each body paragraph."""
         for para in self._root:
-            if para.tag in ("p"):
+            if para.tag == ("p"):
                 yield MarkdownParagraph(para)
 
 
 class MarkdownParagraph(IDocParagraph):
     """A Paragraph inside a document."""
 
-    def __init__(self, node):
+    def __init__(self, node) -> None:
         self.node = node
 
     def style_wpid(self):
@@ -215,12 +215,12 @@ class MarkdownParagraph(IDocParagraph):
 
 
 class MarkdownSpanBase(IDocSpan):
-    """Base class for our span types"""
+    """Base class for our span types."""
 
-    def __init__(self, node):
+    def __init__(self, node) -> None:
         self.node = node
 
-    def style_wpid(self):
+    def style_wpid(self) -> None:
         return None
 
     def footnotes(self) -> t.Iterable["IDocFootnote"]:
@@ -231,7 +231,7 @@ class MarkdownSpanBase(IDocSpan):
 
 
 class MarkdownHeadSpan(MarkdownSpanBase):
-    """Head of XML node"""
+    """Head of XML node."""
 
     def text(self):
         """Yields strings of plain text."""
@@ -240,7 +240,7 @@ class MarkdownHeadSpan(MarkdownSpanBase):
 
 
 class MarkdownTailSpan(MarkdownSpanBase):
-    """Tail of XML node"""
+    """Tail of XML node."""
 
     def text(self):
         """Yields strings of plain text."""
