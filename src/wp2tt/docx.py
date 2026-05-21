@@ -294,7 +294,7 @@ class DocxParagraph(DocxNode, IDocParagraph):
 
     def get_next(self, para: etree._Element) -> etree._Element | None:
         """If a <w:p> para has deleted, tracked newline, return next one."""
-        if (node := para.getnext()):
+        if (node := para.getnext()) is not None:
             for _ in self.xpath(para, "./w:pPr/w:rPr/w:del"):
                 return node
         return None
