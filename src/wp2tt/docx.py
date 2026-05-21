@@ -148,7 +148,7 @@ class DocxInput(contextlib.ExitStack, WordXml, IDocInput):
     def styles_defined(self) -> t.Iterable[dict[str, t.Any]]:
         """Yield a Style object kwargs for every style defined in the document."""
         styles = self.zip.load_xml("word/styles.xml")
-        if not styles:
+        if styles is None:
             log.warning("No word/styles.xml")
             return
 
