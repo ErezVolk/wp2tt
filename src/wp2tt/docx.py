@@ -100,7 +100,7 @@ class DocxInput(contextlib.ExitStack, WordXml, IDocInput):
 
     def _read_docx(self, path: PathLike) -> None:
         self.zip = self.enter_context(ZipDocument(path))
-        if not (document := self.zip.load_xml("word/document.xml")):
+        if (document := self.zip.load_xml("word/document.xml")) is None:
             raise RuntimeError("Missing word/document.xml")
         self.document = document
         self.footnotes = self.zip.load_xml("word/footnotes.xml")
