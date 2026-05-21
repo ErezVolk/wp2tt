@@ -1,7 +1,7 @@
 [project]
 name = "wp2tt"
 description = "Convert word processor files to InDesign Tagged Text"
-version = "1.9.2"
+version = "1.9.3"
 authors = [{name="Erez Volk", email="erez.volk@gmail.com"}]
 readme = "README.md"
 requires-python = ">=3.13"
