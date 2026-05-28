@@ -147,8 +147,7 @@ class MarkdownInput(IDocInput, contextlib.ExitStack):
     def _read_markdown(self, path: Path) -> None:
         renderer = MarkdownUnRenderer()
         parse = mistune.Markdown(renderer=renderer)
-        with path.open(encoding="utf8") as mdfo:
-            xml = parse(mdfo.read())
+        xml = parse(path.read_text())
         self._root = etree.fromstring(f"<document>{xml}</document>")
         print(
             etree.tostring(

@@ -444,8 +444,8 @@ class DocxImage(DocxNode, IDocImage):
 
     def save(self, path: PathLike) -> None:
         """Extract image."""
-        with self.doc.zip.open(str(self.target)) as ifo, Path(path).open("wb") as ofo:
-            ofo.write(ifo.read())
+        with self.doc.zip.open(str(self.target)) as ifo:
+            Path(path).write_bytes(ifo.read())
 
 
 class DocxHyperlink(DocxNode, IDocHyperlink):

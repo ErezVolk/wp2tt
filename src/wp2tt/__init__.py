@@ -573,12 +573,10 @@ class WordProcessorToInDesignTaggedText:
             text = text.replace("=", "\u05BE")
         if self.args.vav:
             text = text.replace("\u05D5\u05B9", "\uFB4B")
-        with Path(self.output_fn).open("w", encoding="UTF-16LE") as fobj:
-            fobj.write(text)
+        self.output_fn.write_text(text, encoding="UTF-16LE")
         if self.args.debug:
             utf8_fn = self.output_fn.with_suffix(".utf8")
-            with Path(utf8_fn).open("w", encoding="UTF-8") as fobj:
-                fobj.write(text)
+            utf8_fn.write_text(text, encoding="UTF-8")
 
     def convert_table(self, table: IDocTable) -> None:
         """Convert entire table."""
@@ -885,14 +883,11 @@ class WordProcessorToInDesignTaggedText:
             mathml = formula.mathml()
 
             svg = MathConverter.mathml_to_svg(mathml, size=self.args.formula_font_size)
-            with path.open("wb") as fobj:
-                fobj.write(svg)
+            path.write_bytes(svg)
 
             if self.args.debug:
-                with path.with_suffix(".raw").open("wb") as fobj:
-                    fobj.write(formula.raw())
-                with path.with_suffix(".mathml").open("w", encoding="utf-8") as fobj:
-                    fobj.write(mathml)
+                path.with_suffix(".raw").write_bytes(formula.raw())
+                path.with_suffix(".mathml").write_text(mathml)
             self.svg2png(svg, path)
             self.cache.put(path, cached)
 
@@ -903,20 +898,17 @@ class WordProcessorToInDesignTaggedText:
         if self.args.no_svg2png:
             return
         if isinstance(svg, Path):
-            with svg.open("rb") as fobj:
-                svg = fobj.read()
+            svg = svg.read_bytes()
         path = path_like.with_suffix(".png")
-        with path.open("wb") as fobj:
-            png = cairosvg.svg2png(svg)
-            if isinstance(png, bytes):
-                fobj.write(png)
-            else:
-                log.warning("Cannot convert %s", path)
+        png = cairosvg.svg2png(svg)
+        if isinstance(png, bytes):
+            path.write_bytes(png)
+        else:
+            log.warning("Cannot convert %s", path)
 
     def read_file(self, path: str | os.PathLike) -> bytes:
         """Read contents of a file."""
-        with Path(path).open("rb") as fobj:
-            return fobj.read()
+        return Path(path).read_bytes()
 
     def convert_span_text(self, span: IDocSpan) -> None:
         """Convert text in a Span object."""
