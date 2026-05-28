@@ -7,7 +7,7 @@ from pathlib import Path
 from pathlib import PurePosixPath
 from os import PathLike
 
-from lxml import etree  # type: ignore[reportMissingImports]
+from lxml import etree
 
 from wp2tt.input import IDocComment
 from wp2tt.input import IDocFootnote
