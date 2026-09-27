@@ -17,7 +17,11 @@ import shutil
 import subprocess
 import typing as t
 
-import cairosvg
+try:
+    import cairosvg
+    HAVE_CAIRO = True
+except (ImportError, OSError):
+    HAVE_CAIRO = False
 
 from wp2tt.cache import Cache
 from wp2tt.format import ManualFormat
@@ -873,6 +877,8 @@ class WordProcessorToInDesignTaggedText:
 
     def convert_formula(self, formula: IDocFormula) -> None:
         """Convert a formula."""
+        if not HAVE_CAIRO:
+            raise NotImplementedError("To convert formulas, install libsvg-cairo")
         path = self.next_image_fn("formula", ".svg")
 
         cached = self.cache.name(get_contents=formula.raw, suffix=".svg")
