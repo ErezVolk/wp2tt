@@ -5,7 +5,7 @@
 This little Python 3 script converts a word processor file (currently .docx,
 .odt, .fodt, or Markdown) into an InDesign tagged text format.
 
-To install: `uv tool install -U .`
+To install: `pip install -U .` or `uv tool install -U .`
 
 Currently usable only if you know how to install `uv`, etc.
 Not difficult at all, but I didn't get around to writing a HOWTO or a proper
