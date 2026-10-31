@@ -14,16 +14,19 @@ class IOutput(ABC):
     @abstractmethod
     def define_style(self, style: Style) -> None:
         """Add a style definition."""
+        del style
         raise NotImplementedError
 
     @abstractmethod
     def define_text_variable(self, name: str, value: str) -> None:
         """Add a text variable."""
+        del name, value
         raise NotImplementedError
 
     @abstractmethod
     def enter_paragraph(self, style: OptionalStyle = None) -> None:
         """Start a paragraph with a specified style."""
+        del style
         raise NotImplementedError
 
     @abstractmethod
@@ -42,6 +45,7 @@ class IOutput(ABC):
         rtl: bool = False,
     ) -> None:
         """Start a table with a specified style."""
+        del rows, cols, header_rows, style, rtl
         raise NotImplementedError
 
     @abstractmethod
@@ -62,6 +66,7 @@ class IOutput(ABC):
     @abstractmethod
     def enter_table_cell(self, rows: int = 1, cols: int = 1) -> None:
         """Start a table cell."""
+        del rows, cols
         raise NotImplementedError
 
     @abstractmethod
@@ -72,6 +77,7 @@ class IOutput(ABC):
     @abstractmethod
     def set_character_style(self, style: OptionalStyle = None) -> None:
         """Start a span using a specific character style."""
+        del style
         raise NotImplementedError
 
     @abstractmethod
@@ -89,15 +95,11 @@ class IOutput(ABC):
         """Add some plain text."""
 
 
-class WhitespaceStripper(IOutput):
-    """A proxy IOutput which strips all initial and final whitespace.
-
-    Good foor footnotes.
-    """
+class ProxyOutput(IOutput):
+    """A proxy IOutput base class."""
 
     def __init__(self, writer: IOutput) -> None:
         self.writer = writer
-        self.begun = False
 
     def define_style(self, style: Style) -> None:
         """Add a style definition."""
@@ -129,11 +131,6 @@ class WhitespaceStripper(IOutput):
 
     def write_text(self, text: str) -> None:
         """Add some plain text."""
-        if not self.begun:
-            # Trim initial whitespace
-            text = re.sub(r"^\s+", r"", text)
-            self.begun = bool(text)
-
         return self.writer.write_text(text)
 
     def enter_table(
@@ -167,3 +164,21 @@ class WhitespaceStripper(IOutput):
     def leave_table_cell(self) -> None:
         """Finalize table cell."""
         return self.writer.leave_table_cell()
+
+
+class WhitespaceStripper(ProxyOutput):
+    """A proxy IOutput which strips all initial and final whitespace.
+
+    Good foor footnotes.
+    """
+
+    begun = False
+
+    def write_text(self, text: str) -> None:
+        """Add some plain text."""
+        if not self.begun:
+            # Trim initial whitespace
+            text = re.sub(r"^\s+", r"", text)
+            self.begun = bool(text)
+
+        return self.writer.write_text(text)
