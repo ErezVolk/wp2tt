@@ -9,6 +9,9 @@ class ManualFormat(enum.Flag):
 
     CENTERED = enum.auto()
     JUSTIFIED = enum.auto()
+    LEFT = enum.auto()
+    RIGHT = enum.auto()
+
     NEW_PAGE = enum.auto()
     SPACED = enum.auto()
     STARS = enum.auto()

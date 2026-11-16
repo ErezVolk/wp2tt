@@ -333,11 +333,15 @@ class DocxParagraph(DocxNode, IDocParagraph):
     def node_format(cls, nodes: list[etree._Element] | etree._Element) -> ManualFormat:
         """Return manual formatting on a paragraph/style."""
         fmt = ManualFormat.LTR
-        justification = cls._wval(nodes, "w:pPr/w:jc")
-        if justification == "center":
-            fmt = fmt | ManualFormat.CENTERED
-        elif justification == "both":
-            fmt = fmt | ManualFormat.JUSTIFIED
+        match cls._wval(nodes, "w:pPr/w:jc"):
+            case "center":
+                fmt = fmt | ManualFormat.CENTERED
+            case "center":
+                fmt = fmt | ManualFormat.JUSTIFIED
+            case "left":
+                fmt = fmt | ManualFormat.LEFT
+            case "right":
+                fmt = fmt | ManualFormat.RIGHT
         for _ in cls.xpath(nodes, "w:pPr/w:bidi"):
             fmt &= ~ManualFormat.LTR
             fmt |= ManualFormat.RTL
