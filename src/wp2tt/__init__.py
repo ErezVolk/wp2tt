@@ -77,6 +77,8 @@ class State:
     is_empty: bool = True
     is_post_empty: bool = False
     is_post_break: bool = False
+    is_stars: bool = False
+    is_post_stars: bool = False
     para_char_fmt: ManualFormat = ManualFormat.NORMAL
 
 
@@ -553,6 +555,8 @@ class WordProcessorToInDesignTaggedText:
         try:
             self.stop_marker_found = False
             self.state.is_post_empty = False
+            self.state.is_stars = False
+            self.state.is_post_stars = False
             self.state.is_post_break = False
             for node in self.doc.paragraphs():
                 if isinstance(node, IDocTable):
@@ -610,12 +614,14 @@ class WordProcessorToInDesignTaggedText:
         default_style: OptionalStyle = None,
     ) -> None:
         """Convert entire paragraph."""
-        self.state.is_empty = True
-
         if self.stop_marker:
             self.check_for_stop_paragraph(para)
-        style = self.apply_rules_to(para) or default_style
 
+        text = "".join(t for t in para.text()).strip()
+        self.state.is_empty = not bool(text)
+        self.state.is_stars = bool(re.fullmatch(r"[*]+", text))
+
+        style = self.apply_rules_to(para) or default_style
         self.writer.enter_paragraph(style)
         for chunk in para.chunks():
             self.convert_chunk(chunk)
@@ -628,12 +634,12 @@ class WordProcessorToInDesignTaggedText:
             self.state.is_post_break = True
             self.state.is_empty = False
         elif self.state.is_post_break:
-            if self.state.is_empty:
-                log.debug("Paragraph %r is empty, next is still post-break", para)
-            else:
+            if not self.state.is_empty:
                 self.state.is_post_break = False
 
         self.state.is_post_empty = self.state.is_empty
+        if not self.state.is_empty:
+            self.state.is_post_stars = self.state.is_stars
         self.state.prev_para_style = style
 
     def get_paragraph_style(self, para: IDocParagraph) -> OptionalStyle:
@@ -649,8 +655,12 @@ class WordProcessorToInDesignTaggedText:
         fmt = para.format() & self.format_mask
         if self.state.is_post_break:
             fmt = fmt | ManualFormat.NEW_PAGE
-        elif self.state.is_post_empty:
+        if self.state.is_post_empty:
             fmt = fmt | ManualFormat.SPACED
+        if self.state.is_stars:
+            fmt = fmt | ManualFormat.STARS
+        if self.state.is_post_stars:
+            fmt = fmt | ManualFormat.POST_STARS
 
         for span in para.spans():
             for text in span.text():

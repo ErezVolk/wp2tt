@@ -339,7 +339,8 @@ class DocxParagraph(DocxNode, IDocParagraph):
         elif justification == "both":
             fmt = fmt | ManualFormat.JUSTIFIED
         for _ in cls.xpath(nodes, "w:pPr/w:bidi"):
-            fmt = (fmt & ~ManualFormat.LTR) | ManualFormat.RTL
+            fmt &= ~ManualFormat.LTR
+            fmt |= ManualFormat.RTL
         return fmt
 
     def is_page_break(self) -> bool:
@@ -403,7 +404,8 @@ class DocxSpan(DocxNode, IDocSpan):
             elif vval > 0:
                 fmt |= ManualFormat.RAISED
         for _ in cls.xpath(nodes, "w:rPr/w:rtl"):
-            fmt = fmt & ~ManualFormat.LTR | ManualFormat.RTL
+            fmt &= ~ManualFormat.LTR
+            fmt |= ManualFormat.RTL
         return fmt
 
     def text(self) -> t.Iterable[str]:
