@@ -26,7 +26,7 @@ class Style:
     next_wpid: str | None = dcl.field(default=None, metadata=ATTR_READONLY)
     automatic: bool = dcl.field(default=False, metadata=ATTR_READONLY)
     custom: bool = dcl.field(default=False, metadata=ATTR_READONLY)
-    fmt: ManualFormat = dcl.field(default=ManualFormat.NORMAL, metadata=ATTR_READONLY)
+    fmt: ManualFormat = dcl.field(default_factory=ManualFormat, metadata=ATTR_READONLY)
     idtt: str = ""
     variable: str | None = None
 

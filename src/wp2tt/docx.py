@@ -7,7 +7,7 @@ from pathlib import Path
 from pathlib import PurePosixPath
 from os import PathLike
 
-from lxml import etree  # ty: ignore [import-not-found]
+from lxml import etree
 
 from wp2tt.input import IDocComment
 from wp2tt.input import IDocFootnote
@@ -49,9 +49,15 @@ class WordXml:
     }
 
     @classmethod
+    def find(
+        cls, nodes: list[etree._Element] | etree._Element, expr: str,
+    ) -> etree._Element | None:
+        return next(cls.xpath(nodes, expr), None)
+
+    @classmethod
     def xpath(
         cls, nodes: list[etree._Element] | etree._Element, expr: str,
-    ) -> t.Iterable[etree._Element]:
+    ) -> t.Generator[etree._Element]:
         """Wrap etree.xpath, with namespaces and multiple nodes."""
         if not isinstance(nodes, list):
             nodes = [nodes]
@@ -105,15 +111,22 @@ class DocxInput(contextlib.ExitStack, WordXml, IDocInput):
         self.document = document
         self.footnotes = self.zip.load_xml("word/footnotes.xml")
         self.comments = self.zip.load_xml("word/comments.xml")
+        self.styles = self.zip.load_xml("word/styles.xml")
         self.relationships = {
             "document": self.zip.load_xml("word/_rels/document.xml.rels"),
             "comments": self.zip.load_xml("word/_rels/comments.xml.rels"),
         }
 
     def _initialize_properties(self) -> None:
-        self._properties = DocumentProperties(
-            has_rtl=self._has_node("w:rtl"),
-        )
+        self._properties = DocumentProperties(has_rtl=self._has_node("w:rtl"))
+
+    @classmethod
+    def _sz_size(cls, nodes: list[etree._Element] | etree._Element, expr: str) -> int | None:
+        sz_str = cls._wval(nodes, expr)
+        try:
+            return int(sz_str)  # ty: ignore[invalid-argument-type]
+        except (TypeError, ValueError):
+            return None
 
     def _has_node(self, wtag: str) -> bool:
         for root in (self.document, self.footnotes, self.comments):
@@ -146,15 +159,14 @@ class DocxInput(contextlib.ExitStack, WordXml, IDocInput):
 
     def styles_defined(self) -> t.Iterable[dict[str, t.Any]]:
         """Yield a Style object kwargs for every style defined in the document."""
-        styles = self.zip.load_xml("word/styles.xml")
-        if styles is None:
-            log.warning("No word/styles.xml")
+        if self.styles is None:
+            log.warning("No styles in this doc(!?)")
             return
 
-        for stag in self.xpath(styles, "//w:style[@w:type][w:name[@w:val]]"):
+        for stag in self.xpath(self.styles, "//w:style[@w:type][w:name[@w:val]]"):
             fmt = DocxSpan.node_format(stag)
-            fmt |= DocxParagraph.node_format(stag)
-            fmt &= ~(ManualFormat.LTR | ManualFormat.RTL)
+            fmt = fmt.add(DocxParagraph.node_format(stag))
+            fmt = fmt.replace(direction=None)
             yield {
                 "realm": stag.attrib.get(self.wtag("type")),
                 "internal_name": self.export_name(self._wval(stag, "w:name")),
@@ -334,19 +346,18 @@ class DocxParagraph(DocxNode, IDocParagraph):
     @classmethod
     def node_format(cls, nodes: list[etree._Element] | etree._Element) -> ManualFormat:
         """Return manual formatting on a paragraph/style."""
-        fmt = ManualFormat.LTR
+        fmt = ManualFormat(direction="LTR")
         match cls._wval(nodes, "w:pPr/w:jc"):
             case "center":
-                fmt = fmt | ManualFormat.CENTERED
-            case "center":
-                fmt = fmt | ManualFormat.JUSTIFIED
+                fmt = fmt.replace(align="CENTERED")
+            case "both":
+                fmt = fmt.replace(align="JUSTIFIED")
             case "left":
-                fmt = fmt | ManualFormat.LEFT
+                fmt = fmt.replace(align="LEFT")
             case "right":
-                fmt = fmt | ManualFormat.RIGHT
+                fmt = fmt.replace(align="RIGHT")
         for _ in cls.xpath(nodes, "w:pPr/w:bidi"):
-            fmt &= ~ManualFormat.LTR
-            fmt |= ManualFormat.RTL
+            fmt = fmt.replace(direction="RTL")
         return fmt
 
     def is_page_break(self) -> bool:
@@ -385,33 +396,34 @@ class DocxSpan(DocxNode, IDocSpan):
         return self.node_format(self.nodes)
 
     XPATH_TO_FMT: t.ClassVar[dict[str, ManualFormat]] = {
-        "w:rPr/w:b | w:rPr/w:bCs": ManualFormat.BOLD,
-        "w:rPr/w:i | w:rPr/w:iCs": ManualFormat.ITALIC,
-        "w:rPr/w:highlight": ManualFormat.HIGHLIGHT,
+        "w:rPr/w:b | w:rPr/w:bCs": ManualFormat(bold=True),
+        "w:rPr/w:i | w:rPr/w:iCs": ManualFormat(italic=True),
+        "w:rPr/w:highlight": ManualFormat(highlight=True),
     }
 
     @classmethod
     def node_format(cls, nodes: list[etree._Element] | etree._Element) -> ManualFormat:
         """Get manual formatting for a span/style."""
-        fmt = ManualFormat.LTR
+        fmt = ManualFormat(direction="LTR")
         for expr, flag in cls.XPATH_TO_FMT.items():
             for _ in cls.xpath(nodes, expr):
-                fmt = fmt | flag
+                fmt = fmt.add(flag)
         for vnode in cls.xpath(nodes, "w:rPr/w:vertAlign"):
-            vval = vnode.attrib.get(cls.wtag("val"))
-            if vval == "subscript":
-                fmt |= ManualFormat.SUBSCRIPT
-            elif vval == "superscript":
-                fmt |= ManualFormat.SUPERSCRIPT
+            match vnode.attrib.get(cls.wtag("val")):
+                case "subscript":
+                    fmt = fmt.replace(subsup="SUBSCRIPT")
+                case "superscript":
+                    fmt = fmt.replace(subsup="SUPERSCRIPT")
         for vnode in cls.xpath(nodes, "w:rPr/w:position"):
             vval = float(vnode.attrib.get(cls.wtag("val")) or "0")
             if vval < 0:
-                fmt |= ManualFormat.LOWERED
+                fmt = fmt.replace(baseline="LOWERED")
             elif vval > 0:
-                fmt |= ManualFormat.RAISED
+                fmt = fmt.replace(baseline="RAISED")
+        if sz := DocxInput._sz_size(nodes, "w:rPr/w:sz"):
+            fmt = fmt.replace(size=sz)
         for _ in cls.xpath(nodes, "w:rPr/w:rtl"):
-            fmt &= ~ManualFormat.LTR
-            fmt |= ManualFormat.RTL
+            fmt = fmt.replace(direction="RTL")
         return fmt
 
     def text(self) -> t.Iterable[str]:
@@ -515,8 +527,8 @@ class DocxTable(DocxNode, IDocTable):
     def format(self) -> ManualFormat:
         """Get table formatting (RTL is all we care about)."""
         for _ in self._node_xpath("./w:tblPr/w:bidiVisual"):
-            return ManualFormat.RTL
-        return ManualFormat.LTR
+            return ManualFormat(direction="RTL")
+        return ManualFormat(direction="LTR")
 
     @property
     def shape(self) -> tuple[int, int]:

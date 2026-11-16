@@ -8,7 +8,7 @@ import ziamath.config
 import ziamath.zmath
 
 # This is required for InDesign compatibility
-ziamath.config.svg2 = False  # type: ignore[ty:unresolved-attribute]
+ziamath.config.svg2 = False  # ty: ignore[missing-attribute]
 
 
 class MathConverter:

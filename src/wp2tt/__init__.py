@@ -17,7 +17,7 @@ import shutil
 import subprocess
 import typing as t
 
-import cairosvg  # ty: ignore[import-not-found]
+import cairosvg
 
 from wp2tt.cache import Cache
 from wp2tt.format import ManualFormat
@@ -80,7 +80,7 @@ class State:
     is_post_break: bool = False
     is_stars: bool = False
     is_post_stars: bool = False
-    para_char_fmt: ManualFormat = ManualFormat.NORMAL
+    para_char_fmt: ManualFormat = dcl.field(default_factory=ManualFormat)
 
 
 class WordProcessorToInDesignTaggedText:
@@ -127,7 +127,6 @@ class WordProcessorToInDesignTaggedText:
     config: t.Mapping[str, str]
     doc: IDocInput
     footnote_ref_style: Style
-    format_mask: ManualFormat
     formula_style: Style
     hyperlink_style: Style
     image_count = itertools.count(1)
@@ -176,10 +175,6 @@ class WordProcessorToInDesignTaggedText:
         self.settings_fn = self.output_fn.with_suffix(".ini")
         self.rerunner_fn = Path(f"{self.output_fn}.rerun")
         self.stop_marker = self.args.stop_at
-        if self.args.direction == "IGNORE":
-            self.format_mask = ~(ManualFormat.RTL | ManualFormat.LTR)
-        else:
-            self.format_mask = ~ManualFormat[self.args.direction]
 
         if self.args.cache:
             self.cache = Cache(self.args.cache)
@@ -589,7 +584,7 @@ class WordProcessorToInDesignTaggedText:
         self.writer.enter_paragraph(self.table_paragraph_style)
 
         (rows, cols) = table.shape
-        rtl = (table.format() & ManualFormat.RTL) == ManualFormat.RTL
+        rtl = table.format().direction == "RTL"
         style = self.style("table", table.style_wpid())
         self.writer.enter_table(
             rows=rows,
@@ -644,6 +639,11 @@ class WordProcessorToInDesignTaggedText:
             self.state.is_post_stars = self.state.is_stars
         self.state.prev_para_style = style
 
+    def _just_dir(self, fmt: ManualFormat) -> ManualFormat:
+        if self.args.direction == "IGNORE" or fmt.direction == self.args.direction:
+            return fmt.replace(direction=None)
+        return fmt
+
     def get_paragraph_style(self, para: IDocParagraph) -> OptionalStyle:
         """Return style to be used for a paragraph."""
         self.state.para_char_fmt = ManualFormat.NORMAL
@@ -654,20 +654,20 @@ class WordProcessorToInDesignTaggedText:
             return unadorned
 
         # Manual formatting
-        fmt = para.format() & self.format_mask
+        fmt = self._just_dir(para.format())
         if self.state.is_post_break:
-            fmt = fmt | ManualFormat.NEW_PAGE
+            fmt = fmt.replace(new_page=True)
         if self.state.is_post_empty:
-            fmt = fmt | ManualFormat.SPACED
+            fmt = fmt.replace(spaced=True)
         if self.state.is_stars:
-            fmt = fmt | ManualFormat.STARS
+            fmt = fmt.replace(stars=True)
         if self.state.is_post_stars:
-            fmt = fmt | ManualFormat.POST_STARS
+            fmt = fmt.replace(post_stars=True)
 
         for span in para.spans():
             for text in span.text():
                 if text[0].isspace():
-                    fmt = fmt | ManualFormat.INDENTED
+                    fmt = fmt.replace(indented=True)
                 break  # Just the first
             break  # Just the first
 
@@ -675,7 +675,7 @@ class WordProcessorToInDesignTaggedText:
         char_fmts = {self.get_span_format(span) for span in para.spans()}
         if len(char_fmts) == 1:
             self.state.para_char_fmt = char_fmts.pop()
-            fmt = fmt | self.state.para_char_fmt
+            fmt = fmt.add(self.state.para_char_fmt)
 
         return self.get_manual_style("paragraph", unadorned, fmt)
 
@@ -683,7 +683,7 @@ class WordProcessorToInDesignTaggedText:
         self, node: IDocSpan,
     ) -> ManualFormat:
         """Return the marked part of a paragraph/span's format."""
-        return node.format() & self.format_mask
+        return self._just_dir(node.format())
 
     def get_manual_style(
         self, realm: str, unadorned: OptionalStyle, fmt: ManualFormat,
@@ -695,10 +695,10 @@ class WordProcessorToInDesignTaggedText:
         # ?         unadorned = None
 
         if fmt and unadorned is not None:
-            fmt &= ~unadorned.fmt
+            fmt = fmt.sub(unadorned.fmt)
 
         if not fmt:  # No manual formatting
-            # Only paragraphs get a named "NORMAL" style
+            # Only paragraphs get a named "ManualFormat.NORMAL" style
             if unadorned is not None or realm != "paragraph":
                 return unadorned
 
@@ -707,19 +707,13 @@ class WordProcessorToInDesignTaggedText:
         if mfcs in self.manual_styles:
             return self.manual_styles[mfcs]
 
-        if fmt:
-            fmtname = "_".join(f.name for f in ManualFormat if fmt & f)
-        else:
-            fmtname = "DEFAULT"
-            log.debug("%r -> %r", fmt, fmtname)
-
         # In the manual case, we may not have the basic style
         parent = unadorned or self.style(realm=realm, wpid=self.base_names[realm])
 
         if unadorned:
-            name = f"{self.SPECIAL_GROUP}/{unadorned.name} ({fmtname})"
+            name = f"{self.SPECIAL_GROUP}/{unadorned.name} ({fmt})"
         else:
-            name = f"{self.SPECIAL_GROUP}/({fmtname})"
+            name = f"{self.SPECIAL_GROUP}/({fmt})"
         self.manual_styles[mfcs] = self.found_style_definition(
             realm=realm,
             internal_name=f"{self.state.auto_prefix}{name}",

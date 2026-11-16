@@ -12,6 +12,8 @@ from wp2tt.styles import ATTR_VALUE_HIDDEN
 from wp2tt.styles import OptionalStyle
 from wp2tt.styles import Style
 
+if t.TYPE_CHECKING:
+    from _typeshed import DataclassInstance
 
 log = logging.getLogger(__name__)
 ConfigSection = (configparser.SectionProxy | dict[str, str])
@@ -70,7 +72,7 @@ class SettingsFile(configparser.ConfigParser):
         return None
 
     def fields(
-        self, klass: type, *, writeable: bool = False,
+        self, klass: type[DataclassInstance], *, writeable: bool = False,
     ) -> t.Iterable[tuple[str, str]]:
         """Yield a pair (name, ini_name) for all attributes."""
         for field in dcl.fields(klass):

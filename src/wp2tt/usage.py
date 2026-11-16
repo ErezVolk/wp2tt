@@ -299,4 +299,5 @@ class Parsedict(Action):
     """Helper class to convert KEY=VALUE pairs to a dict."""
 
     def __call__(self, parser, namespace, values, *args, **kwargs) -> None:
+        del parser, args, kwargs
         setattr(namespace, self.dest, dict(val.split("=", 1) for val in values))
