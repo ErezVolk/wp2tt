@@ -131,7 +131,7 @@ class DocxInput(contextlib.ExitStack, WordXml, IDocInput):
         """Set prefix for non-clash in multi-file docs or something."""
         if nth > 1:
             self._wpid_prefix = f"d{nth}_"
-            self._name_prefix = f"(D{nth})/"
+            self._name_prefix = f"(D{nth}):"
 
     def export_wpid(self, wpid: str | None) -> str | None:
         """Make wpid unique in multi-input scenario."""
