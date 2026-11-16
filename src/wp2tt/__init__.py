@@ -176,7 +176,7 @@ class WordProcessorToInDesignTaggedText:
         self.rerunner_fn = Path(f"{self.output_fn}.rerun")
         self.stop_marker = self.args.stop_at
         if self.args.direction == "IGNORE":
-            self.format_mask = ManualFormat.NORMAL
+            self.format_mask = ~(ManualFormat.RTL | ManualFormat.LTR)
         else:
             self.format_mask = ~ManualFormat[self.args.direction]
 
