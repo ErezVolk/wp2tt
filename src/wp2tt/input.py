@@ -35,7 +35,15 @@ class IDocInput(ABC):
         raise NotImplementedError
 
 
-class IDocTextSource(ABC):
+class IDocPrefixable(ABC):
+    """Something that may provide auto_prefix."""
+
+    def auto_prefix(self) -> str:
+        """Prefix for automatically-generated styles."""
+        return ""
+
+
+class IDocTextSource(IDocPrefixable):
     """Something that may contain text."""
 
     __is_empty: bool
@@ -121,6 +129,7 @@ class IDocImage(ABC):
     @abstractmethod
     def save(self, path: PathLike) -> None:
         """Write to a file."""
+        del path
         raise NotImplementedError
 
 
@@ -138,7 +147,7 @@ class IDocFormula(ABC):
         raise NotImplementedError
 
 
-class IDocTable(ABC):
+class IDocTable(IDocPrefixable):
     """A table inside a document."""
 
     def style_wpid(self) -> str | None:

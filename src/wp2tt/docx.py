@@ -7,7 +7,7 @@ from pathlib import Path
 from pathlib import PurePosixPath
 from os import PathLike
 
-from lxml import etree
+from lxml import etree  # ty: ignore [import-not-found]
 
 from wp2tt.input import IDocComment
 from wp2tt.input import IDocFootnote
@@ -129,9 +129,8 @@ class DocxInput(contextlib.ExitStack, WordXml, IDocInput):
 
     def set_nth(self, nth: int) -> None:
         """Set prefix for non-clash in multi-file docs or something."""
-        if nth > 1:
-            self._wpid_prefix = f"d{nth}_"
-            self._name_prefix = f"(D{nth}):"
+        self._wpid_prefix = f"d{nth}_"
+        self._name_prefix = f"(D{nth})/"
 
     def export_wpid(self, wpid: str | None) -> str | None:
         """Make wpid unique in multi-input scenario."""
@@ -250,6 +249,9 @@ class DocxNode(WordXml):
                 value = pnode.attrib.get(tag)
                 if value is not None:
                     yield value
+
+    def auto_prefix(self) -> str:
+        return self.doc._name_prefix or ""
 
 
 class DocxParagraph(DocxNode, IDocParagraph):

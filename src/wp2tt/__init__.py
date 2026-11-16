@@ -17,7 +17,7 @@ import shutil
 import subprocess
 import typing as t
 
-import cairosvg
+import cairosvg  # ty: ignore[import-not-found]
 
 from wp2tt.cache import Cache
 from wp2tt.format import ManualFormat
@@ -74,6 +74,7 @@ class State:
     curr_char_style: OptionalStyle = None
     active_char_style: OptionalStyle = None
     prev_para_style: OptionalStyle = None
+    auto_prefix: str = ""
     is_empty: bool = True
     is_post_empty: bool = False
     is_post_break: bool = False
@@ -250,7 +251,7 @@ class WordProcessorToInDesignTaggedText:
 
     def create_reader(self) -> ProxyInput:
         """Create the approriate document reader object."""
-        inputs = [self.args.input] + (self.args.append or [])
+        inputs = [self.args.input, *(self.args.append or [])]
         if not self.args.no_input_rerunner:
             self.consider_input_rerunners(inputs)
         if len(inputs) > 1:
@@ -557,8 +558,9 @@ class WordProcessorToInDesignTaggedText:
             self.state.is_post_empty = False
             self.state.is_stars = False
             self.state.is_post_stars = False
-            self.state.is_post_break = False
+            self.state.is_post_break = True
             for node in self.doc.paragraphs():
+                self.state.auto_prefix = node.auto_prefix()
                 if isinstance(node, IDocTable):
                     self.convert_table(node)
                 else:
@@ -706,9 +708,9 @@ class WordProcessorToInDesignTaggedText:
             return self.manual_styles[mfcs]
 
         if fmt:
-            fmtname = "_".join(f.name for f in ManualFormat if fmt & f and f.name)
+            fmtname = "_".join(f.name for f in ManualFormat if fmt & f)
         else:
-            fmtname = fmt.name or "DEFAULT"
+            fmtname = "DEFAULT"
             log.debug("%r -> %r", fmt, fmtname)
 
         # In the manual case, we may not have the basic style
@@ -720,7 +722,7 @@ class WordProcessorToInDesignTaggedText:
             name = f"{self.SPECIAL_GROUP}/({fmtname})"
         self.manual_styles[mfcs] = self.found_style_definition(
             realm=realm,
-            internal_name=name,
+            internal_name=f"{self.state.auto_prefix}{name}",
             wpid=name,
             parent_style=parent,
             automatic=True,
@@ -1007,6 +1009,7 @@ class WordProcessorToInDesignTaggedText:
             self.outer_state = self.outer.set_state(State())
 
         def __exit__(self, *args) -> None:
+            del args
             self.outer.set_state(self.outer_state)
             self.writer.leave_footnote()
             self.writer.set_character_style(self.outer_character_style)
