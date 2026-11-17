@@ -64,7 +64,7 @@ class ManualFormatCustomStyle:
     """Manual formatting, possibly applied to a custom style."""
 
     fmt: ManualFormat
-    unadorned: str | None
+    unadorned_wpid: str | None
 
 
 @dcl.dataclass
