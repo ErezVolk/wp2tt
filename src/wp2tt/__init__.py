@@ -718,15 +718,16 @@ class WordProcessorToInDesignTaggedText:
         # In the manual case, we may not have the basic style
         parent = unadorned or self.style(realm=realm, wpid=self.base_names[realm])
 
+        prefix = self.state.auto_prefix
         if unadorned:
-            uname = unadorned.name.removeprefix(self.state.auto_prefix)
+            uname = unadorned.name.removeprefix(prefix)
             name = f"{self.SPECIAL_GROUP}/{uname} ({fmt})"
         else:
             name = f"{self.SPECIAL_GROUP}/({fmt})"
         self.manual_styles[mfcs] = self.found_style_definition(
             realm=realm,
-            internal_name=f"{self.state.auto_prefix}{name}",
-            wpid=f"{self.state.auto_prefix}{name}",
+            internal_name=f"{prefix}{name}",
+            wpid=f"{prefix}{name}",
             parent_style=parent,
             automatic=True,
         )
@@ -1009,7 +1010,7 @@ class WordProcessorToInDesignTaggedText:
             self.writer.set_character_style(ref_style)
             self.writer.enter_footnote()
             self.outer.writer = WhitespaceStripper(self.writer)
-            self.outer_state = self.outer.set_state(State())
+            self.outer_state = self.outer.set_state(State(auto_prefix=outer.state.auto_prefix))
 
         def __exit__(self, *args) -> None:
             del args
