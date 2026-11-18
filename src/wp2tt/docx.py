@@ -344,6 +344,11 @@ class DocxParagraph(DocxNode, IDocParagraph):
             return ManualFormat.NORMAL
         return self.node_format(self.nodes)
 
+    KNOWN_INDENTS = {
+        "firstLine": "FIRST_LINE_INDENT",
+        "hanging": "HANGING_INDENT",
+    }
+
     @classmethod
     def node_format(cls, nodes: list[etree._Element] | etree._Element) -> ManualFormat:
         """Return manual formatting on a paragraph/style."""
@@ -357,10 +362,10 @@ class DocxParagraph(DocxNode, IDocParagraph):
                 fmt = fmt.replace(align="LEFT")
             case "right":
                 fmt = fmt.replace(align="RIGHT")
-        for tag in ("firstLine", "hanging"):
+        for tag, value in cls.KNOWN_INDENTS.items():
             if val := cls._wval(nodes, "w:pPr/w:ind", tag):
                 if int(val) > 0:
-                    fmt = fmt.replace(indent=tag.upper())
+                    fmt = fmt.replace(indent=value)
         if valstr := cls._wval(nodes, "w:pPr/w:numPr/w:numId"):
             fmt = fmt.replace(numbering=int(valstr))
         for _ in cls.xpath(nodes, "w:pPr/w:bidi"):
