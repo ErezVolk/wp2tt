@@ -463,7 +463,6 @@ class WordProcessorToInDesignTaggedText:
             self.base_names[realm] = self.args.base_character_style
 
         if style := self.styles.get(self.style_key(realm=realm, wpid=wpid)):
-            log.warning("Found definition for existing %s", style)
             return style
 
         if parent_style := kwargs.get("parent_style"):
