@@ -151,6 +151,12 @@ class Wp2ttParser(ArgumentParser):
             action="store_true",
             help="Convert line breaks to U+2028 LINE SEPARATOR",
         )
+        self.add_argument(
+            "-B",
+            "--black",
+            action="store_true",
+            help="Do not use color",
+        )
         group = self.add_mutually_exclusive_group()
         group.add_argument(
             "--table-cols",
@@ -205,6 +211,7 @@ class Wp2ttParser(ArgumentParser):
             if args.output:
                 cli.append(self._quote(args.output))
             cli.append('"$@"')  # Has to come before the dashes
+            self._add_flag(cli, args, "black")
             self._add_flag(cli, args, "convert_comments")
             self._add_flag(cli, args, "debug")
             self._add_flag(cli, args, "newline")

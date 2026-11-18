@@ -532,7 +532,7 @@ class WordProcessorToInDesignTaggedText:
         self.create_output()
         properties = self.doc.properties
         newline = "\u2028" if self.args.newline else "\n"
-        with InDesignTaggedTextOutput(properties, newline) as self.writer:
+        with InDesignTaggedTextOutput(properties, newline, black=self.args.black) as self.writer:
             self.define_styles()
             self.convert_document()
             self.write_output()

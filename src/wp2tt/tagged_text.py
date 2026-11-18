@@ -44,9 +44,12 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
         self,
         properties: DocumentProperties | None = None,
         newline: str = "\n",
+        *,
+        black: bool = False,
     ) -> None:
         super().__init__()
         self._newline = newline
+        self._black = black
         self._buffer = io.StringIO()
         self._styles: dict[Style, StyleState] = {}
         self._headers_written = False
@@ -88,12 +91,13 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
         self._write(r"<Version:13.1>")
         if self._properties.has_rtl:
             self._write(r"<FeatureSet:Indesign-R2L>")
-        self._write(r"<ColorTable:=")
-        self._write(r"<Black:COLOR:CMYK:Process:0,0,0,1>")
-        self._write(r"<Cyan:COLOR:CMYK:Process:1,0,0,0>")
-        self._write(r"<Magenta:COLOR:CMYK:Process:0,1,0,0>")
-        self._write(r"<Yellow:COLOR:CMYK:Process:0,0,1,0>")
-        self._write(r">")
+        if not self._black:
+            self._write(r"<ColorTable:=")
+            self._write(r"<Black:COLOR:CMYK:Process:0,0,0,1>")
+            self._write(r"<Cyan:COLOR:CMYK:Process:1,0,0,0>")
+            self._write(r"<Magenta:COLOR:CMYK:Process:0,1,0,0>")
+            self._write(r"<Yellow:COLOR:CMYK:Process:0,0,1,0>")
+            self._write(r">")
         self._writeln()
         for style in self._styles:
             self._write_style_definition(style)
@@ -108,7 +112,7 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
         idtt: list[str] = []
         if style.idtt:
             idtt = [style.idtt]
-        else:
+        elif not self._black:
             fullness = 50.0 + 50.0 / (1.05 ** next(self._shades[style.realm]))
 
             if style.realm == "paragraph":
