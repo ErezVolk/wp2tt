@@ -505,7 +505,7 @@ class WordProcessorToInDesignTaggedText:
         key = self.style_key(style=style)
         if key in self.styles:
             raise KeyError(f"Trying to double-create %s", style)
-        log.debug("Created %s with key %r", style, key, style.internal_name, style.wpid)
+        log.debug("Created %s with key %r", style, key)
         self.styles[key] = style
         return style
 
