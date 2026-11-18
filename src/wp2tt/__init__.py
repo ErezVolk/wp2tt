@@ -422,7 +422,7 @@ class WordProcessorToInDesignTaggedText:
         """Return a style, given type of string we use for ini file section names."""
         if not ini_ref:
             if required:
-                log.debug("MISSING REQUIRED SOMETHING")
+                log.debug(f"MISSING REQUIRED ini_ref=%r", ini_ref)
                 raise BadReferenceInRuleError
             return None
         mobj = re.match(
@@ -439,16 +439,16 @@ class WordProcessorToInDesignTaggedText:
                 for style in self.styles.values()
                 if style.realm.lower() == realm and style.internal_name == internal_name
             )
-        except StopIteration as exc:
+        except StopIteration:
             if not inherit_from:
-                log.debug("ERROR: Unknown %r", ini_ref)
-                raise BadReferenceInRuleError from exc
+                log.debug("Unknown %r, making it up", ini_ref)
+                inherit_from = self.base_styles.get(realm)
         return self.add_style(
             realm=realm,
-            wpid=ini_ref,
+            wpid=internal_name,
             internal_name=internal_name,
-            parent_wpid=inherit_from.wpid,
-            parent_style=inherit_from,
+            parent_wpid=inherit_from.wpid if inherit_from else None,
+            parent_style=inherit_from if inherit_from else None,
         )
 
     def found_style_definition(
@@ -461,6 +461,10 @@ class WordProcessorToInDesignTaggedText:
         if realm not in self.base_names:
             log.error("What about %s:%r [%r]?", realm, wpid, internal_name)
             self.base_names[realm] = self.args.base_character_style
+
+        if style := self.styles.get(self.style_key(realm=realm, wpid=wpid)):
+            log.warning("Found definition for existing %s", style)
+            return style
 
         if parent_style := kwargs.get("parent_style"):
             kwargs.setdefault("parent_wpid", parent_style.wpid)
@@ -498,8 +502,11 @@ class WordProcessorToInDesignTaggedText:
         kwargs.setdefault("name", kwargs["internal_name"])
 
         style = Style(**kwargs)
-        log.debug("Created %s", style)
-        self.styles[self.style_key(style=style)] = style
+        key = self.style_key(style=style)
+        if key in self.styles:
+            raise KeyError(f"Trying to double-create %s", style)
+        log.debug("Created %s with key %r", style, key, style.internal_name, style.wpid)
+        self.styles[key] = style
         return style
 
     @classmethod
@@ -717,7 +724,7 @@ class WordProcessorToInDesignTaggedText:
         self.manual_styles[mfcs] = self.found_style_definition(
             realm=realm,
             internal_name=f"{self.state.auto_prefix}{name}",
-            wpid=name,
+            wpid=f"{self.state.auto_prefix}{name}",
             parent_style=parent,
             automatic=True,
         )
