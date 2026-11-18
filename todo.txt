@@ -1,3 +1,7 @@
+- Handle numbering
+- Maybe use the xslt (or the whole thing) from https://github.com/RolandDreger/indesign-word-import
+
+
 - Handle both URL and text of Hyperlink
 - Tagged Text: Write ALL styles at the beginning
 - DOCX: find default RTL
