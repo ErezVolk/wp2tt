@@ -112,6 +112,7 @@ class DocxInput(contextlib.ExitStack, WordXml, IDocInput):
         self.footnotes = self.zip.load_xml("word/footnotes.xml")
         self.comments = self.zip.load_xml("word/comments.xml")
         self.styles = self.zip.load_xml("word/styles.xml")
+        self.numbering = self.zip.load_xml("word/numbering.xml")
         self.relationships = {
             "document": self.zip.load_xml("word/_rels/document.xml.rels"),
             "comments": self.zip.load_xml("word/_rels/comments.xml.rels"),
@@ -360,6 +361,8 @@ class DocxParagraph(DocxNode, IDocParagraph):
             if val := cls._wval(nodes, "w:pPr/w:ind", tag):
                 if int(val) > 0:
                     fmt = fmt.replace(indent=tag.upper())
+        if valstr := cls._wval(nodes, "w:pPr/w:numPr/w:numId"):
+            fmt = fmt.replace(numbering=int(valstr))
         for _ in cls.xpath(nodes, "w:pPr/w:bidi"):
             fmt = fmt.replace(direction="RTL")
         return fmt

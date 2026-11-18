@@ -1,4 +1,3 @@
-- Handle numbering
 - Maybe use the xslt (or the whole thing) from https://github.com/RolandDreger/indesign-word-import
 
 

@@ -25,6 +25,7 @@ class ManualFormat:
     baseline: t.Literal["RAISED", "LOWERED"] | None = None
     size: int | None = None
     indent: t.Literal["FIRSTLINE", "HANGING"] | None = None
+    numbering: int | None = None
 
     def replace(self, **kwargs) -> ManualFormat:
         return dcl.replace(self, **kwargs)
