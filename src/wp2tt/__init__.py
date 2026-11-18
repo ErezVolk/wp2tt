@@ -74,7 +74,6 @@ class State:
     curr_char_style: OptionalStyle = None
     active_char_style: OptionalStyle = None
     prev_para_style: OptionalStyle = None
-    auto_prefix: str = ""
     is_empty: bool = True
     is_post_empty: bool = False
     is_post_break: bool = False
@@ -119,6 +118,7 @@ class WordProcessorToInDesignTaggedText:
     INDESIGN_ENV_VAL = "com.adobe.InDesign"
 
     args: argparse.Namespace
+    auto_prefix: str = ""
     base_names: dict[str, str]
     base_styles: dict[str, Style]
     cache: Cache
@@ -561,7 +561,7 @@ class WordProcessorToInDesignTaggedText:
             self.state.is_post_stars = False
             self.state.is_post_break = True
             for node in self.doc.paragraphs():
-                self.state.auto_prefix = node.auto_prefix()
+                self.auto_prefix = node.auto_prefix()
                 if isinstance(node, IDocTable):
                     self.convert_table(node)
                 else:
@@ -718,7 +718,7 @@ class WordProcessorToInDesignTaggedText:
         # In the manual case, we may not have the basic style
         parent = unadorned or self.style(realm=realm, wpid=self.base_names[realm])
 
-        prefix = self.state.auto_prefix
+        prefix = self.auto_prefix
         if unadorned:
             uname = unadorned.name.removeprefix(prefix)
             name = f"{self.SPECIAL_GROUP}/{uname} ({fmt})"
@@ -1010,7 +1010,7 @@ class WordProcessorToInDesignTaggedText:
             self.writer.set_character_style(ref_style)
             self.writer.enter_footnote()
             self.outer.writer = WhitespaceStripper(self.writer)
-            self.outer_state = self.outer.set_state(State(auto_prefix=outer.state.auto_prefix))
+            self.outer_state = self.outer.set_state(State())
 
         def __exit__(self, *args) -> None:
             del args
