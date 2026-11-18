@@ -83,13 +83,13 @@ class WordXml:
 
     @classmethod
     def _wval(
-        cls, nodes: list[etree._Element] | etree._Element, prop: str,
+        cls, nodes: list[etree._Element] | etree._Element, prop: str, tag: str = "val"
     ) -> str | None:
         if not isinstance(nodes, list):
             nodes = [nodes]
         for node in nodes:
             for pnode in cls.xpath(node, prop):
-                return pnode.attrib.get(cls.wtag("val"))
+                return pnode.attrib.get(cls.wtag(tag))
         return None
 
 
@@ -356,6 +356,10 @@ class DocxParagraph(DocxNode, IDocParagraph):
                 fmt = fmt.replace(align="LEFT")
             case "right":
                 fmt = fmt.replace(align="RIGHT")
+        for tag in ("firstLine", "hanging"):
+            if val := cls._wval(nodes, "w:pPr/w:ind", tag):
+                if int(val) > 0:
+                    fmt = fmt.replace(indent=tag.upper())
         for _ in cls.xpath(nodes, "w:pPr/w:bidi"):
             fmt = fmt.replace(direction="RTL")
         return fmt

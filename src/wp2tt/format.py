@@ -24,6 +24,7 @@ class ManualFormat:
     subsup: t.Literal["SUBSCRIPT", "SUPERSCRIPT"] | None = None
     baseline: t.Literal["RAISED", "LOWERED"] | None = None
     size: int | None = None
+    indent: t.Literal["FIRSTLINE", "HANGING"] | None = None
 
     def replace(self, **kwargs) -> ManualFormat:
         return dcl.replace(self, **kwargs)
