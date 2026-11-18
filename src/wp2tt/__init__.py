@@ -709,10 +709,12 @@ class WordProcessorToInDesignTaggedText:
             if unadorned is not None or realm != "paragraph":
                 return unadorned
 
-        uaid = unadorned.wpid if unadorned else None
-        mfcs = ManualFormatCustomStyle(fmt, uaid)
-        if mfcs in self.manual_styles:
-            return self.manual_styles[mfcs]
+        if unadorned is not None:
+            mfcs = ManualFormatCustomStyle(fmt, unadorned.wpid)
+            if mfcs in self.manual_styles:
+                return self.manual_styles[mfcs]
+        else:
+            mfcs = ManualFormatCustomStyle(fmt, None)
 
         # In the manual case, we may not have the basic style
         parent = unadorned or self.style(realm=realm, wpid=self.base_names[realm])
