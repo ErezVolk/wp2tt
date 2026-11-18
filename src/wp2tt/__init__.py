@@ -719,7 +719,8 @@ class WordProcessorToInDesignTaggedText:
         parent = unadorned or self.style(realm=realm, wpid=self.base_names[realm])
 
         if unadorned:
-            name = f"{self.SPECIAL_GROUP}/{unadorned.name} ({fmt})"
+            uname = unadorned.name.removeprefix(self.state.auto_prefix)
+            name = f"{self.SPECIAL_GROUP}/{uname} ({fmt})"
         else:
             name = f"{self.SPECIAL_GROUP}/({fmt})"
         self.manual_styles[mfcs] = self.found_style_definition(
