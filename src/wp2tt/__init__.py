@@ -620,18 +620,19 @@ class WordProcessorToInDesignTaggedText:
             self.check_for_stop_paragraph(para)
 
         text = "".join(t for t in para.text()).strip()
-        self.state.is_empty = not bool(text)
-        self.state.is_stars = bool(re.fullmatch(r"[*]+", text))
+        self.state.is_stars = bool(re.fullmatch(r"[*]+", text))  # apply_rules_to uses this
 
         style = self.apply_rules_to(para) or default_style
         self._remember_seeing(style)
 
+        self.state.is_empty = True  # Until we encounter something
         self.writer.enter_paragraph(style)
         for chunk in para.chunks():
             self.convert_chunk(chunk)
         if style and style.variable:
             self.define_variable_from_paragraph(style.variable, para)
         self.writer.leave_paragraph()
+        self.state.is_empty = self.state.is_empty and not text  # Just to silence ty
 
         # For the next paragraph
         if para.is_page_break():
