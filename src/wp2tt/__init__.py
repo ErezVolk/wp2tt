@@ -619,7 +619,7 @@ class WordProcessorToInDesignTaggedText:
         if self.stop_marker:
             self.check_for_stop_paragraph(para)
 
-        text = "".join(t for t in para.text()).strip()
+        text = "".join(para.text()).strip()
         self.state.is_stars = bool(re.fullmatch(r"[*]+", text))  # apply_rules_to uses this
 
         style = self.apply_rules_to(para) or default_style
@@ -795,7 +795,7 @@ class WordProcessorToInDesignTaggedText:
     ) -> None:
         """Save contents of a paragraph to a text variable."""
         self.writer.define_text_variable(
-            variable, "".join(chunk for chunk in para.text()),
+            variable, "".join(para.text()),
         )
 
     def set_state(self, state: State) -> State:
