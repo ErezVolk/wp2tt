@@ -58,7 +58,7 @@ class Rule:
     turn_this: str | None = None
     into_this: str | None = None
     when_following: str | None = None
-    when_first_in_doc: str | None = None
+    when_first_in_doc: bool = dcl.field(default=False, init=False)
     unless_empty: bool = dcl.field(default=False, init=False)
 
     turn_this_style: OptionalStyle = dcl.field(

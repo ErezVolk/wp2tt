@@ -1,6 +1,7 @@
 """Ini file helper."""
 import configparser
 import dataclasses as dcl
+import io
 import logging
 from pathlib import Path
 import shutil
@@ -96,6 +97,29 @@ class SettingsFile(configparser.ConfigParser):
         log.info("Writing %s", self.path)
         with self.path.open("w", encoding=self.ENCODING) as fobj:
             self.write(fobj)
+            self._write_comments(fobj)
+
+    def _write_comments(self, fobj: io.Writer[str]) -> None:
+        if not any(self._is_rule(name) for name in self.sections()):
+            fobj.write(
+                f"\n"
+                f"; [{self.RULE_PREFIX}DESCRIPTIVE_NAME]\n"
+                f"; turn_this = [Paragraph:From]\n"
+                f"; into_this = [Paragraph:To]\n"
+                f"; when_following = [Paragraph:Pre] (optional)\n"
+                f"; when_first_in_doc = true (optional)\n"
+                f"; unless_empty = true (optional)\n"
+                f"\n"
+            )
+        if self.images is None:
+            fobj.write(
+                f"\n"
+                f"; [{self.IMAGE_SECTION}]\n"
+                f"; {self.BASE_KEY} = PATH (optional)\n"
+                f"; NAME = RELATIVE_PATH\n"
+                f"; ...\n"
+                f"\n"
+            )
 
     def get_section(
         self,
@@ -176,7 +200,11 @@ class SettingsFile(configparser.ConfigParser):
             realm = realm.capitalize()
         return f"{realm}:{internal_name}"
 
-    def rules(self) -> t.Generator[tuple[str, t.Mapping]]:
+    @classmethod
+    def _is_rule(cls, name: str) -> bool:
+        return name.lower().startswith(cls.RULE_PREFIX)
+
+    def rules(self) -> t.Generator[tuple[str, configparser.SectionProxy]]:
         for name in self.sections():
-            if name.lower().startswith(self.RULE_PREFIX):
+            if self._is_rule(name):
                 yield (name[len(self.RULE_PREFIX):], self[name])
