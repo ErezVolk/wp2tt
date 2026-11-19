@@ -31,17 +31,24 @@ class Rule:
     valid: bool = dcl.field(default=True, metadata=ATTR_NO_INI, init=False)
     applied: int = dcl.field(default=0, metadata=ATTR_NO_INI, init=False)
 
-    TRUE_VALUES = frozenset({"true", "yes", "1"})
-    FALSE_VALUES = frozenset({"false", "no", "0"})
+    _TRUE_VALUES = ("true", "yes", "on", "1")
+    _FALSE_VALUES = ("false", "no", "off", "0")
+    _TO_BOOL = {
+        as_str: as_bool
+        for as_bool, as_strs in ((True, _TRUE_VALUES), (False, _FALSE_VALUES))
+        for as_str in as_strs
+    }
+
+    @classmethod
+    def to_bool(cls, as_str: str | None) -> None | bool:
+        if as_str is None:
+            return None
+        return cls._TO_BOOL[as_str.lower()]
 
     def __post_init__(self):
         for key in ("when_first_in_doc", "unless_empty"):
             if (value := getattr(self, key)) is not None:
-                if value.lower() in self.TRUE_VALUES:
-                    setattr(self, value, "True")
-                elif value.lower() in self.FALSE_VALUES:
-                    setattr(self, value, "False")
-                else:
+                if value.lower() not in self._TO_BOOL:
                     raise ValueError(f"{key} may only be True or False, not {value!r}")
 
     def __str__(self) -> str:

@@ -736,6 +736,7 @@ class WordProcessorToInDesignTaggedText:
         if style:
             for rule in self.rules:
                 if self.rule_applies_to(rule, style, para.is_empty):
+                    style.count += 1
                     rule.applied += 1
                     return rule.into_this_style
         return style
@@ -749,13 +750,13 @@ class WordProcessorToInDesignTaggedText:
         """Check if `rule` should be applied on `style`."""
         if not rule.valid:
             return False
-        if bool(rule.unless_empty):
+        if rule.to_bool(rule.unless_empty):
             if is_empty():
                 return False
         if rule.turn_this_style is not style:
             return False
         if rule.when_first_in_doc is not None:
-            if bool(rule.when_first_in_doc) != (style.count == 0):
+            if rule.to_bool(rule.when_first_in_doc) != (style.count <= 1):
                 return False
         if rule.when_following_styles:
             if self.state.prev_para_style not in rule.when_following_styles:
