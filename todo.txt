@@ -1,3 +1,5 @@
+- Switch to YAML or something.
+
 - Numbering shouldn't be manual-only (or at all):
   - Use bnListType? bnNumberingSystem??
 - Maybe use the xslt (or the whole thing) from https://github.com/RolandDreger/indesign-word-import

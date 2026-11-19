@@ -107,8 +107,8 @@ class SettingsFile(configparser.ConfigParser):
                 f"; turn_this = [Paragraph:From]\n"
                 f"; into_this = [Paragraph:To]\n"
                 f"; when_following = [Paragraph:Pre] (optional)\n"
-                f"; when_first_in_doc = true (optional)\n"
-                f"; unless_empty = true (optional)\n"
+                f"; when_first_in_doc = True|False (optional)\n"
+                f"; unless_empty = True (optional)\n"
                 f"\n"
             )
         if self.images is None:

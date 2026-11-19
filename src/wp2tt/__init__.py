@@ -37,8 +37,8 @@ from wp2tt.output import WhitespaceStripper
 from wp2tt.proxies import ByExtensionInput
 from wp2tt.proxies import MultiInput
 from wp2tt.proxies import ProxyInput
+from wp2tt.rules import Rule
 from wp2tt.styles import OptionalStyle
-from wp2tt.styles import Rule
 from wp2tt.styles import Style
 from wp2tt.tagged_text import InDesignTaggedTextOutput
 from wp2tt.usage import Wp2ttParser
@@ -749,13 +749,13 @@ class WordProcessorToInDesignTaggedText:
         """Check if `rule` should be applied on `style`."""
         if not rule.valid:
             return False
-        if rule.unless_empty:
+        if bool(rule.unless_empty):
             if is_empty():
                 return False
         if rule.turn_this_style is not style:
             return False
-        if rule.when_first_in_doc:
-            if style.count > 1:
+        if rule.when_first_in_doc is not None:
+            if bool(rule.when_first_in_doc) != (style.count == 0):
                 return False
         if rule.when_following_styles:
             if self.state.prev_para_style not in rule.when_following_styles:
