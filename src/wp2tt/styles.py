@@ -31,7 +31,6 @@ class Style:
     variable: str | None = None
 
     used: bool = dcl.field(default=False, metadata=ATTR_NO_INI, compare=False)
-    count: int = dcl.field(default=0, metadata=ATTR_NO_INI, compare=False)
 
     parent_style: OptionalStyle = dcl.field(
         default=None, metadata=ATTR_NO_INI, compare=False,

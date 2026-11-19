@@ -139,6 +139,7 @@ class WordProcessorToInDesignTaggedText:
     parser: Wp2ttParser
     rerunner_fn: Path
     rules: list[Rule]
+    seen: set[Style] = set()
     settings: SettingsFile
     settings_fn: Path
     state: State = State()
@@ -622,6 +623,7 @@ class WordProcessorToInDesignTaggedText:
         self.state.is_stars = bool(re.fullmatch(r"[*]+", text))
 
         style = self.apply_rules_to(para) or default_style
+        self._remember_seeing(style)
         self.writer.enter_paragraph(style)
         for chunk in para.chunks():
             self.convert_chunk(chunk)
@@ -641,6 +643,10 @@ class WordProcessorToInDesignTaggedText:
         if not self.state.is_empty:
             self.state.is_post_stars = self.state.is_stars
         self.state.prev_para_style = style
+
+    def _remember_seeing(self, style: Style | None) -> None:
+        if style is not None:
+            self.seen.add(style)
 
     def _just_dir(self, fmt: ManualFormat) -> ManualFormat:
         if self.args.direction == "IGNORE" or fmt.direction == self.args.direction:
@@ -736,7 +742,7 @@ class WordProcessorToInDesignTaggedText:
         if style:
             for rule in self.rules:
                 if self.rule_applies_to(rule, style, para.is_empty):
-                    style.count += 1
+                    self._remember_seeing(style)
                     rule.applied += 1
                     return rule.into_this_style
         return style
@@ -756,7 +762,7 @@ class WordProcessorToInDesignTaggedText:
         if rule.turn_this_style is not style:
             return False
         if rule.when_first_in_doc is not None:
-            if rule.to_bool(rule.when_first_in_doc) != (style.count <= 1):
+            if rule.to_bool(rule.when_first_in_doc) != (style not in self.seen):
                 return False
         if rule.when_following_styles:
             if self.state.prev_para_style not in rule.when_following_styles:
@@ -1041,7 +1047,6 @@ class WordProcessorToInDesignTaggedText:
                 return None
 
         self.activate_style(style)
-        style.count += 1
         return style
 
     def activate_style(self, style: Style) -> None:
