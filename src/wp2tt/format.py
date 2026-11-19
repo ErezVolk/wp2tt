@@ -17,7 +17,7 @@ class ManualFormat:
     spaced: t.Literal[True] | None = None
     stars: t.Literal[True] | None = None
     post_stars: t.Literal[True] | None = None
-    indented: t.Literal[True] | None = None
+    whitein: int | None = None
     bold: t.Literal[True] | None = None
     italic: t.Literal[True] | None = None
     highlight: t.Literal[True] | None = None

@@ -263,6 +263,16 @@ class DocxNode(WordXml):
                 if value is not None:
                     yield value
 
+    T_TAGS = ("w:tab", "w:t", "w:br[not(@*)]")
+
+    def _tnode_text(self, node: etree._Element) -> str | None:
+        if node.tag == self.wtag("tab"):
+            return "\t"
+        if node.tag == self.wtag("br"):
+            return "\n"
+        if node.text:
+            return node.text
+
     def auto_prefix(self) -> str:
         return self.doc._name_prefix or ""
 
@@ -271,7 +281,11 @@ class DocxParagraph(DocxNode, IDocParagraph):
     """A Paragraph inside a .docx."""
 
     R_XPATH = "w:r | w:ins/w:r | m:oMath | w:hyperlink"
-    T_XPATH = "w:r/w:t | w:ins/w:r/w:t"
+    T_XPATH = " | ".join(
+        f"{pref}/{tag}"
+        for tag in DocxNode.T_TAGS
+        for pref in ("w:r", "w:ins/w:r")
+    )
     SNIPPET_LEN = 10
 
     def __init__(self, doc: DocxInput, para: etree._Element) -> None:
@@ -295,7 +309,7 @@ class DocxParagraph(DocxNode, IDocParagraph):
         texts: list[str] = []
         tlen = 0
         for tnode in para.xpath(self.T_XPATH, namespaces=self._NS):
-            text = tnode.text
+            text = self._tnode_text(tnode)
             if not text:  # May also be None
                 continue
             texts.append(text)
@@ -321,8 +335,8 @@ class DocxParagraph(DocxNode, IDocParagraph):
     def text(self) -> t.Iterable[str]:
         """Yield strings of plain text."""
         for node in self._node_xpath(self.T_XPATH):
-            if node.text:
-                yield node.text
+            if text := self._tnode_text(node):
+                yield text
 
     def chunks(self) -> t.Iterable[IDocParagraph.Chunk]:
         """Yield DocxSpan per text span."""
@@ -438,15 +452,13 @@ class DocxSpan(DocxNode, IDocSpan):
             fmt = fmt.replace(direction="RTL")
         return fmt
 
+    T_XPATH = " | ".join(DocxNode.T_TAGS)
+
     def text(self) -> t.Iterable[str]:
         """Yield chunks of text."""
-        for node in self._node_xpath("w:tab | w:t | w:br[not(@*)]"):
-            if node.tag == self.wtag("tab"):
-                yield "\t"
-            elif node.tag == self.wtag("br"):
-                yield "\n"
-            elif node.text:
-                yield node.text
+        for node in self._node_xpath(self.T_XPATH):
+            if text := self._tnode_text(node):
+                yield text
 
 
 class DocxImage(DocxNode, IDocImage):

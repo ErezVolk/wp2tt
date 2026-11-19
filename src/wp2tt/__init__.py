@@ -142,6 +142,7 @@ class WordProcessorToInDesignTaggedText:
     seen: set[Style] = set()
     settings: SettingsFile
     settings_fn: Path
+    whiteins: dict[str, int] = {}
     state: State = State()
     stop_marker: str
     stop_marker_found: bool
@@ -624,6 +625,7 @@ class WordProcessorToInDesignTaggedText:
 
         style = self.apply_rules_to(para) or default_style
         self._remember_seeing(style)
+
         self.writer.enter_paragraph(style)
         for chunk in para.chunks():
             self.convert_chunk(chunk)
@@ -673,12 +675,16 @@ class WordProcessorToInDesignTaggedText:
         if self.state.is_post_stars:
             fmt = fmt.replace(post_stars=True)
 
-        for span in para.spans():
-            for text in span.text():
-                if text[0].isspace():
-                    fmt = fmt.replace(indented=True)
-                break  # Just the first
-            break  # Just the first
+        whites = []
+        for chunk in para.text():
+            if chunk[0].isspace():
+                whites.append(re.sub(r"\S.*", r"", chunk))
+            if not chunk.isspace():
+                break
+        if whites:
+            white = "".join(whites)
+            whitein = self.whiteins.setdefault(white, len(self.whiteins) + 1)
+            fmt = fmt.replace(whitein=whitein)
 
         # Check for paragraph with a character style
         char_fmts = {self.get_span_format(span) for span in para.spans()}
