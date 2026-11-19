@@ -109,22 +109,10 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
             return
 
         log.debug("InDesign: %s", style)
-        idtt: list[str] = []
         if style.idtt:
-            idtt = [style.idtt]
-        elif not self._black:
-            fullness = 50.0 + 50.0 / (1.05 ** next(self._shades[style.realm]))
-
-            if style.realm == "paragraph":
-                idtt = [
-                    "<pShadingColor:Yellow>",
-                    "<pShadingOn:1>",
-                    "<pShadingTint:",
-                    str(int(100 - fullness)),
-                    ">",
-                ]
-            elif style.realm == "character":
-                idtt = ["<cColor:Magenta>", "<cColorTint:", str(int(fullness)), ">"]
+            idtt = [self._blacken(style.idtt) if self._black else style.idtt]
+        else:
+            idtt = self._next_color(style.realm)
 
         self._write("<Define")
         self._write(self.REALM_TO_MNEM[style.realm])
@@ -259,6 +247,30 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
 
     def _unwrite(self) -> None:
         self._buffer.seek(self._buffer.tell() - 1)
+
+    def _next_color(self, realm: str) -> list[str]:
+        if self._black:
+            return []
+
+        fullness = 50.0 + 50.0 / (1.05 ** next(self._shades[realm]))
+
+        if realm == "paragraph":
+            return [
+                "<pShadingColor:Yellow>",
+                "<pShadingOn:1>",
+                "<pShadingTint:",
+                str(int(100 - fullness)),
+                ">",
+            ]
+        elif realm == "character":
+            return ["<cColor:Magenta>", "<cColorTint:", str(int(fullness)), ">"]
+
+        return []
+
+    COLOR_TAGS = ("cColor", "cColorTint", "pShadingColor", "pShadingOn", "pShadingTint")
+    COLOR_EXPR = rf"<({'|'.join(COLOR_TAGS)}):[^>]*>"
+    def _blacken(self, idtt: str) -> str:
+        return re.sub(self.COLOR_EXPR, "", idtt)
 
     @property
     def contents(self) -> str:
