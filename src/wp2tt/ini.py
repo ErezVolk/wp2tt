@@ -25,6 +25,7 @@ class SettingsFile(configparser.ConfigParser):
     ENCODING = "UTF-8"
     IMAGE_SECTION = "Images"
     BASE_KEY = "__base__"
+    RULE_PREFIX = "rule:"
 
     path: Path
     touched: bool = False
@@ -174,3 +175,8 @@ class SettingsFile(configparser.ConfigParser):
         if realm:
             realm = realm.capitalize()
         return f"{realm}:{internal_name}"
+
+    def rules(self) -> t.Generator[tuple[str, t.Mapping]]:
+        for name in self.sections():
+            if name.lower().startswith(self.RULE_PREFIX):
+                yield (name[len(self.RULE_PREFIX):], self[name])

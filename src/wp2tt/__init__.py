@@ -209,14 +209,11 @@ class WordProcessorToInDesignTaggedText:
     def load_rules(self) -> None:
         """Convert Rule sections into Rule objects."""
         self.rules = []
-        for section_name in self.settings.sections():
-            if not section_name.lower().startswith("rule:"):
-                continue
-            section = self.settings[section_name]
+        for name, section in self.settings.rules():
             self.rules.append(
                 Rule(
                     mnemonic=f"R{len(self.rules) + 1}",
-                    description=section_name[5:],
+                    description=name,
                     **{
                         name: section[ini_name]
                         for name, ini_name in self.settings.fields(Rule)
