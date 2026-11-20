@@ -639,7 +639,7 @@ class WordProcessorToInDesignTaggedText:
         self._remember_seeing(style)
 
         self.state.in_whitein = True
-        if not (self.state.is_empty and self.args.strip_empty_lines):
+        if self.args.keep_empty_lines or not self.state.is_empty:
             self.writer.enter_paragraph(style)
             for chunk in para.chunks():
                 self.convert_chunk(chunk)
