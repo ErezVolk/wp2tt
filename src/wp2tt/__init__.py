@@ -80,6 +80,7 @@ class State:
     is_numeric: bool = False
     is_stars: bool = False
     is_post_stars: bool = False
+    in_whitein: bool = True
     para_char_fmt: ManualFormat = dcl.field(default_factory=ManualFormat)
 
 
@@ -621,20 +622,21 @@ class WordProcessorToInDesignTaggedText:
             self.check_for_stop_paragraph(para)
 
         text = "".join(para.text()).strip()
-        self.state.is_stars = bool(re.fullmatch(r"[*]+", text))  # apply_rules_to uses this
-        self.state.is_numeric = bool(re.fullmatch(r"\d+", text))  # apply_rules_to uses this
+        self.state.is_empty = not text
+        self.state.is_stars = re.fullmatch(r"[*]+", text) is not None
+        self.state.is_numeric = re.fullmatch(r"\d+", text) is not None
 
         style = self.apply_rules_to(para) or default_style
         self._remember_seeing(style)
 
-        self.state.is_empty = True  # Until we encounter something
-        self.writer.enter_paragraph(style)
-        for chunk in para.chunks():
-            self.convert_chunk(chunk)
-        if style and style.variable:
-            self.define_variable_from_paragraph(style.variable, para)
-        self.writer.leave_paragraph()
-        self.state.is_empty = self.state.is_empty and not text  # Just to silence ty
+        self.state.in_whitein = True
+        if not (self.state.is_empty and self.args.strip_empty_lines):
+            self.writer.enter_paragraph(style)
+            for chunk in para.chunks():
+                self.convert_chunk(chunk)
+            if style and style.variable:
+                self.define_variable_from_paragraph(style.variable, para)
+            self.writer.leave_paragraph()
 
         # For the next paragraph
         if para.is_page_break():
@@ -673,6 +675,8 @@ class WordProcessorToInDesignTaggedText:
             fmt = fmt.replace(new_page=True)
         if self.state.is_post_empty:
             fmt = fmt.replace(spaced=True)
+        if self.state.is_empty:
+            fmt = fmt.replace(empty=True)
         if self.state.is_numeric:
             fmt = fmt.replace(numeric=True)
         if self.state.is_stars:
@@ -829,7 +833,7 @@ class WordProcessorToInDesignTaggedText:
             self.convert_footnote(footnote)
             if self.state.is_post_break:
                 log.debug("Has footnote, not empty")
-            self.state.is_empty = False
+            self.state.in_whitein = False
         if self.args.convert_comments:
             for cmt in span.comments():
                 self.convert_comment(cmt)
@@ -946,11 +950,11 @@ class WordProcessorToInDesignTaggedText:
         switched = self.state.curr_char_style != self.state.active_char_style
         for raw in span.text():
             text = raw
-            if text and not switched and self.state.is_empty:
+            if text and not switched and self.state.in_whitein:
                 text = text.lstrip()
             self.write_text(text)
             if not text.isspace():
-                self.state.is_empty = False
+                self.state.in_whitein = False
 
     def switch_character_style(self, style: OptionalStyle) -> OptionalStyle:
         """Set current character style."""

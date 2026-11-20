@@ -157,6 +157,12 @@ class Wp2ttParser(ArgumentParser):
             action="store_true",
             help="Do not use color",
         )
+        self.add_argument(
+            "-E",
+            "--strip-empty-lines",
+            action="store_true",
+            help="Do not use color",
+        )
         group = self.add_mutually_exclusive_group()
         group.add_argument(
             "--table-cols",
@@ -225,6 +231,7 @@ class Wp2ttParser(ArgumentParser):
             self._add_flag(cli, args, "no_svg2png")
             self._add_flag(cli, args, "remove_old_images_if_indesign")
             self._add_flag(cli, args, "remove_old_images")
+            self._add_flag(cli, args, "strip_empty_lines")
             self._add_flag(cli, args, "vav")
             self._add_path(cli, args, "cache")
             self._add_str(cli, args, "base_character_style", self.DEFAULT_BASE)
