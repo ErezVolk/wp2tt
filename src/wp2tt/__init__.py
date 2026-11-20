@@ -788,9 +788,6 @@ class WordProcessorToInDesignTaggedText:
         if rule.when_following_styles:
             if self.state.prev_para_style not in rule.when_following_styles:
                 return False
-        if rule.to_bool(rule.unless_empty):
-            if stripped:
-                return False
         if (patterns := rule.when_matches_patterns):
             if all(p.search(stripped) is None for p in patterns):
                 return False

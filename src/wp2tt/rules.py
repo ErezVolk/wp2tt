@@ -18,7 +18,6 @@ class Rule:
     when_following: str | None = None
     when_first_in_doc: str | None = None
     when_matches: str | None = None
-    unless_empty: str | None = None
 
     turn_this_style: OptionalStyle = dcl.field(
         default=None, metadata=ATTR_NO_INI, init=False,
@@ -51,10 +50,9 @@ class Rule:
         return cls._TO_BOOL[as_str.lower()]
 
     def __post_init__(self):
-        for key in ("when_first_in_doc", "unless_empty"):
-            if (value := getattr(self, key)) is not None:
-                if value.lower() not in self._TO_BOOL:
-                    raise ValueError(f"{key} may only be True or False, not {value!r}")
+        if self.when_first_in_doc is not None:
+            if (value := self.when_first_in_doc).lower() not in self._TO_BOOL:
+                raise ValueError(f"when_first_in_doc may not be {value!r}")
 
     def __str__(self) -> str:
         return f"<{self.mnemonic} {self.description!r}>"
