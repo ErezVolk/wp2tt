@@ -50,9 +50,12 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
         super().__init__()
         self._newline = newline
         self._black = black
-        self._buffer = io.StringIO()
+        self._front = io.StringIO()
+        self._headers = io.StringIO()
+        self._body = io.StringIO()
+        self._parts = [self._front, self._headers, self._body]
+        self._curr = self._headers
         self._styles: dict[Style, StyleState] = {}
-        self._headers_written = False
         self._shades: t.Mapping[str, t.Iterator[int]] = collections.defaultdict(
             itertools.count,
         )
@@ -60,10 +63,6 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
             self._properties = DocumentProperties()
         else:
             self._properties = properties
-
-    def _writeln(self, line: str = "") -> None:
-        self._write(line)
-        self._write("\n")
 
     def define_style(self, style: Style) -> None:
         """Add a style definition."""
@@ -79,15 +78,14 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
             self.define_style(style.next_style)
 
         self._styles[style] = StyleState.DEFINED
-
-        if self._headers_written:
-            self._write_style_definition(style)
+        self._write_style_definition(style)
 
     def _write_headers(self) -> None:
-        if self._headers_written:
+        if self._curr is not self._headers:
             return
 
-        self._writeln("<UNICODE-MAC>")
+        self._curr = self._front
+        self._write("<UNICODE-MAC>\n")
         self._write(r"<Version:13.1>")
         if self._properties.has_rtl:
             self._write(r"<FeatureSet:Indesign-R2L>")
@@ -98,11 +96,13 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
             self._write(r"<Magenta:COLOR:CMYK:Process:0,1,0,0>")
             self._write(r"<Yellow:COLOR:CMYK:Process:0,0,1,0>")
             self._write(r">")
-        self._writeln()
+        self._write("\n")
+        self._curr = self._headers
+
         for style in self._styles:
             self._write_style_definition(style)
-            self._writeln()
-        self._headers_written = True
+
+        self._curr = self._body
 
     def _write_style_definition(self, style: Style) -> None:
         if self._styles.get(style, StyleState.SEEN) >= StyleState.WRITTEN:
@@ -113,6 +113,9 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
             idtt = [self._blacken(style.idtt) if self._black else style.idtt]
         else:
             idtt = self._next_color(style.realm)
+
+        save_curr = self._curr
+        self._curr = self._headers
 
         self._write("<Define")
         self._write(self.REALM_TO_MNEM[style.realm])
@@ -129,7 +132,9 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
             self._write("<Nextstyle:")
             self._write(self._idname(style.next_style))
             self._write(">")
-        self._write(">")
+        self._write(">\n")
+
+        self._curr = save_curr
 
         self._styles[style] = StyleState.WRITTEN
 
@@ -208,7 +213,7 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
         if self._curr_char_style:
             self._set_style("Char", None)
         if not self._in_table:
-            self._writeln()
+            self._write("\n")
 
     def set_character_style(self, style: OptionalStyle = None) -> None:
         """Start a span using a specific character style."""
@@ -242,11 +247,11 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
 
     def _write(self, string: str) -> None:
         if string:
-            self._buffer.write(string)
+            self._curr.write(string)
             self._newly_newlined = string[-1] == "\n"
 
     def _unwrite(self) -> None:
-        self._buffer.seek(self._buffer.tell() - 1)
+        self._body.seek(self._body.tell() - 1)
 
     def _next_color(self, realm: str) -> list[str]:
         if self._black:
@@ -275,4 +280,4 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
     @property
     def contents(self) -> str:
         """The actual tagged text."""
-        return self._buffer.getvalue()
+        return "".join(part.getvalue() for part in self._parts)
