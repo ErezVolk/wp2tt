@@ -367,24 +367,27 @@ class DocxParagraph(DocxNode, IDocParagraph):
     def node_format(cls, nodes: list[etree._Element] | etree._Element) -> ManualFormat:
         """Return manual formatting on a paragraph/style."""
         fmt = ManualFormat(direction="LTR")
+        manual: dict[str, str | int] = {}
         match cls._wval(nodes, "w:pPr/w:jc"):
             case "center":
-                fmt = fmt.replace(align="CENTERED")
+                manual["align"] = "CENTERED"
             case "both":
-                fmt = fmt.replace(align="JUSTIFIED")
+                manual["align"] = "JUSTIFIED"
             case "left":
-                fmt = fmt.replace(align="LEFT")
+                manual["align"] = "LEFT"
             case "right":
-                fmt = fmt.replace(align="RIGHT")
+                manual["align"] = "RIGHT"
         for tag, value in cls.KNOWN_INDENTS.items():
             if val := cls._wval(nodes, "w:pPr/w:ind", tag):
                 if int(val) > 0:
-                    fmt = fmt.replace(indent=value)
+                    manual["indent"] = value
         if valstr := cls._wval(nodes, "w:pPr/w:numPr/w:numId"):
-            fmt = fmt.replace(numbering=int(valstr))
+            manual["numbering"] = int(valstr)
+        if valstr := cls._wval(nodes, "w:pPr/w:outlineLvl"):
+            manual["level"] = int(valstr) + 1
         for _ in cls.xpath(nodes, "w:pPr/w:bidi"):
-            fmt = fmt.replace(direction="RTL")
-        return fmt
+            manual["direction"] = "RTL"
+        return fmt.replace(**manual)
 
     def is_page_break(self) -> bool:
         """Check if the paragraph is a page break."""
