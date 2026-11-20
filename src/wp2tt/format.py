@@ -15,6 +15,7 @@ class ManualFormat:
     direction: DIRECTION = None
     new_page: t.Literal[True] | None = None
     spaced: t.Literal[True] | None = None
+    numeric: t.Literal[True] | None = None
     stars: t.Literal[True] | None = None
     post_stars: t.Literal[True] | None = None
     whitein: int | None = None

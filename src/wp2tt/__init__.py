@@ -77,6 +77,7 @@ class State:
     is_empty: bool = True
     is_post_empty: bool = False
     is_post_break: bool = False
+    is_numeric: bool = False
     is_stars: bool = False
     is_post_stars: bool = False
     para_char_fmt: ManualFormat = dcl.field(default_factory=ManualFormat)
@@ -621,6 +622,7 @@ class WordProcessorToInDesignTaggedText:
 
         text = "".join(para.text()).strip()
         self.state.is_stars = bool(re.fullmatch(r"[*]+", text))  # apply_rules_to uses this
+        self.state.is_numeric = bool(re.fullmatch(r"\d+", text))  # apply_rules_to uses this
 
         style = self.apply_rules_to(para) or default_style
         self._remember_seeing(style)
@@ -671,6 +673,8 @@ class WordProcessorToInDesignTaggedText:
             fmt = fmt.replace(new_page=True)
         if self.state.is_post_empty:
             fmt = fmt.replace(spaced=True)
+        if self.state.is_numeric:
+            fmt = fmt.replace(numeric=True)
         if self.state.is_stars:
             fmt = fmt.replace(stars=True)
         if self.state.is_post_stars:
