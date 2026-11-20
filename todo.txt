@@ -1,5 +1,5 @@
 - Wildcards in rule matching
-- Switch to YAML or something.
+- Switch to YAML or something (but I need a writable format).
 - Numbering shouldn't be manual-only (or at all):
   - Use bnListType? bnNumberingSystem??
 - Maybe use the xslt (or the whole thing) from https://github.com/RolandDreger/indesign-word-import
@@ -12,7 +12,6 @@
 - PUB: Manual
 - many-to-one wp_name -> name
 - mapping csv
-- [paragraph rule] when_matches_re
 - [paragraph style] keep_last_n_chars
 - character style rule (grep)
 - Non-unicode when not required?

@@ -409,6 +409,11 @@ class WordProcessorToInDesignTaggedText:
                         style for style in wfs
                         if style is not None
                     ]
+                if rule.when_matches is not None:
+                    rule.when_matches_patterns = [
+                        re.compile(expr[1:-1])
+                        for expr in re.findall(r"/.*?/", rule.when_matches)
+                    ]
             except BadReferenceInRuleError:
                 log.warning("Ignoring rule with bad references: %s", rule)
                 rule.valid = False
@@ -621,12 +626,12 @@ class WordProcessorToInDesignTaggedText:
         if self.stop_marker:
             self.check_for_stop_paragraph(para)
 
-        text = "".join(para.text()).strip()
-        self.state.is_empty = not text
-        self.state.is_stars = re.fullmatch(r"[*]+", text) is not None
-        self.state.is_numeric = re.fullmatch(r"\d+", text) is not None
+        stripped = "".join(para.text()).strip()
+        self.state.is_empty = not stripped
+        self.state.is_stars = re.fullmatch(r"[*]+", stripped) is not None
+        self.state.is_numeric = re.fullmatch(r"\d+", stripped) is not None
 
-        style = self.apply_rules_to(para) or default_style
+        style = self.apply_rules_to(para, stripped) or default_style
         if style is self.SKIP_THIS:
             log.debug("Skipping paragraph due to deleter rule")
             return
@@ -755,12 +760,12 @@ class WordProcessorToInDesignTaggedText:
         )
         return self.manual_styles[mfcs]
 
-    def apply_rules_to(self, para: IDocParagraph) -> OptionalStyle:
+    def apply_rules_to(self, para: IDocParagraph, stripped: str) -> OptionalStyle:
         """Convert style according to user-defined rules."""
         style = self.get_paragraph_style(para)
         if style:
             for rule in self.rules:
-                if self.rule_applies_to(rule, style, para.is_empty):
+                if self.rule_applies_to(rule, style, stripped):
                     self._remember_seeing(style)
                     rule.applied += 1
                     return rule.into_this_style
@@ -770,14 +775,11 @@ class WordProcessorToInDesignTaggedText:
         self,
         rule: Rule,
         style: Style,
-        is_empty: t.Callable[[], bool],
+        stripped: str,
     ) -> bool:
         """Check if `rule` should be applied on `style`."""
         if not rule.valid:
             return False
-        if rule.to_bool(rule.unless_empty):
-            if is_empty():
-                return False
         if rule.turn_this_style is not style:
             return False
         if rule.when_first_in_doc is not None:
@@ -785,6 +787,12 @@ class WordProcessorToInDesignTaggedText:
                 return False
         if rule.when_following_styles:
             if self.state.prev_para_style not in rule.when_following_styles:
+                return False
+        if rule.to_bool(rule.unless_empty):
+            if stripped:
+                return False
+        if (patterns := rule.when_matches_patterns):
+            if all(p.search(stripped) is None for p in patterns):
                 return False
         return True
 

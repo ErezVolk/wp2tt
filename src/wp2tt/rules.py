@@ -1,4 +1,5 @@
 import dataclasses as dcl
+import re
 
 from wp2tt.styles import ATTR_READONLY
 from wp2tt.styles import ATTR_NO_INI
@@ -16,6 +17,7 @@ class Rule:
     into_this: str | None = None
     when_following: str | None = None
     when_first_in_doc: str | None = None
+    when_matches: str | None = None
     unless_empty: str | None = None
 
     turn_this_style: OptionalStyle = dcl.field(
@@ -25,6 +27,9 @@ class Rule:
         default=None, metadata=ATTR_NO_INI, init=False,
     )
     when_following_styles: list[Style] | None = dcl.field(
+        default=None, metadata=ATTR_NO_INI, init=False,
+    )
+    when_matches_patterns: list[re.Pattern] | None = dcl.field(
         default=None, metadata=ATTR_NO_INI, init=False,
     )
 

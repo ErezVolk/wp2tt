@@ -100,17 +100,17 @@ class SettingsFile(configparser.ConfigParser):
             self._write_comments(fobj)
 
     def _write_comments(self, fobj: io.Writer[str]) -> None:
-        if not any(self._is_rule(name) for name in self.sections()):
-            fobj.write(
-                f"\n"
-                f"; [{self.RULE_PREFIX}DESCRIPTIVE_NAME]\n"
-                f"; turn_this = [Paragraph:From]\n"
-                f"; into_this = [Paragraph:To] (leave empty to DELETE)\n"
-                f"; when_following = [Paragraph:Pre] (optional)\n"
-                f"; when_first_in_doc = True|False (optional)\n"
-                f"; unless_empty = True (optional)\n"
-                f"\n"
-            )
+        fobj.write(
+            f"\n"
+            f"; [{self.RULE_PREFIX}DESCRIPTIVE_NAME]\n"
+            f"; turn_this = [Paragraph:From]\n"
+            f"; into_this = [Paragraph:To] (leave empty to DELETE)\n"
+            f"; when_following = [Paragraph:Pre] [Paragraph:Pre2] ... (optional)\n"
+            f"; when_first_in_doc = True|False (optional)\n"
+            f"; unless_empty = True (optional)\n"
+            f"; when_matches = /REGEX/ /REGEX/ ... (optional)\n"
+            f"\n"
+        )
         if self.images is None:
             fobj.write(
                 f"\n"
