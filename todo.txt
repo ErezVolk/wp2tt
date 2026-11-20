@@ -1,5 +1,4 @@
 - Wildcards in rule matching
-- Deletion rules
 - Switch to YAML or something.
 - Numbering shouldn't be manual-only (or at all):
   - Use bnListType? bnNumberingSystem??
@@ -13,7 +12,6 @@
 - PUB: Manual
 - many-to-one wp_name -> name
 - mapping csv
-- [paragraph rule] when_first_in_doc
 - [paragraph rule] when_matches_re
 - [paragraph style] keep_last_n_chars
 - character style rule (grep)

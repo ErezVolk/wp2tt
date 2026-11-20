@@ -98,6 +98,7 @@ class WordProcessorToInDesignTaggedText:
     FORMULA_STYLE = SPECIAL_GROUP + "/(Formula)"
     HYPERLINK_STYLE = SPECIAL_GROUP + "/(Hyperlink)"
     TABLE_PARAGRAPH_STYLE = SPECIAL_GROUP + "/(Table Container)"
+    SKIP_THIS = Style(realm="", wpid="", internal_name="", name="")
 
     IGNORED_STYLES: t.Mapping[str, list[str]] = {
         "character": ["annotation reference"],
@@ -397,9 +398,8 @@ class WordProcessorToInDesignTaggedText:
                 )
                 rule.into_this_style = self.find_style_by_ini_ref(
                     rule.into_this,
-                    required=True,
                     inherit_from=rule.turn_this_style,
-                )
+                ) or self.SKIP_THIS
                 if rule.when_following is not None:
                     wfs = [
                         self.find_style_by_ini_ref(ini_ref)
@@ -627,6 +627,10 @@ class WordProcessorToInDesignTaggedText:
         self.state.is_numeric = re.fullmatch(r"\d+", text) is not None
 
         style = self.apply_rules_to(para) or default_style
+        if style is self.SKIP_THIS:
+            log.debug("Skipping paragraph due to deleter rule")
+            return
+
         self._remember_seeing(style)
 
         self.state.in_whitein = True

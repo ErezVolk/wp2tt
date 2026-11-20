@@ -105,7 +105,7 @@ class SettingsFile(configparser.ConfigParser):
                 f"\n"
                 f"; [{self.RULE_PREFIX}DESCRIPTIVE_NAME]\n"
                 f"; turn_this = [Paragraph:From]\n"
-                f"; into_this = [Paragraph:To]\n"
+                f"; into_this = [Paragraph:To] (leave empty to DELETE)\n"
                 f"; when_following = [Paragraph:Pre] (optional)\n"
                 f"; when_first_in_doc = True|False (optional)\n"
                 f"; unless_empty = True (optional)\n"
