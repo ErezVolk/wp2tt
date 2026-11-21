@@ -93,7 +93,7 @@ class SettingsFile(configparser.ConfigParser):
         return None
 
     def fields(
-        self, klass: type[DataclassInstance], *, writeable: bool = False,
+        self, klass: type[DataclassInstance], *, writable: bool = False,
     ) -> t.Iterable[tuple[str, str]]:
         """Yield a pair (name, ini_name) for all attributes."""
         for field in dcl.fields(klass):
@@ -102,7 +102,7 @@ class SettingsFile(configparser.ConfigParser):
                 continue
             ini_name = name = field.name
             if special == ATTR_VALUE_READONLY:
-                if writeable:
+                if writable:
                     continue
                 ini_name += " (readonly)"
             yield (name, ini_name)
@@ -123,8 +123,9 @@ class SettingsFile(configparser.ConfigParser):
             f"\n"
             f"; [{self.RULE_PREFIX}DESCRIPTIVE_NAME]\n"
             f"; turn_this = [Paragraph:From]  (EITHER this OR turn_these)\n"
-            f"; turn_these = /REGEX/ §WILDCARD§  (EITHER this OR turn_this)\n"
-            f"; into_this = [Paragraph:To] (leave empty to DELETE)\n"
+            f"; turn_these = /REGEX/ §WILDCARD§ ...  (EITHER this OR turn_this)\n"
+            f"; into_this = [Paragraph:To] (leave empty to DELETE; EITHER this OR into_these)\n"
+            f"; into_these = /REGEX/ /REGEX/ ... (EITHER this OR into_this)\n"
             f"; when_following = [Paragraph:Pre] [Paragraph:Pre2] ... (optional)\n"
             f"; when_first_in_doc = True|False (optional)\n"
             f"; when_matches = /REGEX/ /REGEX/ §WILDCARD§ ... (optional)\n"

@@ -2,7 +2,6 @@ import dataclasses as dcl
 import re
 import typing as t
 
-from wp2tt.styles import ATTR_READONLY
 from wp2tt.styles import ATTR_NO_INI
 from wp2tt.styles import OptionalStyle
 from wp2tt.styles import Style
@@ -27,6 +26,9 @@ class Rule:
 
     into_this: str | None = None
     into_this_style: OptionalStyle = _calculated(None)
+
+    into_these: str | None = None
+    into_these_exprs: list[str] | None = _calculated(None)
 
     when_following: str | None = None
     when_following_styles: list[Style] | None = _calculated(None)
@@ -54,14 +56,41 @@ class Rule:
         self._parse_flag("when_first_in_doc")
         self._parse_patterns("when_matches")
         self._parse_patterns("turn_these")
-        if bool(self.turn_this) == bool(self.turn_these):
+        self._split_exprs("into_these")
+        has_turn_these = bool(self.turn_these_patterns)
+        has_into_these = self.into_these_exprs is not None
+        if bool(self.turn_this) == has_turn_these:
             raise ValueError("You must supply EITHER turn_this OR turn_these")
+        if (self.into_this is not None) == has_into_these:
+            raise ValueError("You must supply EITHER into_this OR into_these")
+        if has_into_these:
+            if not has_turn_these:
+                raise ValueError("When using into_these, you MUST supply turn_these")
+            if (n_turn := len(self.turn_these_patterns)) != (n_into := len(self.into_these_exprs)):
+                raise ValueError(f"Count mismatch: {n_turn} turn_these != {n_into} into_these")
 
     def _parse_flag(self, field: str) -> None:
         if (text := getattr(self, field)):
             if (value := self._TO_BOOL.get(text)) is None:
                 raise ValueError(f"{field} must be one of {' '.join(self._TO_BOOL)}")
             setattr(self, f"{field}_flag", value)
+
+    def _split_exprs(self, field: str) -> None:
+        if not (text := getattr(self, field)):
+            return
+
+        exprs = []
+        tail = text
+        while tail:
+            mobj = re.match(r"(?P<marker>\S)(?P<expr>(?:(?!\1).)+)\1", tail)
+            if mobj is None:
+                raise ValueError(f"Bad {field}: {text!r}")
+            if mobj.group("marker") == self._WILDCARD_MARKER:
+                raise ValueError(f"into_these cannot be a wildcard")
+            exprs.append(mobj.group("expr"))
+            tail = tail[mobj.end()+1:].lstrip()
+
+        setattr(self, f"{field}_exprs", exprs)
 
     def _parse_patterns(self, field: str) -> None:
         if not (text := getattr(self, field)):

@@ -1,4 +1,3 @@
-- turn_these into_these
 - Switch to YAML or something (but I need a writable format).
 - Numbering shouldn't be manual-only (or at all):
   - Use bnListType? bnNumberingSystem??

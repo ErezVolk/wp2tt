@@ -219,7 +219,7 @@ class WordProcessorToInDesignTaggedText:
                 Rule(
                     mnemonic=f"R{len(self.rules) + 1}",
                     description=name,
-                    **{
+                    **{  # ty: ignore [invalid-argument-type]
                         name: section[ini_name]
                         for name, ini_name in self.settings.fields(Rule)
                         if ini_name in section
@@ -397,7 +397,8 @@ class WordProcessorToInDesignTaggedText:
                 rule.into_this_style = self.find_style_by_ini_ref(
                     rule.into_this,
                     inherit_from=rule.turn_this_style,
-                ) or self.SKIP_THIS
+                    empty_string_means=self.SKIP_THIS,
+                )
                 if rule.when_following is not None:
                     wfs = [
                         self.find_style_by_ini_ref(ini_ref)
@@ -414,16 +415,19 @@ class WordProcessorToInDesignTaggedText:
     def find_style_by_ini_ref(
         self,
         ini_ref: str | None,
+        empty_string_means: OptionalStyle = None,
         *,
         required: bool = False,
-        inherit_from: Style | None = None,
+        inherit_from: OptionalStyle = None,
     ) -> OptionalStyle:
         """Return a style, given type of string we use for ini file section names."""
-        if not ini_ref:
+        if ini_ref is None:
             if required:
                 log.debug(f"MISSING REQUIRED ini_ref=%r", ini_ref)
                 raise BadReferenceInRuleError
             return None
+        if ini_ref == "":
+            return empty_string_means
         mobj = re.match(
             r"^\[(?P<realm>\w+):(?P<internal_name>.+)\]$", ini_ref, re.IGNORECASE,
         )
@@ -479,7 +483,7 @@ class WordProcessorToInDesignTaggedText:
         kwargs.update(
             {
                 name: section[ini_name]
-                for name, ini_name in self.settings.fields(Style, writeable=True)
+                for name, ini_name in self.settings.fields(Style, writable=True)
                 if ini_name in section
             },
         )
@@ -758,10 +762,10 @@ class WordProcessorToInDesignTaggedText:
         style = self.get_paragraph_style(para)
         if style:
             for rule in self.rules:
-                if self.rule_applies_to(rule, style, stripped):
+                if target := self.rule_applies_to(rule, style, stripped):
                     self._remember_seeing(style)
                     rule.applied += 1
-                    return rule.into_this_style
+                    return target
         return style
 
     def rule_applies_to(
@@ -769,27 +773,39 @@ class WordProcessorToInDesignTaggedText:
         rule: Rule,
         style: Style,
         stripped: str,
-    ) -> bool:
+    ) -> Style | None:
         """Check if `rule` should be applied on `style`."""
+        n_match: int | None
+
         if not rule.valid:
-            return False
+            return None
         if rule.turn_this_style:
             if rule.turn_this_style is not style:
-                return False
+                return None
+            n_match = None
         elif rule.turn_these_patterns:
             section_name = self._section_name(style)
-            if all(p.search(section_name) is None for p in rule.turn_these_patterns):
-                return False
+            for n_match, pattern in enumerate(rule.turn_these_patterns):
+                if pattern.search(section_name):
+                    break
+            else:
+                return None
         if rule.when_first_in_doc_flag is not None:
             if rule.when_first_in_doc_flag != (style not in self.seen):
-                return False
+                return None
         if rule.when_following_styles:
             if self.state.prev_para_style not in rule.when_following_styles:
-                return False
+                return None
         if (patterns := rule.when_matches_patterns):
             if all(p.search(stripped) is None for p in patterns):
-                return False
-        return True
+                return None
+
+        if rule.into_this_style is not None:
+            return rule.into_this_style
+
+        assert n_match is not None and rule.into_these_exprs is not None
+        section_name = pattern.sub(rule.into_these_exprs[n_match], section_name)
+        return self.find_style_by_ini_ref(f"[{section_name}]")
 
     def check_for_stop_paragraph(self, para: IDocParagraph) -> None:
         """Look for stop marker, raises StopMarkerFoundError() if found."""
