@@ -107,7 +107,7 @@ class SettingsFile(configparser.ConfigParser):
             f"; into_this = [Paragraph:To] (leave empty to DELETE)\n"
             f"; when_following = [Paragraph:Pre] [Paragraph:Pre2] ... (optional)\n"
             f"; when_first_in_doc = True|False (optional)\n"
-            f"; when_matches = /REGEX/ /REGEX/ ... (optional)\n"
+            f"; when_matches = /REGEX/ /REGEX/ §WILDCARD§ ... (optional)\n"
             f"\n"
         )
         if self.images is None:

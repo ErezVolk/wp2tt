@@ -8,6 +8,9 @@ from wp2tt.styles import OptionalStyle
 from wp2tt.styles import Style
 
 
+_WILDCARD_MARKER = "§"
+_METACHARS = ".^$*+?{}[]\|()"
+
 def _calculated[T](default: T) -> T:
     return dcl.field(default=default, metadata=ATTR_NO_INI, init=False)
 
@@ -59,13 +62,31 @@ class Rule:
         patterns = []
         tail = text
         while tail:
-            mobj = re.match(r"(\S)(?P<re>(?:(?!\1).)+)\1", tail)
+            mobj = re.match(r"(?P<marker>\S)(?P<expr>(?:(?!\1).)+)\1", tail)
             if mobj is None:
                 raise ValueError(f"Bad {field}: {text!r}")
-            patterns.append(re.compile(mobj.group("re")))
+            patterns.append(self._build_re(mobj.group("marker"), mobj.group("expr")))
             tail = tail[mobj.end()+1:].lstrip()
 
         setattr(self, f"{field}_patterns", patterns)
+
+    def _build_re(self, marker: str, expr: str) -> re.Pattern[str]:
+        if marker == _WILDCARD_MARKER:
+            expr = "".join(self._wildcard_char(c) for c in expr)
+        return re.compile(expr)
+
+    def _wildcard_char(self, char: str) -> str:
+        match char:
+            case "*":
+                return ".*"
+            case "?":
+                return "."
+            case "]":
+                return r"\]"
+            case c if c in _METACHARS:
+                return "\\" + c
+            case _:
+                return char
 
     def __str__(self) -> str:
         return f"<{self.mnemonic} {self.description!r}>"
