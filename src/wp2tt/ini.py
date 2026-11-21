@@ -29,6 +29,7 @@ class SettingsFile(configparser.ConfigParser):
     RULE_PREFIX = "rule:"
 
     path: Path
+    override: Path
     touched: bool = False
     images: configparser.SectionProxy | None = None
     base: Path
@@ -37,19 +38,26 @@ class SettingsFile(configparser.ConfigParser):
         """Read ini file."""
         super().__init__()
         self.path = path
+        self.override = path.with_suffix(f".override{path.suffix}")
         self.base = self.path.parent.resolve()
 
         if fresh_start or not self.exists():
             return
 
-        log.info("Reading %s", self.path)
-        self.read(path, encoding=self.ENCODING)
+        self._read_path(self.path)
+        if self.override.is_file():
+            self._read_path(self.override)
+
         try:
             self.images = self[self.IMAGE_SECTION]
             self.base = self.base / self.images[self.BASE_KEY]
             log.debug("Image base: %s", self.base)
         except KeyError:
             pass
+
+    def _read_path(self, path: Path) -> None:
+        log.info("Reading %s", path)
+        self.read(path, encoding=self.ENCODING)
 
     def exists(self) -> bool:
         """Check if the .ini file currently exists."""
@@ -111,16 +119,14 @@ class SettingsFile(configparser.ConfigParser):
             f"; when_matches = /REGEX/ /REGEX/ §WILDCARD§ ... (optional)\n"
             f"; WILDCARDs are case-insensitive\n"
             f"\n"
+            f"; [{self.IMAGE_SECTION}]\n"
+            f"; {self.BASE_KEY} = PATH (optional)\n"
+            f"; NAME = RELATIVE_PATH\n"
+            f"; ...\n"
+            f"\n"
+            f"; You can put overrides in {self.override.name}"
+            f"\n"
         )
-        if self.images is None:
-            fobj.write(
-                f"\n"
-                f"; [{self.IMAGE_SECTION}]\n"
-                f"; {self.BASE_KEY} = PATH (optional)\n"
-                f"; NAME = RELATIVE_PATH\n"
-                f"; ...\n"
-                f"\n"
-            )
 
     def get_section(
         self,
