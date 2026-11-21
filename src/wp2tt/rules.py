@@ -1,10 +1,15 @@
 import dataclasses as dcl
 import re
+import typing as t
 
 from wp2tt.styles import ATTR_READONLY
 from wp2tt.styles import ATTR_NO_INI
 from wp2tt.styles import OptionalStyle
 from wp2tt.styles import Style
+
+
+def _calculated[T](default: T) -> T:
+    return dcl.field(default=default, metadata=ATTR_NO_INI, init=False)
 
 
 @dcl.dataclass
@@ -19,21 +24,15 @@ class Rule:
     when_first_in_doc: str | None = None
     when_matches: str | None = None
 
-    turn_this_style: OptionalStyle = dcl.field(
-        default=None, metadata=ATTR_NO_INI, init=False,
-    )
-    into_this_style: OptionalStyle = dcl.field(
-        default=None, metadata=ATTR_NO_INI, init=False,
-    )
-    when_following_styles: list[Style] | None = dcl.field(
-        default=None, metadata=ATTR_NO_INI, init=False,
-    )
-    when_matches_patterns: list[re.Pattern] | None = dcl.field(
-        default=None, metadata=ATTR_NO_INI, init=False,
-    )
+    turn_this_style: OptionalStyle = _calculated(None)
+    turn_this_pattern: re.Pattern[str] | None = _calculated(None)
+    into_this_style: OptionalStyle = _calculated(None)
+    when_first_in_doc_flag: bool | None = _calculated(None)
+    when_following_styles: list[Style] | None = _calculated(None)
+    when_matches_patterns: list[re.Pattern[str]] | None = _calculated(None)
 
-    valid: bool = dcl.field(default=True, metadata=ATTR_NO_INI, init=False)
-    applied: int = dcl.field(default=0, metadata=ATTR_NO_INI, init=False)
+    valid: bool = _calculated(True)
+    applied: int = _calculated(0)
 
     _TRUE_VALUES = ("true", "yes", "on", "1")
     _FALSE_VALUES = ("false", "no", "off", "0")
@@ -43,16 +42,30 @@ class Rule:
         for as_str in as_strs
     }
 
-    @classmethod
-    def to_bool(cls, as_str: str | None) -> None | bool:
-        if as_str is None:
-            return None
-        return cls._TO_BOOL[as_str.lower()]
-
     def __post_init__(self):
-        if self.when_first_in_doc is not None:
-            if (value := self.when_first_in_doc).lower() not in self._TO_BOOL:
-                raise ValueError(f"when_first_in_doc may not be {value!r}")
+        self._parse_flag("when_first_in_doc")
+        self._parse_patterns("when_matches")
+
+    def _parse_flag(self, field: str) -> None:
+        if (text := getattr(self, field)):
+            if (value := self._TO_BOOL.get(text)) is None:
+                raise ValueError(f"{field} must be one of {' '.join(self._TO_BOOL)}")
+            setattr(self, f"{field}_flag", value)
+
+    def _parse_patterns(self, field: str) -> None:
+        if not (text := getattr(self, field)):
+            return
+
+        patterns = []
+        tail = text
+        while tail:
+            mobj = re.match(r"(\S)(?P<re>(?:(?!\1).)+)\1", tail)
+            if mobj is None:
+                raise ValueError(f"Bad {field}: {text!r}")
+            patterns.append(re.compile(mobj.group("re")))
+            tail = tail[mobj.end()+1:].lstrip()
+
+        setattr(self, f"{field}_patterns", patterns)
 
     def __str__(self) -> str:
         return f"<{self.mnemonic} {self.description!r}>"

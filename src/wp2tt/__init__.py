@@ -409,20 +409,9 @@ class WordProcessorToInDesignTaggedText:
                         style for style in wfs
                         if style is not None
                     ]
-                if rule.when_matches is not None:
-                    rule.when_matches_patterns = list(self.parse_when_matches(rule.when_matches))
             except BadReferenceInRuleError:
                 log.warning("Ignoring rule with bad references: %s", rule)
                 rule.valid = False
-
-    def parse_when_matches(self, when_matches: str) -> t.Generator[re.Pattern]:
-        tail = when_matches
-        while tail:
-            mobj = re.match(r"(\S)(?P<re>(?:(?!\1).)+)\1", tail)
-            if mobj is None:
-                raise ValueError(f"Bad when_matches: {when_matches!r}")
-            yield re.compile(mobj.group("re"))
-            tail = tail[mobj.end()+1:].lstrip()
 
     def find_style_by_ini_ref(
         self,
@@ -788,8 +777,8 @@ class WordProcessorToInDesignTaggedText:
             return False
         if rule.turn_this_style is not style:
             return False
-        if rule.when_first_in_doc is not None:
-            if rule.to_bool(rule.when_first_in_doc) != (style not in self.seen):
+        if rule.when_first_in_doc_flag is not None:
+            if rule.when_first_in_doc_flag != (style not in self.seen):
                 return False
         if rule.when_following_styles:
             if self.state.prev_para_style not in rule.when_following_styles:
