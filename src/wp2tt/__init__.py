@@ -226,7 +226,7 @@ class WordProcessorToInDesignTaggedText:
                     },
                 ),
             )
-            log.debug(self.rules[-1])
+            log.debug("%r", self.rules[-1])
 
     def write_settings(self) -> None:
         """When done, write the settings file for the next time."""
@@ -393,9 +393,7 @@ class WordProcessorToInDesignTaggedText:
         """Do a sort of alchemy-relationship thing."""
         for rule in self.rules:
             try:
-                rule.turn_this_style = self.find_style_by_ini_ref(
-                    rule.turn_this, required=True,
-                )
+                rule.turn_this_style = self.find_style_by_ini_ref(rule.turn_this)
                 rule.into_this_style = self.find_style_by_ini_ref(
                     rule.into_this,
                     inherit_from=rule.turn_this_style,
@@ -775,8 +773,13 @@ class WordProcessorToInDesignTaggedText:
         """Check if `rule` should be applied on `style`."""
         if not rule.valid:
             return False
-        if rule.turn_this_style is not style:
-            return False
+        if rule.turn_this_style:
+            if rule.turn_this_style is not style:
+                return False
+        elif rule.turn_these_patterns:
+            section_name = self._section_name(style)
+            if all(p.search(section_name) is None for p in rule.turn_these_patterns):
+                return False
         if rule.when_first_in_doc_flag is not None:
             if rule.when_first_in_doc_flag != (style not in self.seen):
                 return False
@@ -1068,11 +1071,14 @@ class WordProcessorToInDesignTaggedText:
         self.activate_style(style)
         return style
 
-    def activate_style(self, style: Style) -> None:
-        """Define the style if needed."""
-        section_name = self.settings.fix_section_name(
+    def _section_name(self, style: Style) -> str:
+        return self.settings.fix_section_name(
             realm=style.realm, internal_name=style.internal_name,
         )
+
+    def activate_style(self, style: Style) -> None:
+        """Define the style if needed."""
+        section_name = self._section_name(style)
         if section_name in self.style_sections_used:
             return
 

@@ -103,11 +103,13 @@ class SettingsFile(configparser.ConfigParser):
         fobj.write(
             f"\n"
             f"; [{self.RULE_PREFIX}DESCRIPTIVE_NAME]\n"
-            f"; turn_this = [Paragraph:From]\n"
+            f"; turn_this = [Paragraph:From]  (EITHER this OR turn_these)\n"
+            f"; turn_these = /REGEX/ §WILDCARD§  (EITHER this OR turn_this)\n"
             f"; into_this = [Paragraph:To] (leave empty to DELETE)\n"
             f"; when_following = [Paragraph:Pre] [Paragraph:Pre2] ... (optional)\n"
             f"; when_first_in_doc = True|False (optional)\n"
             f"; when_matches = /REGEX/ /REGEX/ §WILDCARD§ ... (optional)\n"
+            f"; WILDCARDs are case-insensitive\n"
             f"\n"
         )
         if self.images is None:

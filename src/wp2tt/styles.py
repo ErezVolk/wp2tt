@@ -41,7 +41,7 @@ class Style:
 
     def __str__(self) -> str:
         if self.custom:
-            return f"<{self.realm} {self.name!r}"
+            return f"<{self.realm} {self.name!r}>"
         return f"<{self.realm} {self.name!r} (built-in)>"
 
     def __hash__(self) -> int:
