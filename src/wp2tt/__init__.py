@@ -410,13 +410,19 @@ class WordProcessorToInDesignTaggedText:
                         if style is not None
                     ]
                 if rule.when_matches is not None:
-                    rule.when_matches_patterns = [
-                        re.compile(expr[1:-1])
-                        for expr in re.findall(r"/.*?/", rule.when_matches)
-                    ]
+                    rule.when_matches_patterns = list(self.parse_when_matches(rule.when_matches))
             except BadReferenceInRuleError:
                 log.warning("Ignoring rule with bad references: %s", rule)
                 rule.valid = False
+
+    def parse_when_matches(self, when_matches: str) -> t.Generator[re.Pattern]:
+        tail = when_matches
+        while tail:
+            mobj = re.match(r"(\S)(?P<re>(?:(?!\1).)+)\1", tail)
+            if mobj is None:
+                raise ValueError(f"Bad when_matches: {when_matches!r}")
+            yield re.compile(mobj.group("re"))
+            tail = tail[mobj.end()+1:].lstrip()
 
     def find_style_by_ini_ref(
         self,
