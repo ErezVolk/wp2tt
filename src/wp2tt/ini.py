@@ -44,9 +44,9 @@ class SettingsFile(configparser.ConfigParser):
         if fresh_start or not self.exists():
             return
 
-        self._read_path(self.path)
-        if self.override.is_file():
-            self._read_path(self.override)
+        log.info("Reading %s", path)
+        self.read(self.path)
+        self._read_override()
 
         try:
             self.images = self[self.IMAGE_SECTION]
@@ -55,9 +55,20 @@ class SettingsFile(configparser.ConfigParser):
         except KeyError:
             pass
 
-    def _read_path(self, path: Path) -> None:
-        log.info("Reading %s", path)
-        self.read(path, encoding=self.ENCODING)
+    def _read_override(self) -> None:
+        """Do a section-replacing override, not what configparser does."""
+        if not self.override.is_file():
+            return
+
+        log.info("Reading %s", self.override)
+        other = configparser.ConfigParser()
+        other.read(self.override)
+        for section in other.sections():
+            if self.has_section(section):
+                self.remove_section(section)
+            self.add_section(section)
+            for key, value in other[section].items():
+                self.set(section, key, value)
 
     def exists(self) -> bool:
         """Check if the .ini file currently exists."""
