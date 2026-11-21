@@ -92,8 +92,6 @@ class Rule:
                 return ".*"
             case "?":
                 return "."
-            case "]":
-                return r"\]"
             case c if c in self._METACHARS:
                 return "\\" + c
             case _:
