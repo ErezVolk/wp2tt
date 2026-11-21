@@ -21,17 +21,20 @@ class Rule:
 
     mnemonic: str = dcl.field(metadata=ATTR_NO_INI)
     description: str = dcl.field(metadata=ATTR_NO_INI)
-    turn_this: str | None = None
-    into_this: str | None = None
-    when_following: str | None = None
-    when_first_in_doc: str | None = None
-    when_matches: str | None = None
 
+    turn_this: str | None = None
     turn_this_style: OptionalStyle = _calculated(None)
-    turn_this_pattern: re.Pattern[str] | None = _calculated(None)
+
+    into_this: str | None = None
     into_this_style: OptionalStyle = _calculated(None)
-    when_first_in_doc_flag: bool | None = _calculated(None)
+
+    when_following: str | None = None
     when_following_styles: list[Style] | None = _calculated(None)
+
+    when_first_in_doc: str | None = None
+    when_first_in_doc_flag: bool | None = _calculated(None)
+
+    when_matches: str | None = None
     when_matches_patterns: list[re.Pattern[str]] | None = _calculated(None)
 
     valid: bool = _calculated(True)
