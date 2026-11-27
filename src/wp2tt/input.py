@@ -1,11 +1,13 @@
 """Base class for input sources (document formats)."""
 from abc import abstractmethod
 from abc import ABC
-from os import PathLike
 import typing as t
 
 from wp2tt.format import ManualFormat
-from wp2tt.styles import DocumentProperties
+
+if t.TYPE_CHECKING:
+    from wp2tt.styles import DocumentProperties
+    from os import PathLike
 
 
 class IDocInput(ABC):
@@ -65,7 +67,7 @@ class IDocTextSource(IDocPrefixable):
 class IDocParagraph(IDocTextSource):
     """A Paragraph inside a document."""
 
-    Chunk: t.TypeAlias = (
+    type Chunk = (
         "IDocSpan | IDocImage | IDocFormula | IDocBookmark | IDocHyperlink"
     )
 

@@ -1,7 +1,6 @@
 """.odt file parsing."""
 import contextlib
 import logging
-from pathlib import Path
 import typing as t
 
 from lxml import etree
@@ -13,6 +12,9 @@ from wp2tt.input import IDocParagraph
 from wp2tt.input import IDocSpan
 from wp2tt.styles import DocumentProperties
 from wp2tt.zip import ZipDocument
+
+if t.TYPE_CHECKING:
+    from pathlib import Path
 
 log = logging.getLogger(__name__)
 

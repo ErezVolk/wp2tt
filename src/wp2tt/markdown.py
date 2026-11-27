@@ -2,7 +2,6 @@
 # pylint: disable=unused-argument
 # ruff: noqa: ANN001, ANN201, ARG002, FBT002
 import logging
-from pathlib import Path
 import contextlib
 import typing as t
 
@@ -15,6 +14,9 @@ from wp2tt.input import IDocInput
 from wp2tt.input import IDocParagraph
 from wp2tt.input import IDocSpan
 from wp2tt.styles import DocumentProperties
+
+if t.TYPE_CHECKING:
+    from pathlib import Path
 
 log = logging.getLogger(__name__)
 

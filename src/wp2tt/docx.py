@@ -5,7 +5,6 @@ import typing as t
 
 from pathlib import Path
 from pathlib import PurePosixPath
-from os import PathLike
 
 from lxml import etree
 
@@ -24,6 +23,9 @@ from wp2tt.format import ManualFormat
 from wp2tt.mathml import MathConverter
 from wp2tt.styles import DocumentProperties
 from wp2tt.zip import ZipDocument
+
+if t.TYPE_CHECKING:
+    from os import PathLike
 
 log = logging.getLogger(__name__)
 

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 """Convert word processor files (.docx, .odt) to InDesign's Tagged Text."""
-import argparse
 import collections
 import contextlib
 import dataclasses as dcl
@@ -42,6 +41,9 @@ from wp2tt.styles import OptionalStyle
 from wp2tt.styles import Style
 from wp2tt.tagged_text import InDesignTaggedTextOutput
 from wp2tt.usage import Wp2ttParser
+
+if t.TYPE_CHECKING:
+    import argparse
 
 log = logging.getLogger(__name__)
 

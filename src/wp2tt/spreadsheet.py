@@ -1,9 +1,7 @@
 """Simple spreadsheet reader (via pandas)."""
 from abc import abstractmethod
-import argparse
 import contextlib
 import logging
-from pathlib import Path
 import re
 import typing as t
 
@@ -18,6 +16,10 @@ from wp2tt.input import IDocTable
 from wp2tt.input import IDocTableCell
 from wp2tt.input import IDocTableRow
 from wp2tt.styles import DocumentProperties
+
+if t.TYPE_CHECKING:
+    from pathlib import Path
+    import argparse
 
 log = logging.getLogger(__name__)
 
