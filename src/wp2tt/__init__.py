@@ -424,14 +424,10 @@ class WordProcessorToInDesignTaggedText:
         ini_ref: str | None,
         empty_string_means: OptionalStyle = None,
         *,
-        required: bool = False,
         inherit_from: OptionalStyle = None,
     ) -> OptionalStyle:
         """Return a style, given type of string we use for ini file section names."""
         if ini_ref is None:
-            if required:
-                log.debug("MISSING REQUIRED ini_ref=%r", ini_ref)
-                raise BadReferenceInRuleError
             return None
         if ini_ref == "":
             return empty_string_means
@@ -670,6 +666,7 @@ class WordProcessorToInDesignTaggedText:
 
     def _remember_seeing(self, style: Style | None) -> None:
         if style is not None:
+            self.activate_style(style)
             self.seen.add(style)
 
     def get_paragraph_style(self, para: IDocParagraph) -> OptionalStyle:
