@@ -750,9 +750,13 @@ class WordProcessorToInDesignTaggedText:
         prefix = self.auto_prefix
         if unadorned:
             uname = unadorned.name.removeprefix(prefix)
-            name = f"{self.SPECIAL_GROUP}/{uname} ({fmt})"
+            if fmt == ManualFormat.NORMAL:
+                name = f"{self.SPECIAL_GROUP}/{uname}"
+            else:
+                name = f"{self.SPECIAL_GROUP}/{uname} ({fmt})"
         else:
             name = f"{self.SPECIAL_GROUP}/({fmt})"
+
         self.manual_styles[mfcs] = self.found_style_definition(
             realm=realm,
             internal_name=f"{prefix}{name}",
