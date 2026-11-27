@@ -217,18 +217,21 @@ class WordProcessorToInDesignTaggedText:
         """Convert Rule sections into Rule objects."""
         self.rules = []
         for name, section in self.settings.rules():
-            self.rules.append(
-                Rule(
-                    mnemonic=f"R{len(self.rules) + 1}",
-                    description=name,
-                    **{  # ty: ignore [invalid-argument-type]
-                        name: section[ini_name]
-                        for name, ini_name in self.settings.fields(Rule)
-                        if ini_name in section
-                    },
-                ),
-            )
-            log.debug("%r", self.rules[-1])
+            try:
+                self.rules.append(
+                    Rule(
+                        mnemonic=f"R{len(self.rules) + 1}",
+                        description=name,
+                        **{  # ty: ignore [invalid-argument-type]
+                            name: section[ini_name]
+                            for name, ini_name in self.settings.fields(Rule)
+                            if ini_name in section
+                        },
+                    ),
+                )
+                log.debug("%r", self.rules[-1])
+            except ValueError as exc:
+                raise ValueError(f"Bad rule: [{name}]") from exc
 
     def write_settings(self) -> None:
         """When done, write the settings file for the next time."""

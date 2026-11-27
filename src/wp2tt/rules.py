@@ -8,11 +8,6 @@ from wp2tt.styles import OptionalStyle
 from wp2tt.styles import Style
 
 
-_DEFAULT_NONE: t.Final = dcl.field(default=None, metadata=ATTR_NO_INI, init=False)
-_DEFAULT_TRUE: t.Final = dcl.field(default=True, metadata=ATTR_NO_INI, init=False)
-_DEFAULT_ZERO: t.Final = dcl.field(default=0, metadata=ATTR_NO_INI, init=False)
-
-
 @dcl.dataclass
 class Rule:
     """A derivation rule for Styles."""
@@ -21,28 +16,31 @@ class Rule:
     description: str = dcl.field(metadata=ATTR_NO_INI)
 
     turn_this: str | None = None
-    turn_this_style: OptionalStyle = _DEFAULT_NONE
-
     turn_these: str | None = None
-    turn_these_patterns: list[re.Pattern[str]] | None = _DEFAULT_NONE
-
     into_this: str | None = None
-    into_this_style: OptionalStyle = _DEFAULT_NONE
-
     into_these: str | None = None
-    into_these_exprs: list[str] | None = _DEFAULT_NONE
-
     when_following: str | None = None
-    when_following_styles: list[Style] | None = _DEFAULT_NONE
-
     when_first_in_doc: str | None = None
-    when_first_in_doc_flag: bool | None = _DEFAULT_NONE
+
+    turn_this_style: OptionalStyle = dcl.field(
+        default=None, metadata=ATTR_NO_INI, init=False)
+    turn_these_patterns: list[re.Pattern[str]] | None = dcl.field(
+        default=None, metadata=ATTR_NO_INI, init=False)
+    into_this_style: OptionalStyle = dcl.field(
+        default=None, metadata=ATTR_NO_INI, init=False)
+    into_these_exprs: list[str] | None = dcl.field(
+        default=None, metadata=ATTR_NO_INI, init=False)
+    when_following_styles: list[Style] | None = dcl.field(
+        default=None, metadata=ATTR_NO_INI, init=False)
+    when_first_in_doc_flag: bool | None = dcl.field(
+        default=None, metadata=ATTR_NO_INI, init=False)
 
     when_matches: str | None = None
-    when_matches_patterns: list[re.Pattern[str]] | None = _DEFAULT_NONE
+    when_matches_patterns: list[re.Pattern[str]] | None = dcl.field(
+        default=None, metadata=ATTR_NO_INI, init=False)
 
-    valid: bool = _DEFAULT_TRUE
-    applied: int = _DEFAULT_ZERO
+    valid: bool = dcl.field(default=True, metadata=ATTR_NO_INI, init=False)
+    applied: int = dcl.field(default=0, metadata=ATTR_NO_INI, init=False)
 
     _WILDCARD_MARKER = "§"
     _METACHARS = r".^$*+?{}[]\|()"
