@@ -1,11 +1,13 @@
 """Ini file helper."""
 import configparser
 import dataclasses as dcl
-import io
 import logging
-from pathlib import Path
 import shutil
 import typing as t
+
+if t.TYPE_CHECKING:
+    import io
+    from pathlib import Path
 
 from wp2tt.styles import ATTR_KEY
 from wp2tt.styles import ATTR_VALUE_READONLY
@@ -124,7 +126,7 @@ class SettingsFile(configparser.ConfigParser):
             f"; [{self.RULE_PREFIX}DESCRIPTIVE_NAME]\n"
             f"; turn_this = [Paragraph:From]  (EITHER this OR turn_these)\n"
             f"; turn_these = /REGEX/ §WILDCARD§ ...  (EITHER this OR turn_this)\n"
-            f"; into_this = [Paragraph:To] (leave empty to DELETE; EITHER this OR into_these)\n"
+            f"; into_this = [Paragraph:To] (empty to DELETE)\n"
             f"; into_these = /REGEX/ /REGEX/ ... (EITHER this OR into_this)\n"
             f"; when_following = [Paragraph:Pre] [Paragraph:Pre2] ... (optional)\n"
             f"; when_first_in_doc = True|False (optional)\n"
@@ -137,7 +139,7 @@ class SettingsFile(configparser.ConfigParser):
             f"; ...\n"
             f"\n"
             f"; You can put overrides in {self.override.name}"
-            f"\n"
+            f"\n",
         )
 
     def get_section(

@@ -267,13 +267,14 @@ class InDesignTaggedTextOutput(IOutput, contextlib.ExitStack):
                 str(int(100 - fullness)),
                 ">",
             ]
-        elif realm == "character":
+        if realm == "character":
             return ["<cColor:Magenta>", "<cColorTint:", str(int(fullness)), ">"]
 
         return []
 
     COLOR_TAGS = ("cColor", "cColorTint", "pShadingColor", "pShadingOn", "pShadingTint")
     COLOR_EXPR = rf"<({'|'.join(COLOR_TAGS)}):[^>]*>"
+
     def _blacken(self, idtt: str) -> str:
         return re.sub(self.COLOR_EXPR, "", idtt)
 

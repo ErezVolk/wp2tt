@@ -1,3 +1,4 @@
+"""Rule: A derivation rule for Styles."""
 import dataclasses as dcl
 import re
 import typing as t
@@ -7,8 +8,9 @@ from wp2tt.styles import OptionalStyle
 from wp2tt.styles import Style
 
 
-def _calculated[T](default: T) -> T:
-    return dcl.field(default=default, metadata=ATTR_NO_INI, init=False)
+_DEFAULT_NONE: t.Final = dcl.field(default=None, metadata=ATTR_NO_INI, init=False)
+_DEFAULT_TRUE: t.Final = dcl.field(default=True, metadata=ATTR_NO_INI, init=False)
+_DEFAULT_ZERO: t.Final = dcl.field(default=0, metadata=ATTR_NO_INI, init=False)
 
 
 @dcl.dataclass
@@ -19,40 +21,40 @@ class Rule:
     description: str = dcl.field(metadata=ATTR_NO_INI)
 
     turn_this: str | None = None
-    turn_this_style: OptionalStyle = _calculated(None)
+    turn_this_style: OptionalStyle = _DEFAULT_NONE
 
     turn_these: str | None = None
-    turn_these_patterns: list[re.Pattern[str]] | None = _calculated(None)
+    turn_these_patterns: list[re.Pattern[str]] | None = _DEFAULT_NONE
 
     into_this: str | None = None
-    into_this_style: OptionalStyle = _calculated(None)
+    into_this_style: OptionalStyle = _DEFAULT_NONE
 
     into_these: str | None = None
-    into_these_exprs: list[str] | None = _calculated(None)
+    into_these_exprs: list[str] | None = _DEFAULT_NONE
 
     when_following: str | None = None
-    when_following_styles: list[Style] | None = _calculated(None)
+    when_following_styles: list[Style] | None = _DEFAULT_NONE
 
     when_first_in_doc: str | None = None
-    when_first_in_doc_flag: bool | None = _calculated(None)
+    when_first_in_doc_flag: bool | None = _DEFAULT_NONE
 
     when_matches: str | None = None
-    when_matches_patterns: list[re.Pattern[str]] | None = _calculated(None)
+    when_matches_patterns: list[re.Pattern[str]] | None = _DEFAULT_NONE
 
-    valid: bool = _calculated(True)
-    applied: int = _calculated(0)
+    valid: bool = _DEFAULT_TRUE
+    applied: int = _DEFAULT_ZERO
 
     _WILDCARD_MARKER = "§"
     _METACHARS = r".^$*+?{}[]\|()"
     _TRUE_VALUES = ("true", "yes", "on", "1")
     _FALSE_VALUES = ("false", "no", "off", "0")
-    _TO_BOOL = {
+    _TO_BOOL: t.ClassVar = {
         as_str: as_bool
         for as_bool, as_strs in ((True, _TRUE_VALUES), (False, _FALSE_VALUES))
         for as_str in as_strs
     }
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         self._parse_flag("when_first_in_doc")
         self._parse_patterns("when_matches")
         self._parse_patterns("turn_these")
@@ -66,8 +68,10 @@ class Rule:
         if has_into_these:
             if not has_turn_these:
                 raise ValueError("When using into_these, you MUST supply turn_these")
-            if (n_turn := len(self.turn_these_patterns)) != (n_into := len(self.into_these_exprs)):
-                raise ValueError(f"Count mismatch: {n_turn} turn_these != {n_into} into_these")
+            n_turn = len(self.turn_these_patterns)
+            n_into = len(self.into_these_exprs)
+            if n_turn != n_into:
+                raise ValueError(f"{n_turn} turn_these != {n_into} into_these")
 
     def _parse_flag(self, field: str) -> None:
         if (text := getattr(self, field)):
@@ -86,7 +90,7 @@ class Rule:
             if mobj is None:
                 raise ValueError(f"Bad {field}: {text!r}")
             if mobj.group("marker") == self._WILDCARD_MARKER:
-                raise ValueError(f"into_these cannot be a wildcard")
+                raise ValueError("into_these cannot be a wildcard")
             exprs.append(mobj.group("expr"))
             tail = tail[mobj.end()+1:].lstrip()
 
@@ -133,10 +137,16 @@ class Rule:
         parts = [
             self.mnemonic,
             repr(self.description),
-            self.turn_this_style or self.turn_these_patterns or repr(self.turn_this) or repr(self.turn_these),
+            self._turn_this_repr(),
             "->",
             str(self.into_this_style or self.into_this),
         ]
         return f"<{' '.join(map(str, parts))}>"
 
-
+    def _turn_this_repr(self) -> str:
+        return str(
+            self.turn_this_style or
+            self.turn_these_patterns or
+            repr(self.turn_this) or
+            repr(self.turn_these),
+        )

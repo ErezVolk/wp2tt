@@ -1,11 +1,13 @@
 """Simple output classes."""
 import re
+import typing as t
 
 from abc import ABC
 from abc import abstractmethod
 
-from wp2tt.styles import Style
-from wp2tt.styles import OptionalStyle
+if t.TYPE_CHECKING:
+    from wp2tt.styles import Style
+    from wp2tt.styles import OptionalStyle
 
 
 class IOutput(ABC):

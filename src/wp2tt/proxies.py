@@ -1,10 +1,11 @@
 """Utility classes."""
-import argparse
-from collections.abc import Sequence
 import contextlib
 import logging
-from pathlib import Path
 import typing as t
+
+if t.TYPE_CHECKING:
+    import argparse
+    from pathlib import Path
 
 from wp2tt.input import IDocInput
 from wp2tt.input import IDocParagraph
@@ -36,7 +37,7 @@ class MultiInput(ProxyInput):
 
     def __init__(
         self,
-        paths: Sequence[Path],
+        paths: t.Sequence[Path],
         args: argparse.Namespace | None = None,
     ) -> None:
         super().__init__(args)

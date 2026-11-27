@@ -67,6 +67,7 @@ ignore = [
    "I001",
    "PLR0911",  # Too many returns
    "PLR0912",  # Too many branches
+   "PLR0915",  # Too many statements
    "S101",
    "S311",
    "S324",
