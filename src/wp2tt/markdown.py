@@ -223,11 +223,11 @@ class MarkdownSpanBase(IDocSpan):
     def style_wpid(self) -> None:
         """Return the wpid for this span's style."""
 
-    def footnotes(self) -> t.Iterable["IDocFootnote"]:
+    def footnotes(self) -> t.Iterable[IDocFootnote]:
         """Yield an IDocFootnote object for each footnote in this span."""
         yield from ()
 
-    def comments(self) -> t.Iterable["IDocComment"]:
+    def comments(self) -> t.Iterable[IDocComment]:
         """Yield an IDocComment object for each comment in this span."""
         yield from ()
 

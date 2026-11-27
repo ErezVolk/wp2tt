@@ -30,7 +30,7 @@ class IDocInput(ABC):
         """Yield a pair (realm, wpid) for every style used in the document."""
         raise NotImplementedError
 
-    def paragraphs(self) -> t.Iterable["IDocParagraph | IDocTable"]:
+    def paragraphs(self) -> t.Iterable[IDocParagraph | IDocTable]:
         """Yield an IDocParagraph object for each body paragraph."""
         raise NotImplementedError
 
@@ -87,7 +87,7 @@ class IDocParagraph(IDocTextSource):
         """Yield all elements in the paragraph."""
         raise NotImplementedError
 
-    def spans(self) -> t.Iterable["IDocSpan"]:
+    def spans(self) -> t.Iterable[IDocSpan]:
         """Yield an IDocSpan per text span."""
         for chunk in self.chunks():
             if isinstance(chunk, IDocSpan):
@@ -101,11 +101,11 @@ class IDocSpan(IDocTextSource):
         """Return the wpid for this span's style."""
         return None
 
-    def footnotes(self) -> t.Iterable["IDocFootnote"]:
+    def footnotes(self) -> t.Iterable[IDocFootnote]:
         """Yield an IDocFootnote object for each footnote in this span."""
         raise NotImplementedError
 
-    def comments(self) -> t.Iterable["IDocComment"]:
+    def comments(self) -> t.Iterable[IDocComment]:
         """Yield an IDocComment object for each comment in this span."""
         raise NotImplementedError
 
@@ -169,7 +169,7 @@ class IDocTable(IDocPrefixable):
         return 0
 
     @abstractmethod
-    def rows(self) -> t.Iterable["IDocTableRow"]:
+    def rows(self) -> t.Iterable[IDocTableRow]:
         """Iterate the rows of the table."""
         raise NotImplementedError
 
@@ -178,7 +178,7 @@ class IDocTableRow(ABC):
     """A row in a table inside a document."""
 
     @abstractmethod
-    def cells(self) -> t.Iterable["IDocTableCell"]:
+    def cells(self) -> t.Iterable[IDocTableCell]:
         """Iterate the cells in the row."""
         raise NotImplementedError
 

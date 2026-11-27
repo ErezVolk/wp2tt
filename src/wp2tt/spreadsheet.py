@@ -114,7 +114,7 @@ class _SpreadsheetInput(contextlib.ExitStack, IDocInput):
         for style_dict in self.styles_defined():
             yield (style_dict["realm"], style_dict["wpid"])
 
-    def paragraphs(self) -> t.Iterable["DataFrameTable"]:
+    def paragraphs(self) -> t.Iterable[DataFrameTable]:
         """Just the one table, for now."""
         yield DataFrameTable(self._frame, self._column_wpids)
 

@@ -204,7 +204,7 @@ class DocxInput(contextlib.ExitStack, WordXml, IDocInput):
                 wpid = self.export_wpid(snode.attrib.get(self.wtag("val")))
                 yield (realm, wpid)
 
-    def paragraphs(self) -> t.Iterable["DocxParagraph | DocxTable"]:
+    def paragraphs(self) -> t.Iterable[DocxParagraph | DocxTable]:
         """Yield a DocxParagraph object for each body paragraph."""
         # ex. "//w:body/w:p[not(preceding-sibling::w:p/w:pPr/w:rPr/w:del)]"
         for node in self.xpath(self.document, "//w:body/*[self::w:p or self::w:tbl]"):
@@ -412,12 +412,12 @@ class DocxSpan(DocxNode, IDocSpan):
         """Get this Span's style."""
         return self.doc.export_wpid(self._node_wval("w:rPr/w:rStyle"))
 
-    def footnotes(self) -> t.Iterable["DocxFootnote"]:
+    def footnotes(self) -> t.Iterable[DocxFootnote]:
         """Yield foornotes in this span."""
         for fnr in self._node_xpath("w:footnoteReference"):
             yield DocxFootnote(self.doc, fnr)
 
-    def comments(self) -> t.Iterable["DocxComment"]:
+    def comments(self) -> t.Iterable[DocxComment]:
         """Yield footnotes in this span."""
         for cmr in self._node_xpath("w:commentReference"):
             yield DocxComment(self.doc, cmr)
@@ -571,7 +571,7 @@ class DocxTable(DocxNode, IDocTable):
         """Return number of header rows."""
         return self.n_header_rows
 
-    def rows(self) -> t.Iterable["DocxTableRow"]:
+    def rows(self) -> t.Iterable[DocxTableRow]:
         """Iterate the rows of the table."""
         yield from self.orows
 
@@ -589,7 +589,7 @@ class DocxTableRow(DocxNode, IDocTableRow):
             return True
         return False
 
-    def cells(self) -> t.Iterable["DocxTableCell"]:
+    def cells(self) -> t.Iterable[DocxTableCell]:
         """Yield all cells in the row."""
         yield from self.ocells
 

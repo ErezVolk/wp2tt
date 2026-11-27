@@ -1039,7 +1039,7 @@ class WordProcessorToInDesignTaggedText:
 
         def __init__(
             self,
-            outer: "WordProcessorToInDesignTaggedText",
+            outer: WordProcessorToInDesignTaggedText,
             ref_style: OptionalStyle = None,
         ) -> None:
             super().__init__()
