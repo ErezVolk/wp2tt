@@ -21,6 +21,8 @@ class Rule:
     into_these: str | None = None
     when_following: str | None = None
     when_first_in_doc: str | None = None
+    when_phase: str | None = None
+    set_phase: str | None = None
 
     turn_this_style: OptionalStyle = dcl.field(
         default=None, metadata=ATTR_NO_INI, init=False)

@@ -163,6 +163,11 @@ class Wp2ttParser(ArgumentParser):
             action="store_true",
             help="Preserve empty paragraphs",
         )
+        self.add_argument(
+            "-P",
+            "--phase",
+            help="Initial Phase for conversion rules",
+        )
         group = self.add_mutually_exclusive_group()
         group.add_argument(
             "--table-cols",
@@ -240,6 +245,7 @@ class Wp2ttParser(ArgumentParser):
             self._add_str(cli, args, "direction")
             self._add_str(cli, args, "formula_font_size")
             self._add_str(cli, args, "max_table_cols")
+            self._add_str(cli, args, "phase")
             self._add_str(cli, args, "stop_at")
 
             if args.max_table_cols:

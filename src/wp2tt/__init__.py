@@ -142,6 +142,7 @@ class WordProcessorToInDesignTaggedText:
     output_fn: Path
     output_stem: str
     parser: Wp2ttParser
+    phase: str = ""
     rerunner_fn: Path
     rules: list[Rule]
     seen: set[Style]
@@ -182,6 +183,7 @@ class WordProcessorToInDesignTaggedText:
         self.settings_fn = self.output_fn.with_suffix(".ini")
         self.rerunner_fn = Path(f"{self.output_fn}.rerun")
         self.stop_marker = self.args.stop_at
+        self.phase = self.args.phase
 
         if self.args.cache:
             self.cache = Cache(self.args.cache)
@@ -706,12 +708,10 @@ class WordProcessorToInDesignTaggedText:
             fmt = fmt.replace(whitein=whitein)
 
         # Check for paragraph with a character style
-        char_fmts = {span.format() for span in para.spans()}
+        char_fmts = {span.format() for span in para.spans() if "".join(span.text())}
         if char_fmts:
-            char_fmt = ManualFormat.intersection(char_fmts)
-            if char_fmt != ManualFormat.NORMAL:
-                self.state.para_char_fmt = char_fmt
-                fmt = fmt.override(self.state.para_char_fmt)
+            self.state.para_char_fmt = ManualFormat.intersection(char_fmts)
+            fmt = fmt.override(self.state.para_char_fmt)
 
         if self.args.direction == "IGNORE":
             fmt = fmt.replace(direction=None)
@@ -788,6 +788,7 @@ class WordProcessorToInDesignTaggedText:
 
         if not rule.valid:
             return None
+
         if rule.turn_this_style:
             if rule.turn_this_style is not style:
                 return None
@@ -809,6 +810,15 @@ class WordProcessorToInDesignTaggedText:
         if (patterns := rule.when_matches_patterns):
             if all(p.search(stripped) is None for p in patterns):
                 return None
+
+        if rule.when_phase is not None and rule.when_phase != self.phase:
+            return None
+
+        # We have a match
+
+        if rule.set_phase is not None:
+            log.debug("Phase %r -> %r", self.phase, rule.set_phase)
+            self.phase = rule.set_phase
 
         if rule.into_this_style is not None:
             return rule.into_this_style
