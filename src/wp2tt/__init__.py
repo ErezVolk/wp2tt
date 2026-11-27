@@ -643,13 +643,13 @@ class WordProcessorToInDesignTaggedText:
         self._remember_seeing(style)
 
         self.state.in_whitein = True
-        if self.args.keep_empty_lines or not self.state.is_empty:
-            self.writer.enter_paragraph(style)
-            for chunk in para.chunks():
-                self.convert_chunk(chunk)
-            if style and style.variable:
-                self.define_variable_from_paragraph(style.variable, para)
-            self.writer.leave_paragraph()
+
+        self.writer.enter_paragraph(style)
+        for chunk in para.chunks():
+            self.convert_chunk(chunk)
+        if style and style.variable:
+            self.define_variable_from_paragraph(style.variable, para)
+        self.writer.leave_paragraph()
 
         # For the next paragraph
         if para.is_page_break():

@@ -158,12 +158,6 @@ class Wp2ttParser(ArgumentParser):
             help="Do not use color",
         )
         self.add_argument(
-            "-E",
-            "--keep-empty-lines",
-            action="store_true",
-            help="Preserve empty paragraphs",
-        )
-        self.add_argument(
             "-P",
             "--phase",
             help="Initial Phase for conversion rules",
@@ -230,13 +224,11 @@ class Wp2ttParser(ArgumentParser):
             self._add_flag(cli, args, "manual")
             self._add_flag(cli, args, "maqaf")
             self._add_flag(cli, args, "no_cache")
-            self._add_flag(cli, args, "no_emf2svg")
             self._add_flag(cli, args, "no_input_rerunner")
             self._add_flag(cli, args, "no_rerunner")
             self._add_flag(cli, args, "no_svg2png")
             self._add_flag(cli, args, "remove_old_images_if_indesign")
             self._add_flag(cli, args, "remove_old_images")
-            self._add_flag(cli, args, "keep_empty_lines")
             self._add_flag(cli, args, "vav")
             self._add_path(cli, args, "cache")
             self._add_str(cli, args, "base_character_style", self.DEFAULT_BASE)
