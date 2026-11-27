@@ -142,10 +142,10 @@ class WordProcessorToInDesignTaggedText:
     parser: Wp2ttParser
     rerunner_fn: Path
     rules: list[Rule]
-    seen: set[Style] = set()
+    seen: set[Style]
     settings: SettingsFile
     settings_fn: Path
-    whiteins: dict[str, int] = {}
+    whiteins: dict[str, int]
     state: State = State()
     stop_marker: str
     stop_marker_found: bool
@@ -423,7 +423,7 @@ class WordProcessorToInDesignTaggedText:
         """Return a style, given type of string we use for ini file section names."""
         if ini_ref is None:
             if required:
-                log.debug(f"MISSING REQUIRED ini_ref=%r", ini_ref)
+                log.debug("MISSING REQUIRED ini_ref=%r", ini_ref)
                 raise BadReferenceInRuleError
             return None
         if ini_ref == "":
@@ -451,7 +451,7 @@ class WordProcessorToInDesignTaggedText:
             wpid=internal_name,
             internal_name=internal_name,
             parent_wpid=inherit_from.wpid if inherit_from else None,
-            parent_style=inherit_from if inherit_from else None,
+            parent_style=inherit_from or None,
         )
 
     def found_style_definition(
@@ -506,7 +506,7 @@ class WordProcessorToInDesignTaggedText:
         style = Style(**kwargs)
         key = self.style_key(style=style)
         if key in self.styles:
-            raise KeyError(f"Trying to double-create %s", style)
+            raise KeyError(f"Trying to double-create {style}")
         log.debug("Created %s with key %r", style, key)
         self.styles[key] = style
         return style
@@ -535,7 +535,9 @@ class WordProcessorToInDesignTaggedText:
         self.create_output()
         properties = self.doc.properties
         newline = "\u2028" if self.args.newline else "\n"
-        with InDesignTaggedTextOutput(properties, newline, black=self.args.black) as self.writer:
+        with InDesignTaggedTextOutput(
+            properties, newline, black=self.args.black,
+        ) as self.writer:
             self.define_styles()
             self.convert_document()
             self.write_output()
@@ -558,6 +560,8 @@ class WordProcessorToInDesignTaggedText:
     def convert_document(self) -> None:
         """Convert a document, one paragraph at a time."""
         try:
+            self.seen = set()
+            self.whiteins = {}
             self.stop_marker_found = False
             self.state.is_post_empty = False
             self.state.is_stars = False
@@ -661,11 +665,6 @@ class WordProcessorToInDesignTaggedText:
         if style is not None:
             self.seen.add(style)
 
-    def _just_dir(self, fmt: ManualFormat) -> ManualFormat:
-        if self.args.direction == "IGNORE" or fmt.direction == self.args.direction:
-            return fmt.replace(direction=None)
-        return fmt
-
     def get_paragraph_style(self, para: IDocParagraph) -> OptionalStyle:
         """Return style to be used for a paragraph."""
         self.state.para_char_fmt = ManualFormat.NORMAL
@@ -676,7 +675,7 @@ class WordProcessorToInDesignTaggedText:
             return unadorned
 
         # Manual formatting
-        fmt = self._just_dir(para.format())
+        fmt = para.format()
         if self.state.is_post_break:
             fmt = fmt.replace(new_page=True)
         if self.state.is_post_empty:
@@ -702,18 +701,17 @@ class WordProcessorToInDesignTaggedText:
             fmt = fmt.replace(whitein=whitein)
 
         # Check for paragraph with a character style
-        char_fmts = {self.get_span_format(span) for span in para.spans()}
-        if len(char_fmts) == 1:
-            self.state.para_char_fmt = char_fmts.pop()
+        char_fmts = {span.format() for span in para.spans()}
+        if char_fmts:
+            self.state.para_char_fmt = ManualFormat.intersect(list(char_fmts))
             fmt = fmt.add(self.state.para_char_fmt)
 
-        return self.get_manual_style("paragraph", unadorned, fmt)
+        if self.args.direction == "IGNORE":
+            fmt = fmt.replace(direction=None)
+        elif fmt.direction is not None:
+            fmt = fmt.replace(direction=self.args.direction)
 
-    def get_span_format(
-        self, node: IDocSpan,
-    ) -> ManualFormat:
-        """Return the marked part of a paragraph/span's format."""
-        return self._just_dir(node.format())
+        return self.get_manual_style("paragraph", unadorned, fmt)
 
     def get_manual_style(
         self, realm: str, unadorned: OptionalStyle, fmt: ManualFormat,
@@ -785,8 +783,9 @@ class WordProcessorToInDesignTaggedText:
             n_match = None
         elif rule.turn_these_patterns:
             section_name = self._section_name(style)
-            for n_match, pattern in enumerate(rule.turn_these_patterns):
+            for idx, pattern in enumerate(rule.turn_these_patterns):
                 if pattern.search(section_name):
+                    n_match = idx
                     break
             else:
                 return None
@@ -803,7 +802,8 @@ class WordProcessorToInDesignTaggedText:
         if rule.into_this_style is not None:
             return rule.into_this_style
 
-        assert n_match is not None and rule.into_these_exprs is not None
+        assert n_match is not None
+        assert rule.into_these_exprs is not None
         section_name = pattern.sub(rule.into_these_exprs[n_match], section_name)
         return self.find_style_by_ini_ref(f"[{section_name}]")
 
@@ -868,7 +868,7 @@ class WordProcessorToInDesignTaggedText:
             return unadorned
 
         # Manual formatting
-        fmt = self.get_span_format(span)
+        fmt = span.format()
         if fmt == self.state.para_char_fmt:
             # Format already included in paragraph style
             fmt = ManualFormat.NORMAL

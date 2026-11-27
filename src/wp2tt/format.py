@@ -9,6 +9,8 @@ type ALIGNMENT = t.Literal["CENTERED", "JUSTIFIED", "LEFT", "RIGHT"] | None
 
 @dcl.dataclass(frozen=True)
 class ManualFormat:
+    """A user's manual formatting."""
+
     NORMAL: t.ClassVar[ManualFormat]
 
     align: ALIGNMENT | None = None
@@ -47,6 +49,19 @@ class ManualFormat:
             for name, _ in other._active()
         })
 
+    @classmethod
+    def intersect(cls, fmts: list[ManualFormat]) -> ManualFormat:
+        if not fmts:
+            return ManualFormat()
+        common = dict(fmts[0]._active())
+        for fmt in fmts[1:]:
+            common = {
+                name: value
+                for name, value in common.items()
+                if getattr(fmt, name) == value
+            }
+        return ManualFormat(**common)  # ty: ignore[invalid-argument-type]
+
     def __str__(self) -> str:
         parts = []
         for name, value in self._active():
@@ -62,4 +77,3 @@ class ManualFormat:
 
 
 ManualFormat.NORMAL = ManualFormat()
-

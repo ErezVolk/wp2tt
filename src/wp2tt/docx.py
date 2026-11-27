@@ -83,7 +83,7 @@ class WordXml:
 
     @classmethod
     def _wval(
-        cls, nodes: list[etree._Element] | etree._Element, prop: str, tag: str = "val"
+        cls, nodes: list[etree._Element] | etree._Element, prop: str, tag: str = "val",
     ) -> str | None:
         if not isinstance(nodes, list):
             nodes = [nodes]
@@ -122,7 +122,9 @@ class DocxInput(contextlib.ExitStack, WordXml, IDocInput):
         self._properties = DocumentProperties(has_rtl=self._has_node("w:rtl"))
 
     @classmethod
-    def _sz_size(cls, nodes: list[etree._Element] | etree._Element, expr: str) -> int | None:
+    def sz_size(
+        cls, nodes: list[etree._Element] | etree._Element, expr: str,
+    ) -> int | None:
         sz_str = cls._wval(nodes, expr)
         try:
             return int(sz_str)  # ty: ignore[invalid-argument-type]
@@ -265,13 +267,15 @@ class DocxNode(WordXml):
 
     T_TAGS = ("w:tab", "w:t", "w:br[not(@*)]")
 
-    def _tnode_text(self, node: etree._Element) -> str | None:
-        if node.tag == self.wtag("tab"):
+    @classmethod
+    def _tnode_text(cls, node: etree._Element) -> str | None:
+        if node.tag == cls.wtag("tab"):
             return "\t"
-        if node.tag == self.wtag("br"):
+        if node.tag == cls.wtag("br"):
             return "\n"
         if node.text:
             return node.text
+        return None
 
     def auto_prefix(self) -> str:
         return self.doc._name_prefix or ""
@@ -358,7 +362,7 @@ class DocxParagraph(DocxNode, IDocParagraph):
             return ManualFormat.NORMAL
         return self.node_format(self.nodes)
 
-    KNOWN_INDENTS = {
+    KNOWN_INDENTS: t.ClassVar = {
         "firstLine": "FIRST_LINE_INDENT",
         "hanging": "HANGING_INDENT",
     }
@@ -366,7 +370,7 @@ class DocxParagraph(DocxNode, IDocParagraph):
     @classmethod
     def node_format(cls, nodes: list[etree._Element] | etree._Element) -> ManualFormat:
         """Return manual formatting on a paragraph/style."""
-        fmt = ManualFormat(direction="LTR")
+        fmt = ManualFormat()
         manual: dict[str, str | int] = {}
         match cls._wval(nodes, "w:pPr/w:jc"):
             case "center":
@@ -433,7 +437,7 @@ class DocxSpan(DocxNode, IDocSpan):
     @classmethod
     def node_format(cls, nodes: list[etree._Element] | etree._Element) -> ManualFormat:
         """Get manual formatting for a span/style."""
-        fmt = ManualFormat(direction="LTR")
+        fmt = ManualFormat()
         for expr, flag in cls.XPATH_TO_FMT.items():
             for _ in cls.xpath(nodes, expr):
                 fmt = fmt.add(flag)
@@ -449,7 +453,7 @@ class DocxSpan(DocxNode, IDocSpan):
                 fmt = fmt.replace(baseline="LOWERED")
             elif vval > 0:
                 fmt = fmt.replace(baseline="RAISED")
-        if sz := DocxInput._sz_size(nodes, "w:rPr/w:sz"):
+        if sz := DocxInput.sz_size(nodes, "w:rPr/w:sz"):
             fmt = fmt.replace(size=sz)
         for _ in cls.xpath(nodes, "w:rPr/w:rtl"):
             fmt = fmt.replace(direction="RTL")

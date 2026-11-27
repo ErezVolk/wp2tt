@@ -42,18 +42,21 @@ module = [
 ignore_missing_imports = true
 
 [tool.pyright]
-pythonVersion = "3.11"
+pythonVersion = "3.14"
 
 [tool.ruff]
 line-length = 88
 indent-width = 4
-target-version = "py311"
+target-version = "py314"
 
 [tool.ruff.lint]
 select = ["ALL"]
 ignore = [
    "ANN002",  # Missing type annotation for `*args`
    "ANN003",  # Missing type annotation for `**kwargs`
+   "CPY001",  # Missing copyright
+   "C901",  # Too many branches
+   "D102",
    "D105",
    "D107",
    "D203",
@@ -62,10 +65,13 @@ ignore = [
    "EM101",
    "EM102",
    "I001",
+   "PLR0911",  # Too many returns
+   "PLR0912",  # Too many branches
    "S101",
    "S311",
    "S324",
    "SIM102",
+   "SLF001",  # Private member access
    "T201",
    "TRY003" ,
 ]
