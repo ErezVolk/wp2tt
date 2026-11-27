@@ -116,6 +116,8 @@ class Rule:
             expr = "".join(self._wildcard_char(c) for c in expr)
             flags = re.IGNORECASE
         else:
+            if expr == r"(.*)":  # Bug in Python's re, as far as I can tell
+                expr = r"^(.*)$"
             flags = 0
         return re.compile(expr, flags)
 
