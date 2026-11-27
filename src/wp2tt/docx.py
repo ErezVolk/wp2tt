@@ -170,7 +170,7 @@ class DocxInput(contextlib.ExitStack, WordXml, IDocInput):
 
         for stag in self.xpath(self.styles, "//w:style[@w:type][w:name[@w:val]]"):
             fmt = DocxSpan.node_format(stag)
-            fmt = fmt.add(DocxParagraph.node_format(stag))
+            fmt = fmt.override(DocxParagraph.node_format(stag))
             fmt = fmt.replace(direction=None)
             yield {
                 "realm": stag.attrib.get(self.wtag("type")),
@@ -372,28 +372,32 @@ class DocxParagraph(DocxNode, IDocParagraph):
     @classmethod
     def node_format(cls, nodes: list[etree._Element] | etree._Element) -> ManualFormat:
         """Return manual formatting on a paragraph/style."""
-        fmt = ManualFormat()
-        manual: dict[str, str | int] = {}
-        match cls._wval(nodes, "w:pPr/w:jc"):
+        for ppr in cls.xpath(nodes, "w:pPr"):
+            fmt = DocxSpan.node_format(ppr)
+            break
+        else:
+            return ManualFormat.NORMAL
+
+        match cls._wval(ppr, "w:jc"):
             case "center":
-                manual["align"] = "CENTERED"
+                fmt = fmt.replace(align="CENTERED")
             case "both":
-                manual["align"] = "JUSTIFIED"
+                fmt = fmt.replace(align="JUSTIFIED")
             case "left":
-                manual["align"] = "LEFT"
+                fmt = fmt.replace(align="LEFT")
             case "right":
-                manual["align"] = "RIGHT"
+                fmt = fmt.replace(align="RIGHT")
         for tag, value in cls.KNOWN_INDENTS.items():
-            if val := cls._wval(nodes, "w:pPr/w:ind", tag):
+            if val := cls._wval(ppr, "w:ind", tag):
                 if int(val) > 0:
-                    manual["indent"] = value
-        if valstr := cls._wval(nodes, "w:pPr/w:numPr/w:numId"):
-            manual["numbering"] = int(valstr)
-        if valstr := cls._wval(nodes, "w:pPr/w:outlineLvl"):
-            manual["level"] = int(valstr) + 1
-        for _ in cls.xpath(nodes, "w:pPr/w:bidi"):
-            manual["direction"] = "RTL"
-        return fmt.replace(**manual)
+                    fmt = fmt.replace(indent=value)
+        if valstr := cls._wval(ppr, "w:numPr/w:numId"):
+            fmt = fmt.replace(numbering=int(valstr))
+        if valstr := cls._wval(ppr, "w:outlineLvl"):
+            fmt = fmt.replace(level=int(valstr) + 1)
+        for _ in cls.xpath(ppr, "w:bidi"):
+            fmt = fmt.replace(direction="RTL")
+        return fmt
 
     def is_page_break(self) -> bool:
         """Check if the paragraph is a page break."""
@@ -439,10 +443,10 @@ class DocxSpan(DocxNode, IDocSpan):
     @classmethod
     def node_format(cls, nodes: list[etree._Element] | etree._Element) -> ManualFormat:
         """Get manual formatting for a span/style."""
-        fmt = ManualFormat()
+        fmt = ManualFormat.NORMAL
         for expr, flag in cls.XPATH_TO_FMT.items():
             for _ in cls.xpath(nodes, expr):
-                fmt = fmt.add(flag)
+                fmt = fmt.override(flag)
         for vnode in cls.xpath(nodes, "w:rPr/w:vertAlign"):
             match vnode.attrib.get(cls.wtag("val")):
                 case "subscript":

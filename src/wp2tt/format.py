@@ -40,27 +40,29 @@ class ManualFormat:
             if value is not None:
                 yield (name, value)
 
-    def add(self, other: ManualFormat) -> ManualFormat:
+    def override(self, other: ManualFormat) -> ManualFormat:
         return self.replace(**dict(other._active()))
 
-    def sub(self, other: ManualFormat) -> ManualFormat:
+    def remove_same(self, other: ManualFormat) -> ManualFormat:
         return self.replace(**{
             name: None
-            for name, _ in other._active()
+            for name, value in other._active()
+            if getattr(self, name) == value
+        })
+
+    def intersect(self, other: ManualFormat) -> ManualFormat:
+        return self.replace(**{
+            name: value
+            for name, value in other._active()
+            if getattr(self, name) == value
         })
 
     @classmethod
-    def intersect(cls, fmts: list[ManualFormat]) -> ManualFormat:
-        if not fmts:
-            return ManualFormat()
-        common = dict(fmts[0]._active())
-        for fmt in fmts[1:]:
-            common = {
-                name: value
-                for name, value in common.items()
-                if getattr(fmt, name) == value
-            }
-        return ManualFormat(**common)  # ty: ignore[invalid-argument-type]
+    def intersection(cls, fmts: t.Iterable[ManualFormat]) -> ManualFormat:
+        common: ManualFormat | None = None
+        for fmt in fmts:
+            common = fmt if common is None else common.intersect(fmt)
+        return ManualFormat.NORMAL if common is None else common
 
     def __str__(self) -> str:
         parts = []

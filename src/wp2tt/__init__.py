@@ -222,7 +222,7 @@ class WordProcessorToInDesignTaggedText:
                     Rule(
                         mnemonic=f"R{len(self.rules) + 1}",
                         description=name,
-                        **{  # ty: ignore [invalid-argument-type]
+                        **{
                             name: section[ini_name]
                             for name, ini_name in self.settings.fields(Rule)
                             if ini_name in section
@@ -708,8 +708,10 @@ class WordProcessorToInDesignTaggedText:
         # Check for paragraph with a character style
         char_fmts = {span.format() for span in para.spans()}
         if char_fmts:
-            self.state.para_char_fmt = ManualFormat.intersect(list(char_fmts))
-            fmt = fmt.add(self.state.para_char_fmt)
+            char_fmt = ManualFormat.intersection(char_fmts)
+            if char_fmt != ManualFormat.NORMAL:
+                self.state.para_char_fmt = char_fmt
+                fmt = fmt.override(self.state.para_char_fmt)
 
         if self.args.direction == "IGNORE":
             fmt = fmt.replace(direction=None)
@@ -728,7 +730,7 @@ class WordProcessorToInDesignTaggedText:
         # ?         unadorned = None
 
         if fmt and unadorned is not None:
-            fmt = fmt.sub(unadorned.fmt)
+            fmt = fmt.remove_same(unadorned.fmt)
 
         if not fmt:  # No manual formatting
             # Only paragraphs get a named "ManualFormat.NORMAL" style
